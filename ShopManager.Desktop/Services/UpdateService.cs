@@ -6,59 +6,49 @@ using Velopack.Sources;
 namespace ShopManager.Desktop.Services;
 
 /// <summary>
-/// سرویس آپدیت خودکار
-/// از Velopack برای بررسی، دانلود و اعمال آپدیت استفاده می‌کنه
+/// سرویس آپدیت خودکار با Velopack
 /// </summary>
 public class UpdateService
 {
-    // ═══════════════════════════════════════════
-    // آدرس سرور آپدیت
-    // ═══════════════════════════════════════════
-    // گزینه ۱: سرور وب ساده (SimpleWebSource)
-    // گزینه ۲: GitHub Releases (GithubSource)
-    // ═══════════════════════════════════════════
+    /// <summary>استفاده از GitHub (true) یا وب سرور (false)</summary>
+    private const bool UseGithub = true;
 
-    /// <summary>
-    /// آدرس سرور آپدیت (وب سرور، S3، Azure Blob و...)
-    /// </summary>
-  private const string GithubRepoUrl = "https://github.com/loyalnurse313-a11y/ShopManager";
-
-    /// <summary>
-    /// یا آدرس GitHub Releases
-    /// </summary>
-    private const string GithubRepoUrl = "https://github.com/loyalnurse313-a11y/ShopManager";
-
-    // ─── انتخاب منبع: SimpleWebSource یا GithubSource ───
-    private static readonly bool UseGithub = false; // اگه true باشه از GitHub استفاده می‌کنه
+    /// <summary>آدرس ریپو GitHub</summary>
+    private const string RepoUrl = "https://github.com/loyalnurse313-a11y/ShopManager";
 
     private UpdateManager? _manager;
 
-    /// <summary>نتیجه آخرین بررسی</summary>
     public UpdateInfo? LastUpdateInfo { get; private set; }
-
-    /// <summary>آیا آپدیت آماده اعماله؟</summary>
     public bool IsUpdateReady { get; private set; }
-
-    /// <summary>درصد دانلود (0-100)</summary>
     public int DownloadProgress { get; private set; }
 
-    /// <summary>رویداد تغییر وضعیت</summary>
     public event Action? StateChanged;
+
+    public string CurrentVersion
+    {
+        get
+        {
+            try
+            {
+                var mgr = CreateUpdateManager();
+                return mgr.CurrentVersion.ToString();
+            }
+            catch
+            {
+                return "—";
+            }
+        }
+    }
 
     // ═══════════════════════════════════════════
     // بررسی آپدیت
     // ═══════════════════════════════════════════
 
-    /// <summary>
-    /// بررسی وجود آپدیت جدید (غیرمسدودکننده)
-    /// </summary>
     public async Task<UpdateInfo?> CheckForUpdatesAsync()
     {
         try
         {
             _manager = CreateUpdateManager();
-
-            // ═══ بررسی نسخه جدید ═══
             LastUpdateInfo = await _manager.CheckForUpdatesAsync();
 
             if (LastUpdateInfo == null)
@@ -68,7 +58,7 @@ public class UpdateService
                 return null;
             }
 
-            System.Diagnostics.Debug.WriteLine($">>> آپدیت جدید پیدا شد: {LastUpdateInfo.TargetFullRelease.Version}");
+            System.Diagnostics.Debug.WriteLine($">>> آپدیت جدید: {LastUpdateInfo.TargetFullRelease.Version}");
             StateChanged?.Invoke();
             return LastUpdateInfo;
         }
@@ -83,9 +73,6 @@ public class UpdateService
     // دانلود آپدیت
     // ═══════════════════════════════════════════
 
-    /// <summary>
-    /// دانلود آپدیت با گزارش پیشرفت
-    /// </summary>
     public async Task<bool> DownloadUpdatesAsync()
     {
         if (_manager == null || LastUpdateInfo == null)
@@ -117,10 +104,6 @@ public class UpdateService
     // اعمال آپدیت
     // ═══════════════════════════════════════════
 
-    /// <summary>
-    /// اعمال آپدیت و ری‌استارت برنامه
-    /// ⚠️ قبل از صدا زدن این، باید دیتابیس بکاپ گرفته بشه!
-    /// </summary>
     public void ApplyUpdatesAndRestart()
     {
         if (_manager == null || LastUpdateInfo == null)
@@ -128,7 +111,6 @@ public class UpdateService
 
         try
         {
-            // ─── بکاپ اضطراری قبل از آپدیت ───
             try
             {
                 BackupService.CreateForcedBackup();
@@ -152,36 +134,13 @@ public class UpdateService
     {
         if (UseGithub)
         {
-            // ─── منبع: GitHub Releases ───
-            var source = new GithubSource(
-                GithubRepoUrl,
-                accessToken: null,
-                prerelease: false);
-
+            var source = new GithubSource(RepoUrl, accessToken: null, prerelease: false);
             return new UpdateManager(source);
         }
         else
         {
-            // ─── منبع: وب سرور ساده ───
-            var source = new SimpleWebSource(UpdateUrl);
+            var source = new SimpleWebSource("https://your-server.com/updates");
             return new UpdateManager(source);
-        }
-    }
-
-    /// <summary>نسخه فعلی برنامه</summary>
-    public string CurrentVersion
-    {
-        get
-        {
-            try
-            {
-                var mgr = CreateUpdateManager();
-                return mgr.CurrentVersion.ToString();
-            }
-            catch
-            {
-                return "—";
-            }
         }
     }
 }

@@ -21,16 +21,13 @@ public partial class LoginWindow : Window
     {
         InitializeComponent();
 
-        // نمایش نسخه
-        VersionText.Text = "نسخه ۱.۰.۰";
+        VersionText.Text = "نسخه ۱.۰.۵";
 
-        // فوکوس روی فیلد نام کاربری
         Loaded += (s, e) =>
         {
             UsernameTextBox.Focus();
         };
 
-        // پیش‌فرض نام کاربری admin رو پر کن (برای راحتی)
         try
         {
             using var db = DatabaseService.CreateContext();
@@ -43,7 +40,6 @@ public partial class LoginWindow : Window
         catch { }
     }
 
-    /// <summary>ورود با Enter در فیلد رمز</summary>
     private void OnPasswordKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter)
@@ -52,7 +48,6 @@ public partial class LoginWindow : Window
         }
     }
 
-    /// <summary>کلیک روی دکمه ورود</summary>
     private void OnLoginClick(object? sender, RoutedEventArgs e)
     {
         if (_isLocked)
@@ -78,7 +73,6 @@ public partial class LoginWindow : Window
             return;
         }
 
-        // ─── تلاش برای ورود ───
         var (success, message) = AuthService.Login(username, password);
 
         if (success)
@@ -86,11 +80,9 @@ public partial class LoginWindow : Window
             _failedAttempts = 0;
             ShowMessage(message, isError: false);
 
-            // ─── باز کردن MainWindow ───
             var mainWindow = new MainWindow();
             mainWindow.Show();
 
-            // بستن LoginWindow
             Close();
         }
         else
@@ -98,11 +90,9 @@ public partial class LoginWindow : Window
             _failedAttempts++;
             ShowMessage(message, isError: true);
 
-            // پاک کردن رمز
             PasswordTextBox.Text = "";
             PasswordTextBox.Focus();
 
-            // اگه ۵ بار اشتباه شد، ۶۰ ثانیه قفل کن
             if (_failedAttempts >= 5)
             {
                 StartLock(60);
@@ -111,7 +101,6 @@ public partial class LoginWindow : Window
         }
     }
 
-    /// <summary>نمایش پیام موفق/خطا</summary>
     private void ShowMessage(string message, bool isError)
     {
         MessageBorder.IsVisible = true;
@@ -129,7 +118,6 @@ public partial class LoginWindow : Window
         }
     }
 
-    /// <summary>قفل کردن فرم بعد از تلاش‌های ناموفق</summary>
     private void StartLock(int seconds)
     {
         _isLocked = true;
@@ -162,7 +150,6 @@ public partial class LoginWindow : Window
         ShowMessage($"به دلیل تلاش‌های ناموفق، {PersianNumber.ToPersian(_lockSecondsRemaining)} ثانیه صبر کنید", isError: true);
     }
 
-    /// <summary>پایان قفل</summary>
     private void EndLock()
     {
         _isLocked = false;

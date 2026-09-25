@@ -13,7 +13,6 @@
         Background="#0F172A">
 
     <Window.Styles>
-        <!-- انیمیشن ورود کارت -->
         <Style Selector="Border.LoginCard">
             <Style.Animations>
                 <Animation Duration="0:0:0.7" Easing="CubicEaseOut" FillMode="Forward">
@@ -46,7 +45,6 @@
     </Window.Styles>
 
     <Grid>
-        <!-- پس‌زمینه گرادیانت مشکی/طوسی -->
         <Border>
             <Border.Background>
                 <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
@@ -57,7 +55,6 @@
             </Border.Background>
         </Border>
 
-        <!-- دایره‌های تزئینی -->
         <Ellipse Width="500" Height="500"
                  Fill="#10FFFFFF"
                  HorizontalAlignment="Left"
@@ -70,7 +67,6 @@
                  VerticalAlignment="Bottom"
                  Margin="0,0,-150,-150"/>
 
-        <!-- محتوای وسط -->
         <Grid ColumnDefinitions="*,Auto,*" RowDefinitions="*,Auto,*">
             <Border Grid.Column="1" Grid.Row="1"
                     Classes="LoginCard"
@@ -86,7 +82,6 @@
 
                 <StackPanel Spacing="24">
 
-                    <!-- لوگو -->
                     <Border Width="100" Height="100"
                             CornerRadius="50"
                             HorizontalAlignment="Center">
@@ -102,7 +97,6 @@
                                    VerticalAlignment="Center"/>
                     </Border>
 
-                    <!-- عنوان -->
                     <StackPanel Spacing="6">
                         <TextBlock Text="فروشگاه ظروف یکبار مصرف"
                                    FontSize="18" FontWeight="Bold"
@@ -114,13 +108,10 @@
                                    HorizontalAlignment="Center"/>
                     </StackPanel>
 
-                    <!-- خط تزئینی -->
                     <Border Height="2" Background="#E2E8F0" Margin="0,8,0,8"/>
 
-                    <!-- فرم ورود -->
                     <StackPanel Spacing="16">
 
-                        <!-- نام کاربری -->
                         <StackPanel Spacing="8">
                             <TextBlock Text="نام کاربری"
                                        FontSize="13" FontWeight="SemiBold"
@@ -135,7 +126,6 @@
                                      CornerRadius="8"/>
                         </StackPanel>
 
-                        <!-- رمز عبور -->
                         <StackPanel Spacing="8">
                             <TextBlock Text="رمز عبور"
                                        FontSize="13" FontWeight="SemiBold"
@@ -152,7 +142,6 @@
                                      KeyDown="OnPasswordKeyDown"/>
                         </StackPanel>
 
-                        <!-- پیام خطا / موفقیت -->
                         <Border x:Name="MessageBorder"
                                 Background="#FEF2F2"
                                 CornerRadius="8"
@@ -166,7 +155,6 @@
                                        TextWrapping="Wrap"/>
                         </Border>
 
-                        <!-- دکمه ورود -->
                         <Button x:Name="LoginButton"
                                 Content="ورود به سیستم"
                                 FontSize="15"
@@ -182,7 +170,6 @@
 
                     </StackPanel>
 
-                    <!-- متن پایین -->
                     <StackPanel Spacing="6" Margin="0,12,0,0">
                         <TextBlock Text="برای ورود، از حساب کاربری خود استفاده کنید"
                                    FontSize="11"
@@ -191,7 +178,7 @@
                                    TextAlignment="Center"
                                    TextWrapping="Wrap"/>
                         <TextBlock x:Name="VersionText"
-                                   Text="VersionText.Text = "نسخه ۱.۰.۱";"
+                                   Text=""
                                    FontSize="10"
                                    Foreground="#CBD5E1"
                                    HorizontalAlignment="Center"/>
@@ -200,9 +187,6 @@
                 </StackPanel>
             </Border>
         </Grid>
-
-       
-
     </Grid>
 
 </Window>
