@@ -21,7 +21,7 @@ public partial class LoginWindow : Window
     {
         InitializeComponent();
 
-        VersionText.Text = "نسخه ۱.۰.۵";
+        VersionText.Text = "نسخه ۱.۰.7";
 
         Loaded += (s, e) =>
         {
