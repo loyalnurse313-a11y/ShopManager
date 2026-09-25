@@ -1,0 +1,111 @@
+﻿<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ShopManager.Desktop.App"
+             RequestedThemeVariant="Light">
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <FontFamily x:Key="AppFontFamily">Vazirmatn, IRANSans, Segoe UI</FontFamily>
+            <x:Double x:Key="AppFontSize">14</x:Double>
+
+            <SolidColorBrush x:Key="AppBackground">#F1F5F9</SolidColorBrush>
+            <SolidColorBrush x:Key="AppCardBackground">#FFFFFF</SolidColorBrush>
+            <SolidColorBrush x:Key="AppHeaderBackground">#2C3E50</SolidColorBrush>
+            <SolidColorBrush x:Key="AppMenuBackground">#34495E</SolidColorBrush>
+            <SolidColorBrush x:Key="AppMenuText">#FFFFFF</SolidColorBrush>
+
+            <SolidColorBrush x:Key="AppTextPrimary">#0F172A</SolidColorBrush>
+            <SolidColorBrush x:Key="AppTextSecondary">#475569</SolidColorBrush>
+            <SolidColorBrush x:Key="AppBorder">#E2E8F0</SolidColorBrush>
+
+            <SolidColorBrush x:Key="AppAccent">#4F46E5</SolidColorBrush>
+            <SolidColorBrush x:Key="AppButtonText">#FFFFFF</SolidColorBrush>
+            <SolidColorBrush x:Key="AppSuccess">#10B981</SolidColorBrush>
+            <SolidColorBrush x:Key="AppDanger">#EF4444</SolidColorBrush>
+
+            <SolidColorBrush x:Key="AppTableHeader">#EEF2FF</SolidColorBrush>
+            <SolidColorBrush x:Key="AppTableHeaderText">#4F46E5</SolidColorBrush>
+            <SolidColorBrush x:Key="AppTableRow">#FFFFFF</SolidColorBrush>
+            <SolidColorBrush x:Key="AppTableAltRow">#F8FAFC</SolidColorBrush>
+            <SolidColorBrush x:Key="AppTableText">#0F172A</SolidColorBrush>
+            <SolidColorBrush x:Key="AppTableBorder">#F1F5F9</SolidColorBrush>
+        </ResourceDictionary>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+
+        <!-- ═══ دکمه‌های پایه ═══ -->
+        <Style Selector="Button">
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="18,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+
+        <!-- ═══ رفع محو شدن دکمه‌ها روی Hover ═══ -->
+        <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{TemplateBinding Background}"/>
+            <Setter Property="BorderBrush" Value="{TemplateBinding BorderBrush}"/>
+        </Style>
+
+        <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{TemplateBinding Background}"/>
+            <Setter Property="BorderBrush" Value="{TemplateBinding BorderBrush}"/>
+        </Style>
+
+        <!-- ═══ Hover: فقط کمی کمرنگ‌تر (نه محو) ═══ -->
+        <Style Selector="Button:pointerover">
+            <Setter Property="Opacity" Value="0.88"/>
+        </Style>
+
+        <Style Selector="Button:pressed">
+            <Setter Property="Opacity" Value="0.75"/>
+        </Style>
+
+        <!-- ═══ فیلدها ═══ -->
+        <Style Selector="TextBox">
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="MinHeight" Value="42"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style Selector="ComboBox">
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="MinHeight" Value="42"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        </Style>
+        <!-- ═══ RadioButton — رنگ متن داینامیک ═══ -->
+<Style Selector="RadioButton">
+    <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
+</Style>
+
+<Style Selector="RadioButton /template/ ContentPresenter">
+    <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
+</Style>
+
+<Style Selector="RadioButton:checked /template/ ContentPresenter">
+    <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
+</Style>
+
+<!-- ═══ CheckBox — رنگ متن داینامیک ═══ -->
+<Style Selector="CheckBox">
+    <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
+</Style>
+
+<!-- ═══ TextBox — پس‌زمینه و متن داینامیک ═══ -->
+<Style Selector="TextBox">
+    <Setter Property="Background" Value="{DynamicResource AppCardBackground}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AppBorder}"/>
+</Style>
+
+<!-- ═══ ComboBox — داینامیک ═══ -->
+<Style Selector="ComboBox">
+    <Setter Property="Background" Value="{DynamicResource AppCardBackground}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AppBorder}"/>
+</Style>
+    </Application.Styles>
+
+</Application>

@@ -1,0 +1,267 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:ShopManager.Desktop.ViewModels"
+        mc:Ignorable="d"
+        x:Class="ShopManager.Desktop.Views.SaleHistoryWindow"
+        Title="سابقه فروش"
+        Width="1400" Height="780"
+        MinWidth="1200" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        FlowDirection="RightToLeft"
+        FontFamily="Vazirmatn,IRANSans,Segoe UI"
+        Background="#F1F5F9">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+
+        <!-- هدر -->
+        <Border Grid.Row="0" Background="#2C3E50" Padding="24,18">
+            <TextBlock Text="سابقه فروش"
+                       FontSize="20" FontWeight="Bold"
+                       Foreground="White"
+                       HorizontalAlignment="Center"/>
+        </Border>
+
+        <!-- فیلتر بازه تاریخ -->
+        <Border Grid.Row="1" 
+                Background="White" 
+                Padding="20,16"
+                BorderBrush="#E2E8F0"
+                BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
+
+                <StackPanel>
+                    <TextBlock Text="از تاریخ" 
+                               FontSize="13" FontWeight="SemiBold" 
+                               Foreground="#334155" Margin="0,0,0,6"/>
+                    <TextBox x:Name="FromDateBox" 
+                             Width="140"
+                             Watermark="1405/01/01"
+                             FontSize="14" Padding="12,10"/>
+                </StackPanel>
+
+                <StackPanel>
+                    <TextBlock Text="تا تاریخ" 
+                               FontSize="13" FontWeight="SemiBold" 
+                               Foreground="#334155" Margin="0,0,0,6"/>
+                    <TextBox x:Name="ToDateBox" 
+                             Width="140"
+                             Watermark="1405/12/29"
+                             FontSize="14" Padding="12,10"/>
+                </StackPanel>
+
+                <Button Content="امروز"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="#EEF2FF" Foreground="#4F46E5"
+                        Padding="16,10"
+                        Margin="0,24,0,0"
+                        Click="OnTodayClick"/>
+
+                <Button Content="این هفته"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="#EEF2FF" Foreground="#4F46E5"
+                        Padding="16,10"
+                        Margin="0,24,0,0"
+                        Click="OnWeekClick"/>
+
+                <Button Content="این ماه"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="#EEF2FF" Foreground="#4F46E5"
+                        Padding="16,10"
+                        Margin="0,24,0,0"
+                        Click="OnMonthClick"/>
+
+                <Button Content="همه سوابق"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="#FEF3C7" Foreground="#D97706"
+                        Padding="16,10"
+                        Margin="0,24,0,0"
+                        Click="OnAllClick"/>
+
+                <Button Content="اعمال فیلتر"
+                        FontSize="14" FontWeight="Bold"
+                        Background="#4F46E5" Foreground="White"
+                        Padding="20,10"
+                        Margin="0,24,0,0"
+                        Click="OnApplyFilterClick"/>
+
+            </StackPanel>
+        </Border>
+
+        <!-- جستجو -->
+        <Border Grid.Row="2" 
+                Background="White" 
+                Padding="20,12"
+                BorderBrush="#E2E8F0"
+                BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*">
+                <TextBlock Grid.Column="0"
+                           Text="جستجو:"
+                           FontSize="14" FontWeight="SemiBold"
+                           Foreground="#334155"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0"/>
+                <TextBox Grid.Column="1"
+                         x:Name="SearchBox"
+                         Watermark="جستجو بر اساس کد یا نام کالا..."
+                         FontSize="14" Padding="12,10"
+                         TextChanged="OnSearchChanged"/>
+            </Grid>
+        </Border>
+
+        <!-- جدول -->
+        <Border Grid.Row="3" Background="White" Margin="20" CornerRadius="12">
+            <Grid RowDefinitions="Auto,*">
+
+                <!-- سرستون‌ها -->
+                <Border Grid.Row="0" Background="#EEF2FF" Padding="15,14"
+                        CornerRadius="12,12,0,0">
+                    <Grid ColumnDefinitions="100,70,*,60,70,110,120,110,110,80">
+                        <TextBlock Grid.Column="0" Text="تاریخ" FontWeight="Bold" FontSize="13"
+                                   Foreground="#4F46E5" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="کد" FontWeight="Bold" FontSize="13"
+                                   Foreground="#4F46E5" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="نام کالا" FontWeight="Bold" FontSize="13"
+                                   Foreground="#4F46E5"/>
+                        <TextBlock Grid.Column="3" Text="واحد" FontWeight="Bold" FontSize="13"
+                                   Foreground="#4F46E5" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="4" Text="تعداد" FontWeight="Bold" FontSize="13"
+                                   Foreground="#4F46E5" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="5" Text="قیمت فروش" FontWeight="Bold" FontSize="13"
+                                   Foreground="#4F46E5" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="6" Text="درآمد" FontWeight="Bold" FontSize="13"
+                                   Foreground="#4F46E5" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="7" Text="بهای تمام" FontWeight="Bold" FontSize="13"
+                                   Foreground="#4F46E5" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="8" Text="سود" FontWeight="Bold" FontSize="13"
+                                   Foreground="#4F46E5" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="9" Text="پرداخت" FontWeight="Bold" FontSize="13"
+                                   Foreground="#4F46E5" HorizontalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <!-- سطرها -->
+                <Grid Grid.Row="1">
+                    <ScrollViewer x:Name="HistoryScrollViewer">
+                        <ListBox x:Name="HistoryList" BorderThickness="0" Background="Transparent">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="vm:SaleHistoryRow">
+                                    <Border Padding="15,12" BorderBrush="#F1F5F9"
+                                            BorderThickness="0,0,0,1">
+                                        <Grid ColumnDefinitions="100,70,*,60,70,110,120,110,110,80">
+                                            <TextBlock Grid.Column="0" Text="{Binding DateShamsi}"
+                                                       Foreground="#0F172A" HorizontalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding ItemCode}"
+                                                       FontWeight="SemiBold" Foreground="#0F172A"
+                                                       HorizontalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding ItemName}"
+                                                       Foreground="#0F172A"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding Unit}"
+                                                       Foreground="#475569" HorizontalAlignment="Center"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding Qty}"
+                                                       FontWeight="SemiBold" Foreground="#4F46E5"
+                                                       HorizontalAlignment="Center"/>
+                                            <TextBlock Grid.Column="5" Text="{Binding SaleUnitPrice}"
+                                                       Foreground="#475569" HorizontalAlignment="Center"/>
+                                            <TextBlock Grid.Column="6" Text="{Binding Revenue}"
+                                                       FontWeight="Bold" Foreground="#059669"
+                                                       HorizontalAlignment="Center"/>
+                                            <TextBlock Grid.Column="7" Text="{Binding LockedCost}"
+                                                       Foreground="#94A3B8" HorizontalAlignment="Center"/>
+                                            <TextBlock Grid.Column="8" Text="{Binding Profit}"
+                                                       FontWeight="Bold" Foreground="#10B981"
+                                                       HorizontalAlignment="Center"/>
+                                            <TextBlock Grid.Column="9" Text="{Binding PaymentType}"
+                                                       FontSize="12" Foreground="#475569"
+                                                       HorizontalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </ScrollViewer>
+
+                    <StackPanel x:Name="EmptyPanel"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Spacing="15">
+                        <TextBlock Text="📭" FontSize="60" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="EmptyTitle"
+                                   Text="در این بازه فروشی ثبت نشده"
+                                   FontSize="18" FontWeight="Bold"
+                                   Foreground="#0F172A" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- پایین: خلاصه + دکمه‌ها -->
+        <Border Grid.Row="4" Background="White" Padding="20,16"
+                BorderBrush="#E2E8F0" BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="25">
+                    <StackPanel>
+                        <TextBlock Text="تعداد اقلام" FontSize="12" Foreground="#94A3B8"/>
+                        <TextBlock x:Name="TotalCountText" Text="۰"
+                                   FontSize="16" FontWeight="Bold"
+                                   Foreground="#0F172A"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="جمع درآمد" FontSize="12" Foreground="#94A3B8"/>
+                        <TextBlock x:Name="TotalRevenueText" Text="۰ تومان"
+                                   FontSize="16" FontWeight="Bold"
+                                   Foreground="#059669"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="جمع سود" FontSize="12" Foreground="#94A3B8"/>
+                        <TextBlock x:Name="TotalProfitText" Text="۰ تومان"
+                                   FontSize="16" FontWeight="Bold"
+                                   Foreground="#10B981"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="نقدی" FontSize="12" Foreground="#94A3B8"/>
+                        <TextBlock x:Name="CashTotalText" Text="۰ تومان"
+                                   FontSize="16" FontWeight="Bold"
+                                   Foreground="#10B981"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="نسیه" FontSize="12" Foreground="#94A3B8"/>
+                        <TextBlock x:Name="CreditTotalText" Text="۰ تومان"
+                                   FontSize="16" FontWeight="Bold"
+                                   Foreground="#F59E0B"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        Content="خروجی اکسل"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="#10B981" Foreground="White"
+                        Padding="18,10"
+                        Margin="0,0,10,0"
+                        Click="OnExportExcelClick"/>
+
+                <Button Grid.Column="2"
+                        Content="چاپ"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="#F1F5F9" Foreground="#475569"
+                        BorderBrush="#CBD5E1" BorderThickness="1"
+                        Padding="18,10"
+                        Margin="0,0,10,0"
+                        Click="OnPrintClick"/>
+
+                <Button Grid.Column="3"
+                        Content="بستن"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="#F1F5F9" Foreground="#475569"
+                        BorderBrush="#CBD5E1" BorderThickness="1"
+                        Padding="22,10"
+                        Click="OnCloseClick"/>
+
+            </Grid>
+        </Border>
+
+    </Grid>
+
+</Window>

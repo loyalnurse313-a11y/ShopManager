@@ -1,0 +1,240 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="ShopManager.Desktop.Views.SaleInvoiceWindow"
+        Title="فاکتور فروش"
+        Width="560" Height="780"
+        MinWidth="500" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        FlowDirection="RightToLeft"
+        FontFamily="Vazirmatn,IRANSans,Segoe UI"
+        Background="#F1F5F9">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- هدر پنجره -->
+        <Border Grid.Row="0" Background="#2C3E50" Padding="24,18">
+            <TextBlock Text="فاکتور رسمی فروش"
+                       FontSize="20" FontWeight="Bold"
+                       Foreground="White"
+                       HorizontalAlignment="Center"/>
+        </Border>
+
+        <ScrollViewer Grid.Row="1">
+            <Border Background="White" 
+                    Margin="15" 
+                    Padding="24"
+                    CornerRadius="12">
+                <StackPanel Spacing="16">
+
+                    <!-- 🆕 سربرگ فروشگاه با لوگو -->
+                    <StackPanel HorizontalAlignment="Center" Spacing="8">
+
+                        <!-- لوگو (اگه تنظیم شده باشه نشون داده می‌شه) -->
+                        <Border x:Name="LogoBorder"
+                                Width="100" Height="100"
+                                HorizontalAlignment="Center"
+                                IsVisible="False"
+                                CornerRadius="8">
+                            <Image x:Name="StoreLogoImage"
+                                   Stretch="Uniform"
+                                   RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                        </Border>
+
+                        <TextBlock x:Name="StoreNameText"
+                                   Text="فروشگاه"
+                                   FontSize="18" FontWeight="Bold"
+                                   Foreground="#2C3E50"
+                                   HorizontalAlignment="Center"
+                                   TextAlignment="Center"/>
+
+                        <TextBlock x:Name="StorePhoneText"
+                                   Text=""
+                                   FontSize="12"
+                                   Foreground="#64748B"
+                                   HorizontalAlignment="Center"
+                                   IsVisible="False"/>
+
+                        <TextBlock x:Name="StoreAddressText"
+                                   Text=""
+                                   FontSize="11"
+                                   Foreground="#94A3B8"
+                                   HorizontalAlignment="Center"
+                                   IsVisible="False"
+                                   TextWrapping="Wrap"
+                                   MaxWidth="400"/>
+
+                        <Border Height="2" Background="#4F46E5" Margin="0,8,0,0" Width="200"/>
+                    </StackPanel>
+
+                    <!-- اطلاعات فاکتور -->
+                    <Grid ColumnDefinitions="*,*">
+                        <StackPanel Grid.Column="0" Spacing="6">
+                            <Grid ColumnDefinitions="Auto,*">
+                                <TextBlock Grid.Column="0" Text="شماره فاکتور:"
+                                           FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#334155"
+                                           Width="90"/>
+                                <TextBlock Grid.Column="1" x:Name="InvoiceNumberText"
+                                           Text="—"
+                                           FontSize="13" FontWeight="Bold"
+                                           Foreground="#4F46E5"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="Auto,*">
+                                <TextBlock Grid.Column="0" Text="تاریخ:"
+                                           FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#334155"
+                                           Width="90"/>
+                                <TextBlock Grid.Column="1" x:Name="DateText"
+                                           Text="—"
+                                           FontSize="13"
+                                           Foreground="#0F172A"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Spacing="6">
+                            <Grid ColumnDefinitions="Auto,*">
+                                <TextBlock Grid.Column="0" Text="نام مشتری:"
+                                           FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#334155"
+                                           Width="70"/>
+                                <TextBlock Grid.Column="1" x:Name="CustomerNameText"
+                                           Text="—"
+                                           FontSize="13"
+                                           Foreground="#0F172A"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="Auto,*">
+                                <TextBlock Grid.Column="0" Text="تلفن:"
+                                           FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#334155"
+                                           Width="70"/>
+                                <TextBlock Grid.Column="1" x:Name="CustomerPhoneText"
+                                           Text="—"
+                                           FontSize="13"
+                                           Foreground="#0F172A"/>
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- جدول اقلام -->
+                    <Border BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8">
+                        <Grid RowDefinitions="Auto,*">
+
+                            <Border Grid.Row="0" Background="#EEF2FF" Padding="10,10">
+                                <Grid ColumnDefinitions="28,*,45,55,80,90">
+                                    <TextBlock Grid.Column="0" Text="#" 
+                                               FontWeight="Bold" FontSize="12"
+                                               Foreground="#4F46E5"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="نام کالا" 
+                                               FontWeight="Bold" FontSize="12"
+                                               Foreground="#4F46E5"/>
+                                    <TextBlock Grid.Column="2" Text="واحد" 
+                                               FontWeight="Bold" FontSize="12"
+                                               Foreground="#4F46E5"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="3" Text="تعداد" 
+                                               FontWeight="Bold" FontSize="12"
+                                               Foreground="#4F46E5"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="4" Text="قیمت واحد" 
+                                               FontWeight="Bold" FontSize="12"
+                                               Foreground="#4F46E5"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="5" Text="جمع" 
+                                               FontWeight="Bold" FontSize="12"
+                                               Foreground="#4F46E5"
+                                               HorizontalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+
+                            <StackPanel Grid.Row="1" x:Name="ItemsPanel" Spacing="0"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- جمع کل -->
+                    <Border Background="#ECFDF5" 
+                            CornerRadius="8" 
+                            Padding="14,12">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0"
+                                       Text="جمع کل:"
+                                       FontSize="13" FontWeight="SemiBold"
+                                       Foreground="#059669"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1"
+                                       x:Name="TotalAmountText"
+                                       Text="۰ تومان"
+                                       FontSize="16" FontWeight="Bold"
+                                       Foreground="#059669"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- وضعیت پرداخت -->
+                    <Grid ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0"
+                                   Text="وضعیت پرداخت:"
+                                   FontSize="12" FontWeight="SemiBold"
+                                   Foreground="#475569"
+                                   Width="110"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1"
+                                   x:Name="PaymentStatusText"
+                                   Text="—"
+                                   FontSize="13" FontWeight="Bold"
+                                   Foreground="#4F46E5"/>
+                    </Grid>
+
+                    <!-- متن پایین فاکتور -->
+                    <Border BorderBrush="#E2E8F0" 
+                            BorderThickness="0,1,0,0"
+                            Margin="0,8,0,0"
+                            Padding="0,12,0,0">
+                        <TextBlock x:Name="FooterMessageText"
+                                   Text="از خرید شما سپاسگزاریم"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   Foreground="#4F46E5"
+                                   HorizontalAlignment="Center"/>
+                    </Border>
+
+                </StackPanel>
+            </Border>
+        </ScrollViewer>
+
+        <!-- فوتر -->
+        <Border Grid.Row="2" 
+                Background="White" 
+                Padding="20,14"
+                BorderBrush="#E2E8F0"
+                BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Grid.Column="0"
+                           x:Name="StatusText"
+                           Text=""
+                           VerticalAlignment="Center"
+                           FontSize="12"
+                           Foreground="#475569"/>
+
+                <Button Grid.Column="1"
+                        Content="چاپ فاکتور"
+                        FontSize="14" FontWeight="Bold"
+                        Background="#4F46E5" Foreground="White"
+                        Padding="24,10"
+                        Margin="0,0,10,0"
+                        Click="OnPrintClick"/>
+
+                <Button Grid.Column="2"
+                        Content="بستن"
+                        FontSize="14"
+                        Background="#F1F5F9" Foreground="#475569"
+                        BorderBrush="#CBD5E1" BorderThickness="1"
+                        Padding="24,10"
+                        Click="OnCloseClick"/>
+            </Grid>
+        </Border>
+
+    </Grid>
+
+</Window>

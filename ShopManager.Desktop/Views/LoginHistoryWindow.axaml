@@ -1,0 +1,313 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:ShopManager.Desktop.ViewModels"
+        mc:Ignorable="d"
+        x:Class="ShopManager.Desktop.Views.LoginHistoryWindow"
+        Title="سابقه ورود کاربران"
+        Width="1300" Height="750"
+        MinWidth="1100" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        FlowDirection="RightToLeft"
+        FontFamily="{DynamicResource AppFontFamily}"
+        Background="{DynamicResource AppBackground}">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+
+        <!-- هدر -->
+        <Border Grid.Row="0" 
+                Background="{DynamicResource AppHeaderBackground}" 
+                Padding="24,18">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="سابقه ورود و خروج کاربران"
+                           FontSize="20" FontWeight="Bold"
+                           Foreground="White"
+                           VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1"
+                           x:Name="TotalCountText"
+                           Text=""
+                           FontSize="14"
+                           Foreground="#94A3B8"
+                           VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- فیلتر بازه تاریخ -->
+        <Border Grid.Row="1" 
+                Background="{DynamicResource AppCardBackground}" 
+                Padding="20,16"
+                BorderBrush="{DynamicResource AppBorder}"
+                BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
+
+                <StackPanel>
+                    <TextBlock Text="از تاریخ" 
+                               FontSize="13" FontWeight="SemiBold" 
+                               Foreground="{DynamicResource AppTextPrimary}" 
+                               Margin="0,0,0,6"/>
+                    <TextBox x:Name="FromDateBox" 
+                             Width="140"
+                             Watermark="1405/01/01"
+                             FontSize="14" Padding="12,10"/>
+                </StackPanel>
+
+                <StackPanel>
+                    <TextBlock Text="تا تاریخ" 
+                               FontSize="13" FontWeight="SemiBold" 
+                               Foreground="{DynamicResource AppTextPrimary}" 
+                               Margin="0,0,0,6"/>
+                    <TextBox x:Name="ToDateBox" 
+                             Width="140"
+                             Watermark="1405/12/29"
+                             FontSize="14" Padding="12,10"/>
+                </StackPanel>
+
+                <Button Content="امروز"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="#EEF2FF" Foreground="#4F46E5"
+                        Padding="16,10" Margin="0,24,0,0"
+                        CornerRadius="8"
+                        Click="OnTodayClick"/>
+
+                <Button Content="این هفته"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="#EEF2FF" Foreground="#4F46E5"
+                        Padding="16,10" Margin="0,24,0,0"
+                        CornerRadius="8"
+                        Click="OnWeekClick"/>
+
+                <Button Content="این ماه"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="#EEF2FF" Foreground="#4F46E5"
+                        Padding="16,10" Margin="0,24,0,0"
+                        CornerRadius="8"
+                        Click="OnMonthClick"/>
+
+                <Button Content="همه سوابق"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="#FEF3C7" Foreground="#D97706"
+                        Padding="16,10" Margin="0,24,0,0"
+                        CornerRadius="8"
+                        Click="OnAllClick"/>
+
+                <Button Content="اعمال فیلتر"
+                        FontSize="14" FontWeight="Bold"
+                        Background="{DynamicResource AppAccent}" Foreground="White"
+                        Padding="20,10" Margin="0,24,0,0"
+                        CornerRadius="8"
+                        Click="OnApplyFilterClick"/>
+            </StackPanel>
+        </Border>
+
+        <!-- جستجو -->
+        <Border Grid.Row="2" 
+                Background="{DynamicResource AppCardBackground}" 
+                Padding="20,12"
+                BorderBrush="{DynamicResource AppBorder}"
+                BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*">
+                <TextBlock Grid.Column="0"
+                           Text="جستجو:"
+                           FontSize="14" FontWeight="SemiBold"
+                           Foreground="{DynamicResource AppTextPrimary}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0"/>
+                <TextBox Grid.Column="1"
+                         x:Name="SearchBox"
+                         Watermark="نام کاربری یا نام کامل..."
+                         FontSize="14" Padding="12,10"
+                         TextChanged="OnSearchChanged"/>
+            </Grid>
+        </Border>
+
+        <!-- جدول -->
+        <Border Grid.Row="3" 
+                Background="{DynamicResource AppCardBackground}" 
+                Margin="20" 
+                CornerRadius="12"
+                BorderBrush="{DynamicResource AppBorder}"
+                BorderThickness="1">
+            <Grid RowDefinitions="Auto,*">
+
+                <Border Grid.Row="0" 
+                        Background="{DynamicResource AppTableHeader}" 
+                        Padding="15,14"
+                        CornerRadius="12,12,0,0">
+                    <Grid ColumnDefinitions="50,150,180,170,170,140,100,*">
+                        <TextBlock Grid.Column="0" Text="#" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="نام کاربری" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="نام کامل" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"/>
+                        <TextBlock Grid.Column="3" Text="زمان ورود" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="4" Text="زمان خروج" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="5" Text="مدت حضور" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="6" Text="وضعیت" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="7" Text="توضیحات" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"/>
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Row="1">
+                    <ScrollViewer x:Name="HistoryScrollViewer">
+                        <ListBox x:Name="HistoryList" BorderThickness="0" Background="Transparent">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="vm:LoginHistoryRow">
+                                    <Border Padding="15,12" 
+                                            BorderBrush="{DynamicResource AppTableBorder}"
+                                            BorderThickness="0,0,0,1">
+                                        <Grid ColumnDefinitions="50,150,180,170,170,140,100,*">
+                                            <TextBlock Grid.Column="0" Text="{Binding RowNumber}"
+                                                       Foreground="{DynamicResource AppTextSecondary}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Username}"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource AppAccent}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding FullName}"
+                                                       Foreground="{DynamicResource AppTextPrimary}"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding LoginAt}"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource AppTextPrimary}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding LogoutAt}"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource AppTextPrimary}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="5" Text="{Binding Duration}"
+                                                       FontWeight="Bold"
+                                                       Foreground="{DynamicResource AppAccent}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="6" Text="{Binding Status}"
+                                                       FontWeight="Bold"
+                                                       Foreground="{DynamicResource AppTextPrimary}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="7" Text="{Binding Note}"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource AppTextSecondary}"
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </ScrollViewer>
+
+                    <StackPanel x:Name="EmptyPanel"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Spacing="15" IsVisible="False">
+                        <TextBlock Text="📜" FontSize="60" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="EmptyTitle"
+                                   Text="سابقه‌ای در این بازه وجود ندارد"
+                                   FontSize="18" FontWeight="Bold"
+                                   Foreground="{DynamicResource AppTextPrimary}"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- پایین -->
+        <Border Grid.Row="4" 
+                Background="{DynamicResource AppCardBackground}" 
+                Padding="20,16"
+                BorderBrush="{DynamicResource AppBorder}"
+                BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="25">
+                    <StackPanel>
+                        <TextBlock Text="تعداد کل" FontSize="12" 
+                                   Foreground="{DynamicResource AppTextSecondary}"/>
+                        <TextBlock x:Name="TotalCountBottomText" Text="۰"
+                                   FontSize="15" FontWeight="Bold"
+                                   Foreground="{DynamicResource AppTextPrimary}"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="ورود موفق" FontSize="12" 
+                                   Foreground="{DynamicResource AppTextSecondary}"/>
+                        <TextBlock x:Name="SuccessCountText" Text="۰"
+                                   FontSize="15" FontWeight="Bold"
+                                   Foreground="#10B981"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="ورود ناموفق" FontSize="12" 
+                                   Foreground="{DynamicResource AppTextSecondary}"/>
+                        <TextBlock x:Name="FailedCountText" Text="۰"
+                                   FontSize="15" FontWeight="Bold"
+                                   Foreground="#EF4444"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="جمع مدت حضور" FontSize="12" 
+                                   Foreground="{DynamicResource AppTextSecondary}"/>
+                        <TextBlock x:Name="TotalDurationText" Text="۰ دقیقه"
+                                   FontSize="15" FontWeight="Bold"
+                                   Foreground="{DynamicResource AppAccent}"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        Content="خروجی اکسل"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="{DynamicResource AppSuccess}" Foreground="White"
+                        Padding="18,10" Margin="0,0,10,0"
+                        CornerRadius="8"
+                        Click="OnExportExcelClick"/>
+
+                <Button Grid.Column="2"
+                        Content="چاپ گزارش"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="#8B5CF6" Foreground="White"
+                        Padding="18,10" Margin="0,0,10,0"
+                        CornerRadius="8"
+                        Click="OnPrintClick"/>
+
+                <Button Grid.Column="3"
+                        Content="بروزرسانی"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="{DynamicResource AppBackground}" 
+                        Foreground="{DynamicResource AppTextPrimary}"
+                        BorderBrush="{DynamicResource AppBorder}"
+                        BorderThickness="1"
+                        Padding="18,10" Margin="0,0,10,0"
+                        CornerRadius="8"
+                        Click="OnRefreshClick"/>
+
+                <Button Grid.Column="4"
+                        Content="بستن"
+                        FontSize="14"
+                        Background="{DynamicResource AppBackground}"
+                        Foreground="{DynamicResource AppTextPrimary}"
+                        BorderBrush="{DynamicResource AppBorder}"
+                        BorderThickness="1"
+                        Padding="22,10"
+                        CornerRadius="8"
+                        Click="OnCloseClick"/>
+            </Grid>
+        </Border>
+
+    </Grid>
+
+</Window>

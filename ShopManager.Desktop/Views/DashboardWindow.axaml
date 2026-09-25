@@ -1,0 +1,552 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="ShopManager.Desktop.Views.DashboardWindow"
+        Title="داشبورد و آمار"
+        Width="1300" Height="850"
+        MinWidth="1100" MinHeight="650"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        FlowDirection="RightToLeft"
+        FontFamily="Vazirmatn,IRANSans,Segoe UI"
+        Background="#F1F5F9">
+
+    <Window.Styles>
+        <Style Selector="Button.tabActive">
+            <Setter Property="Background" Value="#EEF2FF"/>
+            <Setter Property="Foreground" Value="#4F46E5"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Padding" Value="22,14"/>
+            <Setter Property="BorderThickness" Value="0,0,0,3"/>
+            <Setter Property="BorderBrush" Value="#4F46E5"/>
+        </Style>
+        <Style Selector="Button.tabInactive">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#94A3B8"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Padding" Value="22,14"/>
+            <Setter Property="BorderThickness" Value="0,0,0,3"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+        <!-- هدر -->
+        <Border Grid.Row="0" Background="#2C3E50" Padding="24,18">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="داشبورد و آمار"
+                           FontSize="20" FontWeight="Bold"
+                           Foreground="White"
+                           VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1"
+                           x:Name="TodayDateText"
+                           Text=""
+                           FontSize="14"
+                           Foreground="#94A3B8"
+                           VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- تب‌ها -->
+        <Border Grid.Row="1" Background="White"
+                BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" Margin="20,0" Spacing="4">
+                <Button x:Name="TabOverviewBtn"
+                        Content="📊 نمای کلی"
+                        Classes="tabActive"
+                        Click="OnTabOverviewClick"/>
+                <Button x:Name="TabReportsBtn"
+                        Content="📈 آمار تفصیلی"
+                        Classes="tabInactive"
+                        Click="OnTabReportsClick"/>
+            </StackPanel>
+        </Border>
+
+        <Panel Grid.Row="2">
+
+            <!-- ═══ تب ۱: نمای کلی ═══ -->
+            <ScrollViewer x:Name="OverviewPanel" IsVisible="True">
+                <StackPanel Margin="20" Spacing="16">
+
+                    <!-- ۴ KPI اصلی -->
+                    <Grid ColumnDefinitions="*,16,*,16,*,16,*">
+                        <Border Grid.Column="0" Background="White" CornerRadius="12" Padding="20,18">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="📦 موجودی انبار" FontSize="13" Foreground="#94A3B8"/>
+                                <TextBlock x:Name="KpiWarehouseValueText" Text="۰ تومان"
+                                           FontSize="20" FontWeight="Bold" Foreground="#4F46E5"/>
+                                <TextBlock x:Name="KpiWarehouseCountText" Text="۰ قلم"
+                                           FontSize="12" Foreground="#94A3B8"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Background="White" CornerRadius="12" Padding="20,18">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="🏪 موجودی مغازه" FontSize="13" Foreground="#94A3B8"/>
+                                <TextBlock x:Name="KpiShopValueText" Text="۰ تومان"
+                                           FontSize="20" FontWeight="Bold" Foreground="#10B981"/>
+                                <TextBlock x:Name="KpiShopCountText" Text="۰ قلم"
+                                           FontSize="12" Foreground="#94A3B8"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="4" Background="White" CornerRadius="12" Padding="20,18">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="💰 موجودی صندوق (نقد فیزیکی)" FontSize="13" Foreground="#94A3B8"/>
+                                <TextBlock x:Name="KpiCashboxText" Text="۰ تومان"
+                                           FontSize="20" FontWeight="Bold" Foreground="#F59E0B"/>
+                                <TextBlock x:Name="KpiCashboxSubText" Text=""
+                                           FontSize="12" Foreground="#94A3B8"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="6" Background="White" CornerRadius="12" Padding="20,18">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="📈 سود امروز" FontSize="13" Foreground="#94A3B8"/>
+                                <TextBlock x:Name="KpiTodayProfitText" Text="۰ تومان"
+                                           FontSize="20" FontWeight="Bold" Foreground="#10B981"/>
+                                <TextBlock x:Name="KpiTodaySalesText" Text="۰ فروش"
+                                           FontSize="12" Foreground="#94A3B8"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- تفکیک فروش امروز -->
+                    <Border Background="White" CornerRadius="12" Padding="4">
+                        <StackPanel>
+                            <Border Background="#F0F9FF" Padding="20,12" CornerRadius="12,12,0,0">
+                                <TextBlock Text="💵 فروش امروز — تفکیک نقد / کارت / نسیه"
+                                           FontSize="15" FontWeight="Bold" Foreground="#0284C7"/>
+                            </Border>
+
+                            <Grid ColumnDefinitions="*,16,*,16,*,16,*" Margin="16">
+                                <Border Grid.Column="0" Background="#ECFDF5" CornerRadius="10" Padding="18,14">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="💵 فروش نقدی" FontSize="13" Foreground="#059669"/>
+                                        <TextBlock x:Name="KpiTodayCashText" Text="۰ تومان"
+                                                   FontSize="20" FontWeight="Bold" Foreground="#059669"/>
+                                        <TextBlock x:Name="KpiTodayCashCountText" Text="۰ فروش"
+                                                   FontSize="12" Foreground="#94A3B8"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Column="2" Background="#EEF2FF" CornerRadius="10" Padding="18,14">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="💳 فروش کارتی (POS بانکی)" FontSize="13" Foreground="#4F46E5"/>
+                                        <TextBlock x:Name="KpiTodayCardText" Text="۰ تومان"
+                                                   FontSize="20" FontWeight="Bold" Foreground="#4F46E5"/>
+                                        <TextBlock x:Name="KpiTodayCardCountText" Text="۰ فروش"
+                                                   FontSize="12" Foreground="#94A3B8"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Column="4" Background="#FEF3C7" CornerRadius="10" Padding="18,14">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="📝 فروش نسیه" FontSize="13" Foreground="#D97706"/>
+                                        <TextBlock x:Name="KpiTodayCreditText" Text="۰ تومان"
+                                                   FontSize="20" FontWeight="Bold" Foreground="#D97706"/>
+                                        <TextBlock x:Name="KpiTodayCreditCountText" Text="۰ فروش"
+                                                   FontSize="12" Foreground="#94A3B8"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Column="6" Background="#F1F5F9" CornerRadius="10" Padding="18,14">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="🧾 تعداد فاکتور امروز" FontSize="13" Foreground="#475569"/>
+                                        <TextBlock x:Name="KpiTodayInvoiceCountText" Text="۰"
+                                                   FontSize="20" FontWeight="Bold" Foreground="#475569"/>
+                                        <TextBlock Text="فاکتور صادر شده"
+                                                   FontSize="12" Foreground="#94A3B8"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 🆕 تفکیک فروش کارتی امروز بر اساس پایانه -->
+                    <Border Background="White" CornerRadius="12" Padding="4">
+                        <StackPanel>
+                            <Border Background="#EEF2FF" Padding="20,12" CornerRadius="12,12,0,0">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0"
+                                               Text="💳 فروش کارتی امروز — تفکیک پایانه‌ها"
+                                               FontSize="15" FontWeight="Bold" Foreground="#4F46E5"/>
+                                    <TextBlock Grid.Column="1"
+                                               x:Name="TodayTerminalTotalText"
+                                               Text=""
+                                               FontSize="13"
+                                               Foreground="#4F46E5"/>
+                                </Grid>
+                            </Border>
+
+                            <WrapPanel x:Name="TodayTerminalPanel"
+                                       Orientation="Horizontal"
+                                       Margin="16">
+                                <!-- داینامیک پر می‌شه -->
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- نمودار ۷ روز -->
+                    <Border Background="White" CornerRadius="12">
+                        <Grid RowDefinitions="Auto,Auto">
+                            <Border Grid.Row="0" Background="#EEF2FF" Padding="20,14" CornerRadius="12,12,0,0">
+                                <TextBlock Text="📊 فروش ۷ روز اخیر"
+                                           FontSize="15" FontWeight="Bold" Foreground="#4F46E5"/>
+                            </Border>
+                            <Grid Grid.Row="1" Margin="20" ColumnDefinitions="*,Auto">
+                                <Border Grid.Column="0" Background="#F8FAFC" CornerRadius="8"
+                                        Padding="20" MinHeight="200">
+                                    <Grid x:Name="ChartGrid"
+                                          ColumnDefinitions="*,*,*,*,*,*,*"
+                                          VerticalAlignment="Bottom">
+                                    </Grid>
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="20,0,0,0"
+                                            VerticalAlignment="Center" Spacing="12" Width="180">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="جمع ۷ روز" FontSize="12" Foreground="#94A3B8"/>
+                                        <TextBlock x:Name="WeekRevenueText" Text="۰ تومان"
+                                                   FontSize="16" FontWeight="Bold" Foreground="#4F46E5"/>
+                                    </StackPanel>
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="جمع سود ۷ روز" FontSize="12" Foreground="#94A3B8"/>
+                                        <TextBlock x:Name="WeekProfitText" Text="۰ تومان"
+                                                   FontSize="16" FontWeight="Bold" Foreground="#10B981"/>
+                                    </StackPanel>
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="بهترین روز" FontSize="12" Foreground="#94A3B8"/>
+                                        <TextBlock x:Name="BestDayText" Text="—"
+                                                   FontSize="14" FontWeight="Bold" Foreground="#F59E0B"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                    <!-- بحرانی + پرفروش امروز -->
+                    <Grid ColumnDefinitions="*,16,*">
+                        <Border Grid.Column="0" Background="White" CornerRadius="12">
+                            <Grid RowDefinitions="Auto,Auto">
+                                <Border Grid.Row="0" Background="#FEF2F2" Padding="20,14" CornerRadius="12,12,0,0">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Text="⚠️ کالاهای بحرانی"
+                                                   FontSize="15" FontWeight="Bold" Foreground="#DC2626"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" x:Name="CriticalCountText"
+                                                   Text="۰" FontSize="13" FontWeight="Bold"
+                                                   Foreground="#DC2626"/>
+                                    </Grid>
+                                </Border>
+                                <Border Grid.Row="1" Margin="20" Background="#F8FAFC"
+                                        CornerRadius="8" MinHeight="200" MaxHeight="280">
+                                    <ScrollViewer>
+                                        <StackPanel x:Name="CriticalItemsPanel" Spacing="0">
+                                            <TextBlock Text="کالای بحرانی وجود ندارد"
+                                                       Foreground="#94A3B8" FontSize="13"
+                                                       HorizontalAlignment="Center"
+                                                       Margin="0,40,0,40"/>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Column="2" Background="White" CornerRadius="12">
+                            <Grid RowDefinitions="Auto,Auto">
+                                <Border Grid.Row="0" Background="#ECFDF5" Padding="20,14" CornerRadius="12,12,0,0">
+                                    <TextBlock Text="🏆 پرفروش‌ترین امروز"
+                                               FontSize="15" FontWeight="Bold" Foreground="#059669"/>
+                                </Border>
+                                <Border Grid.Row="1" Margin="20" Background="#F8FAFC"
+                                        CornerRadius="8" MinHeight="200" MaxHeight="280">
+                                    <ScrollViewer>
+                                        <StackPanel x:Name="TopTodayPanel" Spacing="0">
+                                            <TextBlock Text="امروز فروشی ثبت نشده"
+                                                       Foreground="#94A3B8" FontSize="13"
+                                                       HorizontalAlignment="Center"
+                                                       Margin="0,40,0,40"/>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <!-- آخرین فروش‌ها -->
+                    <Border Background="White" CornerRadius="12">
+                        <Grid RowDefinitions="Auto,Auto">
+                            <Border Grid.Row="0" Background="#FEF3C7" Padding="20,14" CornerRadius="12,12,0,0">
+                                <TextBlock Text="🕒 آخرین فروش‌ها"
+                                           FontSize="15" FontWeight="Bold" Foreground="#D97706"/>
+                            </Border>
+                            <Border Grid.Row="1" Margin="20" Background="#F8FAFC"
+                                    CornerRadius="8" MinHeight="150" MaxHeight="240">
+                                <ScrollViewer>
+                                    <StackPanel x:Name="RecentSalesPanel" Spacing="0">
+                                        <TextBlock Text="فروشی ثبت نشده"
+                                                   Foreground="#94A3B8" FontSize="13"
+                                                   HorizontalAlignment="Center"
+                                                   Margin="0,40,0,40"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ═══ تب ۲: آمار تفصیلی ═══ -->
+            <ScrollViewer x:Name="ReportsPanel" IsVisible="False">
+                <StackPanel>
+
+                    <!-- فیلتر تاریخ -->
+                    <Border Background="White" Padding="20,16"
+                            BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
+                        <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
+                            <StackPanel>
+                                <TextBlock Text="از تاریخ" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="#334155" Margin="0,0,0,6"/>
+                                <TextBox x:Name="FromDateBox" Width="140"
+                                         Watermark="1405/01/01" FontSize="14" Padding="12,10"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="تا تاریخ" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="#334155" Margin="0,0,0,6"/>
+                                <TextBox x:Name="ToDateBox" Width="140"
+                                         Watermark="1405/12/29" FontSize="14" Padding="12,10"/>
+                            </StackPanel>
+                            <Button Content="امروز" FontSize="14" FontWeight="SemiBold"
+                                    Background="#EEF2FF" Foreground="#4F46E5"
+                                    Padding="16,10" Margin="0,24,0,0" Click="OnTodayClick"/>
+                            <Button Content="این هفته" FontSize="14" FontWeight="SemiBold"
+                                    Background="#EEF2FF" Foreground="#4F46E5"
+                                    Padding="16,10" Margin="0,24,0,0" Click="OnWeekClick"/>
+                            <Button Content="این ماه" FontSize="14" FontWeight="SemiBold"
+                                    Background="#EEF2FF" Foreground="#4F46E5"
+                                    Padding="16,10" Margin="0,24,0,0" Click="OnMonthClick"/>
+                            <Button Content="کل دوره" FontSize="14" FontWeight="SemiBold"
+                                    Background="#FEF3C7" Foreground="#D97706"
+                                    Padding="16,10" Margin="0,24,0,0" Click="OnAllClick"/>
+                            <Button Content="اعمال" FontSize="14" FontWeight="Bold"
+                                    Background="#4F46E5" Foreground="White"
+                                    Padding="20,10" Margin="0,24,0,0" Click="OnApplyFilterClick"/>
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Margin="20" Spacing="16">
+
+                        <!-- ۴ KPI اصلی -->
+                        <Grid ColumnDefinitions="*,16,*,16,*,16,*">
+                            <Border Grid.Column="0" Background="White" CornerRadius="12" Padding="20,18">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="جمع درآمد" FontSize="13" Foreground="#94A3B8"/>
+                                    <TextBlock x:Name="KpiRevenueText" Text="۰ تومان"
+                                               FontSize="20" FontWeight="Bold" Foreground="#059669"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="2" Background="White" CornerRadius="12" Padding="20,18">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="جمع سود" FontSize="13" Foreground="#94A3B8"/>
+                                    <TextBlock x:Name="KpiProfitText" Text="۰ تومان"
+                                               FontSize="20" FontWeight="Bold" Foreground="#10B981"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="4" Background="White" CornerRadius="12" Padding="20,18">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="تعداد فروش" FontSize="13" Foreground="#94A3B8"/>
+                                    <TextBlock x:Name="KpiSalesCountText" Text="۰"
+                                               FontSize="20" FontWeight="Bold" Foreground="#4F46E5"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="6" Background="White" CornerRadius="12" Padding="20,18">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="میانگین سود هر فروش" FontSize="13" Foreground="#94A3B8"/>
+                                    <TextBlock x:Name="KpiAvgProfitText" Text="۰ تومان"
+                                               FontSize="20" FontWeight="Bold" Foreground="#F59E0B"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <!-- تفکیک نقد/کارت/نسیه -->
+                        <Border Background="White" CornerRadius="12" Padding="4">
+                            <StackPanel>
+                                <Border Background="#F0F9FF" Padding="20,12" CornerRadius="12,12,0,0">
+                                    <TextBlock Text="💵 تفکیک فروش در این بازه — نقد / کارت / نسیه"
+                                               FontSize="15" FontWeight="Bold" Foreground="#0284C7"/>
+                                </Border>
+
+                                <Grid ColumnDefinitions="*,16,*,16,*,16,*" Margin="16">
+                                    <Border Grid.Column="0" Background="#ECFDF5" CornerRadius="10" Padding="18,14">
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="💵 فروش نقدی" FontSize="13" Foreground="#059669"/>
+                                            <TextBlock x:Name="KpiCashTotalText" Text="۰ تومان"
+                                                       FontSize="20" FontWeight="Bold" Foreground="#059669"/>
+                                            <TextBlock x:Name="KpiCashPctText" Text="۰٪"
+                                                       FontSize="12" Foreground="#94A3B8"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Grid.Column="2" Background="#EEF2FF" CornerRadius="10" Padding="18,14">
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="💳 فروش کارتی (POS بانکی)" FontSize="13" Foreground="#4F46E5"/>
+                                            <TextBlock x:Name="KpiCardTotalText" Text="۰ تومان"
+                                                       FontSize="20" FontWeight="Bold" Foreground="#4F46E5"/>
+                                            <TextBlock x:Name="KpiCardPctText" Text="۰٪"
+                                                       FontSize="12" Foreground="#94A3B8"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Grid.Column="4" Background="#FEF3C7" CornerRadius="10" Padding="18,14">
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="📝 فروش نسیه" FontSize="13" Foreground="#D97706"/>
+                                            <TextBlock x:Name="KpiCreditTotalText" Text="۰ تومان"
+                                                       FontSize="20" FontWeight="Bold" Foreground="#D97706"/>
+                                            <TextBlock x:Name="KpiCreditPctText" Text="۰٪"
+                                                       FontSize="12" Foreground="#94A3B8"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Grid.Column="6" Background="#F1F5F9" CornerRadius="10" Padding="18,14">
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="🧾 میانگین هر فاکتور" FontSize="13" Foreground="#475569"/>
+                                            <TextBlock x:Name="KpiAvgInvoiceText" Text="۰ تومان"
+                                                       FontSize="20" FontWeight="Bold" Foreground="#475569"/>
+                                            <TextBlock x:Name="KpiInvoiceCountText" Text="۰ فاکتور"
+                                                       FontSize="12" Foreground="#94A3B8"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 🆕 تفکیک فروش کارتی در بازه بر اساس پایانه -->
+                        <Border Background="White" CornerRadius="12" Padding="4">
+                            <StackPanel>
+                                <Border Background="#EEF2FF" Padding="20,12" CornerRadius="12,12,0,0">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0"
+                                                   Text="💳 فروش کارتی در این بازه — تفکیک پایانه‌ها"
+                                                   FontSize="15" FontWeight="Bold" Foreground="#4F46E5"/>
+                                        <TextBlock Grid.Column="1"
+                                                   x:Name="ReportsTerminalTotalText"
+                                                   Text=""
+                                                   FontSize="13"
+                                                   Foreground="#4F46E5"/>
+                                    </Grid>
+                                </Border>
+
+                                <WrapPanel x:Name="ReportsTerminalPanel"
+                                           Orientation="Horizontal"
+                                           Margin="16">
+                                    <!-- داینامیک پر می‌شه -->
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- پرفروش‌ترین -->
+                        <Border Background="White" CornerRadius="12">
+                            <Grid RowDefinitions="Auto,Auto">
+                                <Border Grid.Row="0" Background="#EEF2FF" Padding="20,14" CornerRadius="12,12,0,0">
+                                    <TextBlock Text="🏆 پرفروش‌ترین کالاها"
+                                               FontSize="15" FontWeight="Bold" Foreground="#4F46E5"/>
+                                </Border>
+                                <Border Grid.Row="1" Background="#F8FAFC" Margin="20" CornerRadius="6"
+                                        MinHeight="100" MaxHeight="280">
+                                    <ScrollViewer>
+                                        <StackPanel x:Name="TopSellingPanel" Spacing="0">
+                                            <TextBlock Text="داده‌ای وجود ندارد"
+                                                       Foreground="#94A3B8" FontSize="13"
+                                                       HorizontalAlignment="Center"
+                                                       Margin="0,30,0,30"/>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- پرسودترین -->
+                        <Border Background="White" CornerRadius="12">
+                            <Grid RowDefinitions="Auto,Auto">
+                                <Border Grid.Row="0" Background="#ECFDF5" Padding="20,14" CornerRadius="12,12,0,0">
+                                    <TextBlock Text="💰 پرسودترین کالاها"
+                                               FontSize="15" FontWeight="Bold" Foreground="#059669"/>
+                                </Border>
+                                <Border Grid.Row="1" Background="#F8FAFC" Margin="20" CornerRadius="6"
+                                        MinHeight="100" MaxHeight="280">
+                                    <ScrollViewer>
+                                        <StackPanel x:Name="TopProfitPanel" Spacing="0">
+                                            <TextBlock Text="داده‌ای وجود ندارد"
+                                                       Foreground="#94A3B8" FontSize="13"
+                                                       HorizontalAlignment="Center"
+                                                       Margin="0,30,0,30"/>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- بهترین مشتری‌ها -->
+                        <Border Background="White" CornerRadius="12">
+                            <Grid RowDefinitions="Auto,Auto">
+                                <Border Grid.Row="0" Background="#FEF3C7" Padding="20,14" CornerRadius="12,12,0,0">
+                                    <TextBlock Text="⭐ بهترین مشتری‌ها"
+                                               FontSize="15" FontWeight="Bold" Foreground="#D97706"/>
+                                </Border>
+                                <Border Grid.Row="1" Background="#F8FAFC" Margin="20" CornerRadius="6"
+                                        MinHeight="100" MaxHeight="280">
+                                    <ScrollViewer>
+                                        <StackPanel x:Name="TopCustomerPanel" Spacing="0">
+                                            <TextBlock Text="داده‌ای وجود ندارد"
+                                                       Foreground="#94A3B8" FontSize="13"
+                                                       HorizontalAlignment="Center"
+                                                       Margin="0,30,0,30"/>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+
+        </Panel>
+
+        <!-- فوتر -->
+        <Border Grid.Row="3" Background="White" Padding="20,16"
+                BorderBrush="#E2E8F0" BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                <TextBlock Grid.Column="0" x:Name="StatusText" Text=""
+                           VerticalAlignment="Center"
+                           FontSize="13" FontWeight="SemiBold"
+                           Foreground="#475569"/>
+
+                <Button Grid.Column="1" Content="🖨️ چاپ گزارش"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="#8B5CF6" Foreground="White"
+                        Padding="22,10" Margin="0,0,10,0"
+                        Click="OnPrintClick"/>
+
+                <Button Grid.Column="2" Content="🔄 بروزرسانی"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="#EEF2FF" Foreground="#4F46E5"
+                        Padding="22,10" Margin="0,0,10,0"
+                        Click="OnRefreshClick"/>
+
+                <Button Grid.Column="3" Content="بستن"
+                        FontSize="15"
+                        Background="#F1F5F9" Foreground="#475569"
+                        BorderBrush="#CBD5E1" BorderThickness="1"
+                        Padding="25,10"
+                        Click="OnCloseClick"/>
+            </Grid>
+        </Border>
+
+    </Grid>
+
+</Window>

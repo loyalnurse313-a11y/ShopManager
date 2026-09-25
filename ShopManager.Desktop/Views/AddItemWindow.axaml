@@ -1,0 +1,314 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="ShopManager.Desktop.Views.AddItemWindow"
+        Title="کالا"
+        Width="680" Height="850"
+        MinWidth="600" MinHeight="750"
+        WindowStartupLocation="CenterScreen"
+        FlowDirection="RightToLeft"
+        FontFamily="{DynamicResource AppFontFamily}"
+        Background="{DynamicResource AppBackground}">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- هدر -->
+        <Border Grid.Row="0" 
+                Background="{DynamicResource AppHeaderBackground}" 
+                Padding="24,20">
+            <TextBlock x:Name="HeaderText"
+                       Text="افزودن کالای جدید"
+                       FontSize="20" FontWeight="Bold"
+                       Foreground="White"
+                       HorizontalAlignment="Center"/>
+        </Border>
+
+        <!-- فرم -->
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Margin="20" Spacing="16">
+
+                <!-- ═══ کارت ۱: اطلاعات اصلی ═══ -->
+                <Border Background="{DynamicResource AppCardBackground}" 
+                        CornerRadius="12"
+                        BorderBrush="{DynamicResource AppBorder}"
+                        BorderThickness="1"
+                        Padding="20">
+                    <StackPanel Spacing="14">
+
+                        <TextBlock Text="📋 اطلاعات اصلی"
+                                   FontSize="15" FontWeight="Bold"
+                                   Foreground="{DynamicResource AppAccent}"/>
+
+                        <!-- کد + واحد -->
+                        <Grid ColumnDefinitions="*,16,*">
+                            <StackPanel Grid.Column="0" Spacing="8">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="کد کالا" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource AppTextPrimary}"/>
+                                    <TextBlock Text="*" FontSize="13" FontWeight="Bold" Foreground="#EF4444"/>
+                                </StackPanel>
+                                <TextBox x:Name="ItemCodeTextBox"
+                                         Watermark="مثال: 1001"
+                                         FontSize="14" Padding="12,10"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Spacing="8">
+                                <TextBlock Text="واحد" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <ComboBox x:Name="UnitComboBox" SelectedIndex="0"
+                                          HorizontalAlignment="Stretch"
+                                          FontSize="14" Padding="12,10">
+                                    <ComboBoxItem>عدد</ComboBoxItem>
+                                    <ComboBoxItem>بسته</ComboBoxItem>
+                                    <ComboBoxItem>رول</ComboBoxItem>
+                                    <ComboBoxItem>کارتن</ComboBoxItem>
+                                    <ComboBoxItem>کیلوگرم</ComboBoxItem>
+                                    <ComboBoxItem>لیتر</ComboBoxItem>
+                                </ComboBox>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- نام -->
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="نام کالا" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <TextBlock Text="*" FontSize="13" FontWeight="Bold" Foreground="#EF4444"/>
+                            </StackPanel>
+                            <TextBox x:Name="NameTextBox"
+                                     Watermark="مثال: لیوان یکبار مصرف ۲۰۰cc"
+                                     FontSize="14" Padding="12,10"/>
+                        </StackPanel>
+
+                        <!-- دسته -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="دسته‌بندی (اختیاری)" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource AppTextPrimary}"/>
+                            <TextBox x:Name="CategoryTextBox"
+                                     Watermark="مثال: یکبارمصرف، لبنیاتی، بسته‌بندی"
+                                     FontSize="14" Padding="12,10"/>
+                        </StackPanel>
+
+                    </StackPanel>
+                </Border>
+
+                <!-- ═══ کارت ۲: قیمت‌گذاری ═══ -->
+                <Border Background="{DynamicResource AppCardBackground}" 
+                        CornerRadius="12"
+                        BorderBrush="{DynamicResource AppBorder}"
+                        BorderThickness="1"
+                        Padding="20">
+                    <StackPanel Spacing="14">
+
+                        <TextBlock Text="💰 قیمت‌گذاری"
+                                   FontSize="15" FontWeight="Bold"
+                                   Foreground="{DynamicResource AppAccent}"/>
+
+                        <!-- قیمت خرید + درصد -->
+                        <Grid ColumnDefinitions="*,16,*">
+                            <StackPanel Grid.Column="0" Spacing="8">
+                                <TextBlock Text="قیمت خرید اولیه (تومان)" 
+                                           FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <TextBox x:Name="PurchasePriceTextBox"
+                                         Watermark="اختیاری — از خرید بعدی خودکار میاد"
+                                         FontSize="14" Padding="12,10"
+                                         TextChanged="OnPriceChanged"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Spacing="8">
+                                <TextBlock Text="درصد سود (%)" 
+                                           FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <TextBox x:Name="MarkupPctTextBox"
+                                         Text="30"
+                                         FontSize="14" Padding="12,10"
+                                         TextChanged="OnPriceChanged"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- قیمت فروش -->
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="قیمت فروش (تومان)" 
+                                           FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <TextBlock Text="(دستی — اختیاری)" 
+                                           FontSize="11"
+                                           Foreground="{DynamicResource AppTextSecondary}"/>
+                            </StackPanel>
+                            <TextBox x:Name="SalePriceTextBox"
+                                     Watermark="اگه خالی بذاری، خودکار محاسبه می‌شه"
+                                     FontSize="14" Padding="12,10"/>
+                        </StackPanel>
+
+                        <!-- پیش‌نمایش -->
+                        <Border Background="#ECFDF5" CornerRadius="8" Padding="14,12">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0"
+                                           Text="قیمت فروش پیشنهادی:"
+                                           FontSize="13" 
+                                           Foreground="#059669"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1"
+                                           x:Name="PreviewSalePriceText"
+                                           Text="—"
+                                           FontSize="16" FontWeight="Bold"
+                                           Foreground="#059669"/>
+                            </Grid>
+                        </Border>
+
+                    </StackPanel>
+                </Border>
+
+                <!-- ═══ کارت ۳: حد هشدار موجودی ═══ -->
+                <Border Background="{DynamicResource AppCardBackground}" 
+                        CornerRadius="12"
+                        BorderBrush="{DynamicResource AppBorder}"
+                        BorderThickness="1"
+                        Padding="20">
+                    <StackPanel Spacing="14">
+
+                        <TextBlock Text="⚠️ حد هشدار موجودی (اختیاری)"
+                                   FontSize="15" FontWeight="Bold"
+                                   Foreground="#D97706"/>
+
+                        <TextBlock Text="اگه خالی بذاری، از درصدهای پیش‌فرض (۱۰٪ بحرانی / ۲۵٪ هشدار) استفاده می‌شه"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource AppTextSecondary}"
+                                   TextWrapping="Wrap"/>
+
+                        <!-- حد هشدار درصدی -->
+                        <Grid ColumnDefinitions="*,16,*">
+                            <StackPanel Grid.Column="0" Spacing="8">
+                                <TextBlock Text="حد بحرانی درصدی (%)" 
+                                           FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <TextBox x:Name="CriticalPctTextBox"
+                                         Text="10"
+                                         FontSize="14" Padding="12,10"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Spacing="8">
+                                <TextBlock Text="حد هشدار درصدی (%)" 
+                                           FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <TextBox x:Name="WarningPctTextBox"
+                                         Text="25"
+                                         FontSize="14" Padding="12,10"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Border Background="#FEF3C7" CornerRadius="8" Padding="12,10">
+                            <TextBlock Text="اگه حد ثابت بذاری، جای درصد رو می‌گیره"
+                                       FontSize="12"
+                                       Foreground="#D97706"
+                                       TextWrapping="Wrap"/>
+                        </Border>
+
+                        <!-- حد هشدار ثابت -->
+                        <Grid ColumnDefinitions="*,16,*">
+                            <StackPanel Grid.Column="0" Spacing="8">
+                                <TextBlock Text="حد بحرانی ثابت (عدد)" 
+                                           FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <TextBox x:Name="CriticalFixedTextBox"
+                                         Watermark="مثال: 20"
+                                         FontSize="14" Padding="12,10"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Spacing="8">
+                                <TextBlock Text="حد هشدار ثابت (عدد)" 
+                                           FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <TextBox x:Name="WarningFixedTextBox"
+                                         Watermark="مثال: 50"
+                                         FontSize="14" Padding="12,10"/>
+                            </StackPanel>
+                        </Grid>
+
+                    </StackPanel>
+                </Border>
+
+                <!-- ═══ کارت ۴: موجودی اولیه (فقط برای کالای جدید) ═══ -->
+                <Border x:Name="InitialStockCard"
+                        Background="{DynamicResource AppCardBackground}" 
+                        CornerRadius="12"
+                        BorderBrush="{DynamicResource AppBorder}"
+                        BorderThickness="1"
+                        Padding="20">
+                    <StackPanel Spacing="14">
+
+                        <TextBlock Text="📦 موجودی اولیه (اختیاری)"
+                                   FontSize="15" FontWeight="Bold"
+                                   Foreground="{DynamicResource AppAccent}"/>
+
+                        <Grid ColumnDefinitions="*,16,*">
+                            <StackPanel Grid.Column="0" Spacing="8">
+                                <TextBlock Text="موجودی اولیه انبار" 
+                                           FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <TextBox x:Name="OpeningWarehouseQtyTextBox"
+                                         Text="0"
+                                         FontSize="14" Padding="12,10"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Spacing="8">
+                                <TextBlock Text="موجودی اولیه مغازه" 
+                                           FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <TextBox x:Name="OpeningShopQtyTextBox"
+                                         Text="0"
+                                         FontSize="14" Padding="12,10"/>
+                            </StackPanel>
+                        </Grid>
+
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- پایین: پیام + دکمه‌ها -->
+        <Border Grid.Row="2" 
+                Background="{DynamicResource AppCardBackground}" 
+                Padding="24,18"
+                BorderBrush="{DynamicResource AppBorder}"
+                BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+
+                <TextBlock Grid.Column="0"
+                           x:Name="StatusText"
+                           Text=""
+                           VerticalAlignment="Center"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Foreground="#EF4444"
+                           TextWrapping="Wrap"/>
+
+                <Button Grid.Column="1"
+                        Content="انصراف"
+                        FontSize="15" Padding="28,12" Margin="0,0,10,0"
+                        Background="{DynamicResource AppBackground}"
+                        Foreground="{DynamicResource AppTextPrimary}"
+                        BorderBrush="{DynamicResource AppBorder}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Click="OnCancelClick"/>
+
+                <Button Grid.Column="2"
+                        Content="💾 ذخیره"
+                        FontSize="15" FontWeight="Bold" Padding="32,12"
+                        Background="{DynamicResource AppSuccess}"
+                        Foreground="White"
+                        CornerRadius="8"
+                        Click="OnSaveClick"/>
+
+            </Grid>
+        </Border>
+
+    </Grid>
+
+</Window>

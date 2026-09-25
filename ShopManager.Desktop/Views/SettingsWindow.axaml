@@ -1,0 +1,710 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="ShopManager.Desktop.Views.SettingsWindow"
+        Title="تنظیمات"
+        Width="1000" Height="800"
+        MinWidth="900" MinHeight="700"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        FlowDirection="RightToLeft"
+        FontFamily="{DynamicResource AppFontFamily}"
+        Background="{DynamicResource AppBackground}">
+
+    <Window.Styles>
+        <Style Selector="Button.settingTab">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="MinHeight" Value="46"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+
+        <Style Selector="TextBlock.sectionTitle">
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+
+        <Style Selector="TextBlock.fieldLabel">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+        <!-- هدر -->
+        <Border Grid.Row="0" 
+                Background="{DynamicResource AppHeaderBackground}" 
+                Padding="24,18">
+            <TextBlock Text="⚙️ تنظیمات"
+                       FontSize="20" FontWeight="Bold"
+                       Foreground="White"
+                       HorizontalAlignment="Center"/>
+        </Border>
+
+        <!-- تب‌ها -->
+        <Border Grid.Row="1" Background="White"
+                BorderBrush="{DynamicResource AppBorder}" BorderThickness="0,0,0,1"
+                Padding="20,10">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button x:Name="TabStoreBtn"
+                        Content="🏪 فروشگاه"
+                        Classes="settingTab"
+                        Background="{DynamicResource AppAccent}"
+                        Foreground="White"
+                        Click="OnTabStoreClick"/>
+
+                <Button x:Name="TabFinanceBtn"
+                        Content="💰 مالی"
+                        Classes="settingTab"
+                        Background="Transparent"
+                        Foreground="{DynamicResource AppTextSecondary}"
+                        Click="OnTabFinanceClick"/>
+
+                <Button x:Name="TabInvoiceBtn"
+                        Content="🧾 فاکتور و چاپ"
+                        Classes="settingTab"
+                        Background="Transparent"
+                        Foreground="{DynamicResource AppTextSecondary}"
+                        Click="OnTabInvoiceClick"/>
+
+                <Button x:Name="TabBackupBtn"
+                        Content="💾 بکاپ"
+                        Classes="settingTab"
+                        Background="Transparent"
+                        Foreground="{DynamicResource AppTextSecondary}"
+                        Click="OnTabBackupClick"/>
+
+                <Button x:Name="TabAppearanceBtn"
+                        Content="🎨 ظاهر"
+                        Classes="settingTab"
+                        Background="Transparent"
+                        Foreground="{DynamicResource AppTextSecondary}"
+                        Click="OnTabAppearanceClick"/>
+            </StackPanel>
+        </Border>
+
+        <!-- محتوای تب‌ها -->
+        <Panel Grid.Row="2">
+
+            <!-- ═══════════ تب ۱: فروشگاه ═══════════ -->
+            <ScrollViewer x:Name="StorePanel" IsVisible="True">
+                <StackPanel Margin="24" Spacing="16">
+
+                    <Border Background="{DynamicResource AppCardBackground}" 
+                            CornerRadius="12"
+                            BorderBrush="{DynamicResource AppBorder}"
+                            BorderThickness="1"
+                            Padding="24">
+                        <StackPanel Spacing="14">
+
+                            <TextBlock Text="🏪 اطلاعات فروشگاه"
+                                       Classes="sectionTitle"
+                                       Foreground="{DynamicResource AppAccent}"/>
+
+                            <StackPanel>
+                                <TextBlock Text="نام فروشگاه" Classes="fieldLabel"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <TextBox x:Name="StoreNameBox"
+                                         Watermark="مثال: فروشگاه ظروف یکبار مصرف خوی"
+                                         FontSize="14" Padding="12,10"/>
+                            </StackPanel>
+
+                            <Grid ColumnDefinitions="*,16,*">
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="شماره تماس" Classes="fieldLabel"
+                                               Foreground="{DynamicResource AppTextPrimary}"/>
+                                    <TextBox x:Name="StorePhoneBox"
+                                             Watermark="مثال: 044-34567890"
+                                             FontSize="14" Padding="12,10"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="آدرس (اختیاری)" Classes="fieldLabel"
+                                               Foreground="{DynamicResource AppTextPrimary}"/>
+                                    <TextBox x:Name="StoreAddressBox"
+                                             Watermark="مثال: خوی، خیابان امام، پلاک ۱۲"
+                                             FontSize="14" Padding="12,10"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <StackPanel>
+                                <TextBlock Text="متن پایین فاکتور" Classes="fieldLabel"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <TextBox x:Name="FooterTextBox"
+                                         Watermark="مثال: از خرید شما سپاسگزاریم"
+                                         FontSize="14" Padding="12,10"/>
+                            </StackPanel>
+
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{DynamicResource AppCardBackground}" 
+                            CornerRadius="12"
+                            BorderBrush="{DynamicResource AppBorder}"
+                            BorderThickness="1"
+                            Padding="24">
+                        <StackPanel Spacing="14">
+
+                            <TextBlock Text="🖼️ لوگوی فروشگاه"
+                                       Classes="sectionTitle"
+                                       Foreground="{DynamicResource AppAccent}"/>
+
+                            <TextBlock Text="لوگو روی فاکتورها و گزارش‌های چاپی نمایش داده می‌شه"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource AppTextSecondary}"/>
+
+                            <Grid ColumnDefinitions="Auto,16,*">
+                                <Border Grid.Column="0"
+                                        Width="120" Height="120"
+                                        Background="{DynamicResource AppBackground}"
+                                        BorderBrush="{DynamicResource AppBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="8">
+                                    <Image x:Name="LogoPreview"
+                                           Stretch="Uniform"
+                                           Margin="8"/>
+                                </Border>
+
+                                <StackPanel Grid.Column="2" Spacing="10" VerticalAlignment="Center">
+                                    <Button Content="📁 انتخاب لوگو"
+                                            FontSize="14" FontWeight="SemiBold"
+                                            Background="{DynamicResource AppAccent}"
+                                            Foreground="White"
+                                            Padding="20,10"
+                                            CornerRadius="8"
+                                            HorizontalAlignment="Left"
+                                            Click="OnPickLogoClick"/>
+
+                                    <Button Content="🗑️ حذف لوگو"
+                                            FontSize="14"
+                                            Background="#FEF2F2"
+                                            Foreground="#DC2626"
+                                            Padding="20,10"
+                                            CornerRadius="8"
+                                            HorizontalAlignment="Left"
+                                            Click="OnRemoveLogoClick"/>
+
+                                    <TextBlock x:Name="LogoPathText"
+                                               Text=""
+                                               FontSize="11"
+                                               Foreground="{DynamicResource AppTextSecondary}"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Grid>
+
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ═══════════ تب ۲: مالی ═══════════ -->
+            <ScrollViewer x:Name="FinancePanel" IsVisible="False">
+                <StackPanel Margin="24" Spacing="16">
+
+                    <Border Background="{DynamicResource AppCardBackground}" 
+                            CornerRadius="12"
+                            BorderBrush="{DynamicResource AppBorder}"
+                            BorderThickness="1"
+                            Padding="24">
+                        <StackPanel Spacing="14">
+
+                            <TextBlock Text="💰 تنظیمات مالی"
+                                       Classes="sectionTitle"
+                                       Foreground="{DynamicResource AppAccent}"/>
+
+                            <StackPanel>
+                                <TextBlock Text="سرمایه اولیه صندوق (تومان)" Classes="fieldLabel"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <TextBox x:Name="InitialCapitalBox"
+                                         Watermark="مثال: 500000000"
+                                         FontSize="14" Padding="12,10"/>
+                                <TextBlock Text="مبلغی که در ابتدا به صندوق واریز شده"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource AppTextSecondary}"
+                                           Margin="0,6,0,0"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <StackPanel>
+                                <TextBlock Text="درصد سود پیش‌فرض (%)" Classes="fieldLabel"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <TextBox x:Name="DefaultMarkupBox"
+                                         Watermark="مثال: 30"
+                                         FontSize="14" Padding="12,10"/>
+                                <TextBlock Text="برای کالاهای جدید به صورت پیش‌فرض استفاده می‌شه"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource AppTextSecondary}"
+                                           Margin="0,6,0,0"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{DynamicResource AppCardBackground}" 
+                            CornerRadius="12"
+                            BorderBrush="{DynamicResource AppBorder}"
+                            BorderThickness="1"
+                            Padding="24">
+                        <StackPanel Spacing="14">
+
+                            <TextBlock Text="🏧 پایانه‌های POS بانکی"
+                                       Classes="sectionTitle"
+                                       Foreground="{DynamicResource AppAccent}"/>
+
+                            <TextBlock Text="اگه چند تا دستگاه POS بانکی داری، اسمشون رو اینجا بنویس. هر خط یه پایانه:"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource AppTextSecondary}"
+                                       TextWrapping="Wrap"/>
+
+                            <TextBox x:Name="POSTerminalsBox"
+                                     AcceptsReturn="True"
+                                     Height="150"
+                                     FontSize="14"
+                                     Padding="12,10"
+                                     TextWrapping="Wrap"
+                                     Watermark="مثال:&#x0a;بانک ملی - صندوق ۱&#x0a;پاسارگاد - صندوق ۲&#x0a;سامان"/>
+
+                            <Border Background="#F0F9FF" CornerRadius="8" Padding="14,10">
+                                <TextBlock Text="💡 این اسم‌ها توی POS و گزارش‌ها نمایش داده می‌شن"
+                                           FontSize="12"
+                                           Foreground="#0284C7"
+                                           TextWrapping="Wrap"/>
+                            </Border>
+
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ═══════════ تب ۳: فاکتور و چاپ ═══════════ -->
+            <ScrollViewer x:Name="InvoicePanel" IsVisible="False">
+                <StackPanel Margin="24" Spacing="16">
+
+                    <Border Background="{DynamicResource AppCardBackground}" 
+                            CornerRadius="12"
+                            BorderBrush="{DynamicResource AppBorder}"
+                            BorderThickness="1"
+                            Padding="24">
+                        <StackPanel Spacing="14">
+
+                            <TextBlock Text="🧾 اندازه کاغذ فاکتور"
+                                       Classes="sectionTitle"
+                                       Foreground="{DynamicResource AppAccent}"/>
+
+                            <TextBlock Text="اندازه کاغذ پرینتری که استفاده می‌کنی رو انتخاب کن:"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource AppTextSecondary}"
+                                       TextWrapping="Wrap"/>
+
+                            <StackPanel Spacing="10">
+                                <RadioButton x:Name="PaperA4Radio" GroupName="PaperSize" IsChecked="True">
+                                    <StackPanel>
+                                        <TextBlock Text="A4 — پرینتر معمولی" FontSize="14" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource AppTextPrimary}"/>
+                                        <TextBlock Text="۲۱ × ۲۹.۷ سانتی‌متر — مناسب چاپ فاکتور بزرگ و رسمی"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource AppTextSecondary}"/>
+                                    </StackPanel>
+                                </RadioButton>
+
+                                <RadioButton x:Name="PaperA5Radio" GroupName="PaperSize">
+                                    <StackPanel>
+                                        <TextBlock Text="A5 — نصف A4" FontSize="14" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource AppTextPrimary}"/>
+                                        <TextBlock Text="۱۴.۸ × ۲۱ سانتی‌متر — مناسب فاکتور جمع‌وجور"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource AppTextSecondary}"/>
+                                    </StackPanel>
+                                </RadioButton>
+
+                                <RadioButton x:Name="Paper80mmRadio" GroupName="PaperSize">
+                                    <StackPanel>
+                                        <TextBlock Text="🖨️ رسید حرارتی ۸۰mm — رایج‌ترین فیش‌پرینتر" 
+                                                   FontSize="14" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource AppTextPrimary}"/>
+                                        <TextBlock Text="مناسب اکثر فیش‌پرینترهای فروشگاهی (XPrinter, Epson TM-T88, ...)"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource AppTextSecondary}"/>
+                                    </StackPanel>
+                                </RadioButton>
+
+                                <RadioButton x:Name="Paper58mmRadio" GroupName="PaperSize">
+                                    <StackPanel>
+                                        <TextBlock Text="🖨️ رسید حرارتی ۵۸mm — فیش‌پرینتر کوچک" 
+                                                   FontSize="14" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource AppTextPrimary}"/>
+                                        <TextBlock Text="مناسب فیش‌پرینترهای قابل حمل و کوچک"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource AppTextSecondary}"/>
+                                    </StackPanel>
+                                </RadioButton>
+                            </StackPanel>
+
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{DynamicResource AppCardBackground}" 
+                            CornerRadius="12"
+                            BorderBrush="{DynamicResource AppBorder}"
+                            BorderThickness="1"
+                            Padding="24">
+                        <StackPanel Spacing="14">
+
+                            <TextBlock Text="⚡ چاپ خودکار"
+                                       Classes="sectionTitle"
+                                       Foreground="{DynamicResource AppAccent}"/>
+
+                            <CheckBox x:Name="AutoPrintCheckBox"
+                                      Content="بعد از ثبت فروش، فاکتور خودکار چاپ بشه"
+                                      FontSize="14"
+                                      IsChecked="False"/>
+
+                            <Border Background="#FEF3C7" CornerRadius="8" Padding="14,10">
+                                <TextBlock Text="💡 اگه فعال باشه، بعد از کلیک روی «پرداخت» توی POS، فاکتور مستقیم به پرینتر پیش‌فرض ویندوز فرستاده می‌شه. اگه غیرفعال باشه، پنجره فاکتور باز می‌شه که خودت چاپ کنی."
+                                           FontSize="12"
+                                           Foreground="#D97706"
+                                           TextWrapping="Wrap"/>
+                            </Border>
+
+                            <CheckBox x:Name="ShowLogoCheckBox"
+                                      Content="نمایش لوگو در فاکتور"
+                                      FontSize="14"
+                                      IsChecked="True"/>
+
+                        </StackPanel>
+                    </Border>
+
+                    <!-- پیش‌نمایش -->
+                    <Border Background="{DynamicResource AppCardBackground}" 
+                            CornerRadius="12"
+                            BorderBrush="{DynamicResource AppBorder}"
+                            BorderThickness="1"
+                            Padding="24">
+                        <StackPanel Spacing="14">
+
+                            <TextBlock Text="👁 پیش‌نمایش فاکتور"
+                                       Classes="sectionTitle"
+                                       Foreground="{DynamicResource AppAccent}"/>
+
+                            <TextBlock Text="برای دیدن پیش‌نمایش با اندازه انتخاب‌شده، روی دکمه زیر کلیک کن:"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource AppTextSecondary}"
+                                       TextWrapping="Wrap"/>
+
+                            <Button Content="🖨️ نمایش پیش‌نمایش فاکتور نمونه"
+                                    FontSize="14" FontWeight="SemiBold"
+                                    Background="#EEF2FF"
+                                    Foreground="#4F46E5"
+                                    Padding="24,14"
+                                    CornerRadius="8"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center"
+                                    Click="OnPreviewInvoiceClick"/>
+
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ═══════════ تب ۴: بکاپ ═══════════ -->
+            <ScrollViewer x:Name="BackupPanel" IsVisible="False">
+                <StackPanel Margin="24" Spacing="16">
+
+                    <Border Background="{DynamicResource AppCardBackground}" 
+                            CornerRadius="12"
+                            BorderBrush="{DynamicResource AppBorder}"
+                            BorderThickness="1"
+                            Padding="24">
+                        <StackPanel Spacing="14">
+
+                            <TextBlock Text="💾 بکاپ خودکار"
+                                       Classes="sectionTitle"
+                                       Foreground="{DynamicResource AppAccent}"/>
+
+                            <CheckBox x:Name="BackupAutoCheckBox"
+                                      Content="بکاپ خودکار فعال باشد"
+                                      FontSize="14"
+                                      IsChecked="True"/>
+
+                            <Grid ColumnDefinitions="*,16,*">
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="فاصله زمانی (دقیقه)" Classes="fieldLabel"
+                                               Foreground="{DynamicResource AppTextPrimary}"/>
+                                    <ComboBox x:Name="BackupIntervalCombo"
+                                              SelectedIndex="1"
+                                              HorizontalAlignment="Stretch"
+                                              FontSize="14" Padding="12,10">
+                                        <ComboBoxItem>۵ دقیقه</ComboBoxItem>
+                                        <ComboBoxItem>۱۵ دقیقه</ComboBoxItem>
+                                        <ComboBoxItem>۳۰ دقیقه</ComboBoxItem>
+                                        <ComboBoxItem>۱ ساعت</ComboBoxItem>
+                                        <ComboBoxItem>۲ ساعت</ComboBoxItem>
+                                    </ComboBox>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="تعداد بکاپ‌های نگهداری" Classes="fieldLabel"
+                                               Foreground="{DynamicResource AppTextPrimary}"/>
+                                    <ComboBox x:Name="BackupKeepCombo"
+                                              SelectedIndex="2"
+                                              HorizontalAlignment="Stretch"
+                                              FontSize="14" Padding="12,10">
+                                        <ComboBoxItem>۱۰ بکاپ</ComboBoxItem>
+                                        <ComboBoxItem>۲۰ بکاپ</ComboBoxItem>
+                                        <ComboBoxItem>۳۰ بکاپ</ComboBoxItem>
+                                        <ComboBoxItem>۵۰ بکاپ</ComboBoxItem>
+                                        <ComboBoxItem>۱۰۰ بکاپ</ComboBoxItem>
+                                    </ComboBox>
+                                </StackPanel>
+                            </Grid>
+
+                            <Border Background="#F0F9FF" CornerRadius="8" Padding="14,10">
+                                <TextBlock Text="💡 بکاپ فقط وقتی گرفته می‌شه که داده جدیدی ثبت شده باشه"
+                                           FontSize="12"
+                                           Foreground="#0284C7"
+                                           TextWrapping="Wrap"/>
+                            </Border>
+
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{DynamicResource AppCardBackground}" 
+                            CornerRadius="12"
+                            BorderBrush="{DynamicResource AppBorder}"
+                            BorderThickness="1"
+                            Padding="24">
+                        <StackPanel Spacing="14">
+
+                            <TextBlock Text="📊 وضعیت"
+                                       Classes="sectionTitle"
+                                       Foreground="{DynamicResource AppAccent}"/>
+
+                            <Grid ColumnDefinitions="*,16,*">
+                                <Border Grid.Column="0" Background="#ECFDF5" CornerRadius="8" Padding="14,12">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="اندازه دیتابیس فعلی" FontSize="12"
+                                                   Foreground="#059669"/>
+                                        <TextBlock x:Name="DbSizeText" Text="—"
+                                                   FontSize="16" FontWeight="Bold"
+                                                   Foreground="#059669"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Column="2" Background="#EEF2FF" CornerRadius="8" Padding="14,12">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="تعداد بکاپ‌های موجود" FontSize="12"
+                                                   Foreground="#4F46E5"/>
+                                        <TextBlock x:Name="BackupCountText" Text="۰"
+                                                   FontSize="16" FontWeight="Bold"
+                                                   Foreground="#4F46E5"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <TextBlock x:Name="LastBackupText"
+                                       Text=""
+                                       FontSize="12"
+                                       Foreground="{DynamicResource AppTextSecondary}"/>
+
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{DynamicResource AppCardBackground}" 
+                            CornerRadius="12"
+                            BorderBrush="{DynamicResource AppBorder}"
+                            BorderThickness="1"
+                            Padding="24">
+                        <StackPanel Spacing="14">
+
+                            <TextBlock Text="⚡ عملیات سریع"
+                                       Classes="sectionTitle"
+                                       Foreground="{DynamicResource AppAccent}"/>
+
+                            <Grid ColumnDefinitions="*,10,*">
+                                <Button Grid.Column="0"
+                                        Content="💾 گرفتن بکاپ الان"
+                                        FontSize="15" FontWeight="Bold"
+                                        Background="{DynamicResource AppSuccess}"
+                                        Foreground="White"
+                                        Padding="20,14"
+                                        CornerRadius="8"
+                                        Click="OnManualBackupClick"/>
+
+                                <Button Grid.Column="2"
+                                        Content="📂 باز کردن پوشه بکاپ"
+                                        FontSize="15" FontWeight="SemiBold"
+                                        Background="#EEF2FF"
+                                        Foreground="#4F46E5"
+                                        Padding="20,14"
+                                        CornerRadius="8"
+                                        Click="OnOpenBackupFolderClick"/>
+                            </Grid>
+
+                            <Button Content="📜 مشاهده لیست بکاپ‌ها و بازیابی"
+                                    FontSize="15" FontWeight="SemiBold"
+                                    Background="#FEF3C7"
+                                    Foreground="#D97706"
+                                    Padding="20,14"
+                                    CornerRadius="8"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center"
+                                    Click="OnShowBackupListClick"/>
+
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ═══════════ تب ۵: ظاهر ═══════════ -->
+            <ScrollViewer x:Name="AppearancePanel" IsVisible="False">
+                <StackPanel Margin="24" Spacing="20">
+
+                    <Border Background="{DynamicResource AppCardBackground}" 
+                            CornerRadius="12" 
+                            BorderBrush="{DynamicResource AppBorder}"
+                            BorderThickness="1"
+                            Padding="24">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="🌓 حالت نمایش"
+                                       Classes="sectionTitle"
+                                       Foreground="{DynamicResource AppAccent}"/>
+
+                            <StackPanel Orientation="Horizontal" Spacing="30">
+                                <RadioButton x:Name="ThemeLightRadio"
+                                             GroupName="Theme"
+                                             IsChecked="True">
+                                    <TextBlock Text="☀️ روشن" FontSize="15"
+                                               Foreground="{DynamicResource AppTextPrimary}"/>
+                                </RadioButton>
+
+                                <RadioButton x:Name="ThemeDarkRadio"
+                                             GroupName="Theme">
+                                    <TextBlock Text="🌙 تاریک" FontSize="15"
+                                               Foreground="{DynamicResource AppTextPrimary}"/>
+                                </RadioButton>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{DynamicResource AppCardBackground}" 
+                            CornerRadius="12"
+                            BorderBrush="{DynamicResource AppBorder}"
+                            BorderThickness="1"
+                            Padding="24">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="🔤 فونت و اندازه"
+                                       Classes="sectionTitle"
+                                       Foreground="{DynamicResource AppAccent}"/>
+
+                            <Grid ColumnDefinitions="*,20,*">
+                                <StackPanel Grid.Column="0" Spacing="8">
+                                    <TextBlock Text="نوع فونت"
+                                               FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource AppTextSecondary}"/>
+                                    <ComboBox x:Name="FontComboBox"
+                                              SelectedIndex="0"
+                                              HorizontalAlignment="Stretch"
+                                              Padding="14,12"
+                                              FontSize="14">
+                                        <ComboBoxItem>Vazirmatn</ComboBoxItem>
+                                        <ComboBoxItem>IRANSans</ComboBoxItem>
+                                        <ComboBoxItem>Tahoma</ComboBoxItem>
+                                        <ComboBoxItem>Segoe UI</ComboBoxItem>
+                                    </ComboBox>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" Spacing="8">
+                                    <TextBlock Text="اندازه فونت"
+                                               FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource AppTextSecondary}"/>
+                                    <ComboBox x:Name="FontSizeComboBox"
+                                              SelectedIndex="1"
+                                              HorizontalAlignment="Stretch"
+                                              Padding="14,12"
+                                              FontSize="14">
+                                        <ComboBoxItem>کوچک (۱۲)</ComboBoxItem>
+                                        <ComboBoxItem>معمولی (۱۴)</ComboBoxItem>
+                                        <ComboBoxItem>بزرگ (۱۶)</ComboBoxItem>
+                                        <ComboBoxItem>خیلی بزرگ (۱۸)</ComboBoxItem>
+                                    </ComboBox>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{DynamicResource AppCardBackground}" 
+                            CornerRadius="12"
+                            BorderBrush="{DynamicResource AppBorder}"
+                            BorderThickness="1"
+                            Padding="24">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="🎨 رنگ اصلی برنامه"
+                                       Classes="sectionTitle"
+                                       Foreground="{DynamicResource AppAccent}"/>
+
+                            <TextBlock Text="یکی از رنگ‌های زیر رو انتخاب کن"
+                                       FontSize="13"
+                                       Foreground="{DynamicResource AppTextSecondary}"/>
+
+                            <WrapPanel x:Name="PalettePanel" Orientation="Horizontal">
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+
+        </Panel>
+
+        <!-- فوتر -->
+        <Border Grid.Row="3" 
+                Background="{DynamicResource AppCardBackground}" 
+                Padding="20,16"
+                BorderBrush="{DynamicResource AppBorder}"
+                BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Grid.Column="0"
+                           x:Name="StatusText"
+                           Text=""
+                           VerticalAlignment="Center"
+                           FontSize="13" FontWeight="SemiBold"
+                           Foreground="{DynamicResource AppSuccess}"
+                           TextWrapping="Wrap"/>
+
+                <Button Grid.Column="1"
+                        Content="💾 ذخیره تنظیمات"
+                        FontSize="15" FontWeight="Bold"
+                        Background="{DynamicResource AppSuccess}"
+                        Foreground="White"
+                        Padding="30,12"
+                        Margin="0,0,10,0"
+                        CornerRadius="8"
+                        Click="OnSaveClick"/>
+
+                <Button Grid.Column="2"
+                        Content="بستن"
+                        FontSize="15"
+                        Background="{DynamicResource AppBackground}"
+                        Foreground="{DynamicResource AppTextPrimary}"
+                        BorderBrush="{DynamicResource AppBorder}"
+                        BorderThickness="1"
+                        Padding="30,12"
+                        CornerRadius="8"
+                        Click="OnCloseClick"/>
+            </Grid>
+        </Border>
+
+    </Grid>
+
+</Window>

@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="ShopManager.Desktop/ShopManager.Desktop.csproj" />
+  <Project Path="ShopManager.Domain/ShopManager.Domain.csproj" />
+  <Project Path="ShopManager.Infrastructure/ShopManager.Infrastructure.csproj" />
+</Solution>

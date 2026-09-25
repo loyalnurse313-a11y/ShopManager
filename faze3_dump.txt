@@ -1,0 +1,1417 @@
+﻿
+
+==================== ShopManager.Desktop\Views\DashboardWindow.axaml ====================
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="ShopManager.Desktop.Views.DashboardWindow"
+        Title="داشبورد"
+        Width="1300" Height="850"
+        MinWidth="1100" MinHeight="650"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        FlowDirection="RightToLeft"
+        FontFamily="Vazirmatn,IRANSans,Segoe UI"
+        Background="#F1F5F9">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- هدر -->
+        <Border Grid.Row="0" Background="#2C3E50" Padding="24,18">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="داشبورد"
+                           FontSize="20" FontWeight="Bold"
+                           Foreground="White"
+                           VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1"
+                           x:Name="TodayDateText"
+                           Text=""
+                           FontSize="14"
+                           Foreground="#94A3B8"
+                           VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- محتوا -->
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Margin="20" Spacing="16">
+
+                <!-- ═══ ۴ KPI بالا ═══ -->
+                <Grid ColumnDefinitions="*,16,*,16,*,16,*">
+
+                    <Border Grid.Column="0" Background="White" CornerRadius="12" Padding="20,18">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="📦 موجودی انبار"
+                                       FontSize="13" Foreground="#94A3B8"/>
+                            <TextBlock x:Name="KpiWarehouseValueText"
+                                       Text="۰ تومان"
+                                       FontSize="20" FontWeight="Bold"
+                                       Foreground="#4F46E5"/>
+                            <TextBlock x:Name="KpiWarehouseCountText"
+                                       Text="۰ قلم"
+                                       FontSize="12" Foreground="#94A3B8"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="2" Background="White" CornerRadius="12" Padding="20,18">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="🏪 موجودی مغازه"
+                                       FontSize="13" Foreground="#94A3B8"/>
+                            <TextBlock x:Name="KpiShopValueText"
+                                       Text="۰ تومان"
+                                       FontSize="20" FontWeight="Bold"
+                                       Foreground="#10B981"/>
+                            <TextBlock x:Name="KpiShopCountText"
+                                       Text="۰ قلم"
+                                       FontSize="12" Foreground="#94A3B8"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="4" Background="White" CornerRadius="12" Padding="20,18">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="💰 موجودی صندوق"
+                                       FontSize="13" Foreground="#94A3B8"/>
+                            <TextBlock x:Name="KpiCashboxText"
+                                       Text="۰ تومان"
+                                       FontSize="20" FontWeight="Bold"
+                                       Foreground="#F59E0B"/>
+                            <TextBlock x:Name="KpiCashboxSubText"
+                                       Text=""
+                                       FontSize="12" Foreground="#94A3B8"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="6" Background="White" CornerRadius="12" Padding="20,18">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="📈 سود امروز"
+                                       FontSize="13" Foreground="#94A3B8"/>
+                            <TextBlock x:Name="KpiTodayProfitText"
+                                       Text="۰ تومان"
+                                       FontSize="20" FontWeight="Bold"
+                                       Foreground="#10B981"/>
+                            <TextBlock x:Name="KpiTodaySalesText"
+                                       Text="۰ فروش"
+                                       FontSize="12" Foreground="#94A3B8"/>
+                        </StackPanel>
+                    </Border>
+
+                </Grid>
+
+                <!-- ═══ نمودار فروش ۷ روز اخیر ═══ -->
+                <Border Background="White" CornerRadius="12">
+                    <Grid RowDefinitions="Auto,Auto">
+                        <Border Grid.Row="0" Background="#EEF2FF" Padding="20,14" CornerRadius="12,12,0,0">
+                            <TextBlock Text="📊 فروش ۷ روز اخیر"
+                                       FontSize="15" FontWeight="Bold" Foreground="#4F46E5"/>
+                        </Border>
+
+                        <Grid Grid.Row="1" Margin="20" ColumnDefinitions="*,Auto">
+                            <!-- نمودار میله‌ای -->
+                            <Border Grid.Column="0" 
+                                    Background="#F8FAFC" 
+                                    CornerRadius="8"
+                                    Padding="20"
+                                    MinHeight="200">
+                                <Grid x:Name="ChartGrid"
+                                      ColumnDefinitions="*,*,*,*,*,*,*"
+                                      VerticalAlignment="Bottom">
+                                    <!-- ستون‌ها به صورت داینامیک پر می‌شن -->
+                                </Grid>
+                            </Border>
+
+                            <!-- آمار کنار نمودار -->
+                            <StackPanel Grid.Column="1" 
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Spacing="12"
+                                        Width="180">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="جمع ۷ روز" 
+                                               FontSize="12" Foreground="#94A3B8"/>
+                                    <TextBlock x:Name="WeekRevenueText"
+                                               Text="۰ تومان"
+                                               FontSize="16" FontWeight="Bold"
+                                               Foreground="#4F46E5"/>
+                                </StackPanel>
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="جمع سود ۷ روز" 
+                                               FontSize="12" Foreground="#94A3B8"/>
+                                    <TextBlock x:Name="WeekProfitText"
+                                               Text="۰ تومان"
+                                               FontSize="16" FontWeight="Bold"
+                                               Foreground="#10B981"/>
+                                </StackPanel>
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="بهترین روز" 
+                                               FontSize="12" Foreground="#94A3B8"/>
+                                    <TextBlock x:Name="BestDayText"
+                                               Text="—"
+                                               FontSize="14" FontWeight="Bold"
+                                               Foreground="#F59E0B"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- ═══ دو ستون: بحرانی + پرفروش ═══ -->
+                <Grid ColumnDefinitions="*,16,*">
+
+                    <!-- کالاهای بحرانی -->
+                    <Border Grid.Column="0" Background="White" CornerRadius="12">
+                        <Grid RowDefinitions="Auto,Auto">
+                            <Border Grid.Row="0" Background="#FEF2F2" Padding="20,14" CornerRadius="12,12,0,0">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" 
+                                               Text="⚠️ کالاهای بحرانی"
+                                               FontSize="15" FontWeight="Bold" Foreground="#DC2626"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" 
+                                               x:Name="CriticalCountText"
+                                               Text="۰"
+                                               FontSize="13" FontWeight="Bold"
+                                               Foreground="#DC2626"/>
+                                </Grid>
+                            </Border>
+
+                            <Border Grid.Row="1" 
+                                    Margin="20"
+                                    Background="#F8FAFC"
+                                    CornerRadius="8"
+                                    MinHeight="200"
+                                    MaxHeight="280">
+                                <ScrollViewer>
+                                    <StackPanel x:Name="CriticalItemsPanel" Spacing="0">
+                                        <TextBlock Text="کالای بحرانی وجود ندارد"
+                                                   Foreground="#94A3B8"
+                                                   FontSize="13"
+                                                   HorizontalAlignment="Center"
+                                                   Margin="0,40,0,40"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- پرفروش‌ترین امروز -->
+                    <Border Grid.Column="2" Background="White" CornerRadius="12">
+                        <Grid RowDefinitions="Auto,Auto">
+                            <Border Grid.Row="0" Background="#ECFDF5" Padding="20,14" CornerRadius="12,12,0,0">
+                                <TextBlock Text="🏆 پرفروش‌ترین امروز"
+                                           FontSize="15" FontWeight="Bold" Foreground="#059669"/>
+                            </Border>
+
+                            <Border Grid.Row="1" 
+                                    Margin="20"
+                                    Background="#F8FAFC"
+                                    CornerRadius="8"
+                                    MinHeight="200"
+                                    MaxHeight="280">
+                                <ScrollViewer>
+                                    <StackPanel x:Name="TopTodayPanel" Spacing="0">
+                                        <TextBlock Text="امروز فروشی ثبت نشده"
+                                                   Foreground="#94A3B8"
+                                                   FontSize="13"
+                                                   HorizontalAlignment="Center"
+                                                   Margin="0,40,0,40"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                </Grid>
+
+                <!-- ═══ آخرین فروش‌ها ═══ -->
+                <Border Background="White" CornerRadius="12">
+                    <Grid RowDefinitions="Auto,Auto">
+                        <Border Grid.Row="0" Background="#FEF3C7" Padding="20,14" CornerRadius="12,12,0,0">
+                            <TextBlock Text="🕒 آخرین فروش‌ها"
+                                       FontSize="15" FontWeight="Bold" Foreground="#D97706"/>
+                        </Border>
+
+                        <Border Grid.Row="1" 
+                                Margin="20"
+                                Background="#F8FAFC"
+                                CornerRadius="8"
+                                MinHeight="150"
+                                MaxHeight="240">
+                            <ScrollViewer>
+                                <StackPanel x:Name="RecentSalesPanel" Spacing="0">
+                                    <TextBlock Text="فروشی ثبت نشده"
+                                               Foreground="#94A3B8"
+                                               FontSize="13"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,40,0,40"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- پایین -->
+        <Border Grid.Row="2" Background="White" Padding="20,16"
+                BorderBrush="#E2E8F0" BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Grid.Column="0"
+                           x:Name="StatusText"
+                           Text=""
+                           VerticalAlignment="Center"
+                           FontSize="13" FontWeight="SemiBold"
+                           Foreground="#475569"/>
+                <Button Grid.Column="1"
+                        Content="🔄 بروزرسانی"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="#EEF2FF" Foreground="#4F46E5"
+                        Padding="22,10" Margin="0,0,10,0"
+                        Click="OnRefreshClick"/>
+                <Button Grid.Column="2"
+                        Content="بستن"
+                        FontSize="15"
+                        Background="#F1F5F9" Foreground="#475569"
+                        BorderBrush="#CBD5E1" BorderThickness="1"
+                        Padding="25,10"
+                        Click="OnCloseClick"/>
+            </Grid>
+        </Border>
+
+    </Grid>
+
+</Window>
+
+
+==================== ShopManager.Desktop\Views\DashboardWindow.axaml.cs ====================
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Layout;
+using Avalonia.Media;
+using ShopManager.Desktop.Services;
+using ShopManager.Domain.Enums;
+using ShopManager.Domain.Helpers;
+using ShopManager.Domain.Services;
+
+// ═══ رفع تداخل با DocumentFormat.OpenXml ═══
+using Color = Avalonia.Media.Color;
+using TextAlignment = Avalonia.Media.TextAlignment;
+using Border = Avalonia.Controls.Border;
+
+namespace ShopManager.Desktop.Views;
+
+public partial class DashboardWindow : Window
+{
+    public DashboardWindow()
+    {
+        InitializeComponent();
+
+        TodayDateText.Text = PersianNumber.ToPersianDigits(JalaliDate.ToShamsi(DateTime.Today));
+
+        LoadDashboard();
+    }
+
+    private void LoadDashboard()
+    {
+        try
+        {
+            using var db = DatabaseService.CreateContext();
+
+            var items = db.Items.Where(i => i.IsActive).ToList();
+            var purchases = db.Purchases.Where(p => p.EntryType == EntryType.Normal).ToList();
+            var transfers = db.Transfers.Where(t => t.EntryType == EntryType.Normal).ToList();
+            var sales = db.Sales.Where(s => s.EntryType == EntryType.Normal).ToList();
+            var ledger = db.CashLedgers.ToList();
+            var settings = db.Settings.FirstOrDefault();
+
+            // KPI ۱: ارزش انبار
+            decimal warehouseValue = 0;
+            int warehouseItemCount = 0;
+            decimal shopValue = 0;
+            int shopItemCount = 0;
+
+            foreach (var item in items)
+            {
+                var whStock = StockCalculator.GetWarehouseStock(item, purchases, transfers);
+                var shopStock = StockCalculator.GetShopStock(item, transfers, sales);
+                var avgCost = LockedCostCalculator.CalculateCurrentAverageCost(item, purchases);
+
+                if (whStock > 0)
+                {
+                    warehouseValue += whStock * avgCost;
+                    warehouseItemCount++;
+                }
+
+                if (shopStock > 0)
+                {
+                    shopValue += shopStock * avgCost;
+                    shopItemCount++;
+                }
+            }
+
+            KpiWarehouseValueText.Text = PersianNumber.ToToman(warehouseValue);
+            KpiWarehouseCountText.Text = $"{PersianNumber.ToPersian(warehouseItemCount)} قلم";
+
+            KpiShopValueText.Text = PersianNumber.ToToman(shopValue);
+            KpiShopCountText.Text = $"{PersianNumber.ToPersian(shopItemCount)} قلم";
+
+            // KPI ۲: صندوق
+            var initialCapital = settings?.InitialCapital ?? 0;
+            var cashbox = CashboxCalculator.CalculateCashbox(initialCapital, sales, purchases, ledger);
+            KpiCashboxText.Text = PersianNumber.ToToman(cashbox);
+
+            var receivables = CashboxCalculator.CalculateReceivables(sales);
+            KpiCashboxSubText.Text = $"طلب: {PersianNumber.ToToman(receivables)}";
+
+            // KPI ۳: سود امروز
+            var todayShamsi = JalaliDate.TodayShamsi();
+            var todaySales = sales.Where(s => s.DateShamsi == todayShamsi).ToList();
+            var todayProfit = todaySales.Sum(s => s.Profit);
+            var todayInvoices = todaySales.Select(s => s.InvoiceNumber ?? s.Id.ToString()).Distinct().Count();
+
+            KpiTodayProfitText.Text = PersianNumber.ToToman(todayProfit);
+            KpiTodaySalesText.Text = $"{PersianNumber.ToPersian(todayInvoices)} فروش";
+
+            // نمودار ۷ روز
+            LoadWeekChart(sales);
+
+            // کالاهای بحرانی
+            LoadCriticalItems(items, purchases, transfers, sales);
+
+            // پرفروش امروز
+            LoadTopToday(todaySales, db);
+
+            // آخرین فروش‌ها
+            LoadRecentSales(sales, db);
+
+            StatusText.Text = $"آخرین بروزرسانی: {DateTime.Now:HH:mm:ss}";
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"خطا: {ex.Message}";
+        }
+    }
+
+    private void LoadWeekChart(List<Domain.Entities.Sale> sales)
+    {
+        ChartGrid.Children.Clear();
+
+        var today = DateTime.Today;
+        var days = new List<(DateTime Date, decimal Revenue, decimal Profit)>();
+
+        for (int i = 6; i >= 0; i--)
+        {
+            var date = today.AddDays(-i);
+            var dayShamsi = JalaliDate.ToShamsi(date);
+
+            var daySales = sales.Where(s => s.DateShamsi == dayShamsi).ToList();
+            var revenue = daySales.Sum(s => s.Revenue);
+            var profit = daySales.Sum(s => s.Profit);
+
+            days.Add((date, revenue, profit));
+        }
+
+        var maxRevenue = days.Max(d => d.Revenue);
+        if (maxRevenue == 0) maxRevenue = 1;
+
+        var weekRevenue = days.Sum(d => d.Revenue);
+        var weekProfit = days.Sum(d => d.Profit);
+        WeekRevenueText.Text = PersianNumber.ToToman(weekRevenue);
+        WeekProfitText.Text = PersianNumber.ToToman(weekProfit);
+
+        var bestDay = days.OrderByDescending(d => d.Revenue).First();
+        BestDayText.Text = bestDay.Revenue > 0
+            ? $"{PersianNumber.ToPersianDigits(JalaliDate.ToShamsi(bestDay.Date))}\n{PersianNumber.ToToman(bestDay.Revenue)}"
+            : "—";
+
+        for (int i = 0; i < 7; i++)
+        {
+            var day = days[i];
+            var height = maxRevenue > 0 ? (double)(day.Revenue / maxRevenue) * 140 : 0;
+            if (height < 3 && day.Revenue > 0) height = 3;
+
+            var column = new StackPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Spacing = 6,
+                Margin = new Thickness(4, 0, 4, 0)
+            };
+
+            var valueText = new TextBlock
+            {
+                Text = day.Revenue > 0 ? PersianNumber.ToPersian(day.Revenue / 1000) + "ک" : "",
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.Parse("#475569")),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextAlignment = TextAlignment.Center
+            };
+
+            var bar = new Avalonia.Controls.Border
+            {
+                Height = height,
+                Background = new SolidColorBrush(Color.Parse("#4F46E5")),
+                CornerRadius = new CornerRadius(4, 4, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                MinWidth = 20
+            };
+
+            var dayLabel = new TextBlock
+            {
+                Text = PersianNumber.ToPersianDigits(JalaliDate.ToShamsi(day.Date).Substring(8, 2)),
+                FontSize = 11,
+                Foreground = new SolidColorBrush(Color.Parse("#94A3B8")),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextAlignment = TextAlignment.Center
+            };
+
+            column.Children.Add(valueText);
+            column.Children.Add(bar);
+            column.Children.Add(dayLabel);
+
+            Grid.SetColumn(column, i);
+            ChartGrid.Children.Add(column);
+        }
+    }
+
+    private void LoadCriticalItems(
+        List<Domain.Entities.Item> items,
+        List<Domain.Entities.Purchase> purchases,
+        List<Domain.Entities.Transfer> transfers,
+        List<Domain.Entities.Sale> sales)
+    {
+        var criticalList = new List<(Domain.Entities.Item Item, decimal Stock, string Location, decimal Threshold)>();
+
+        foreach (var item in items)
+        {
+            var totalInput = StockAlertCalculator.GetTotalHistoricalInput(item, purchases);
+
+            var whStock = StockCalculator.GetWarehouseStock(item, purchases, transfers);
+            var shopStock = StockCalculator.GetShopStock(item, transfers, sales);
+
+            var whStatus = StockAlertCalculator.GetStatus(item, whStock, totalInput);
+            var shopStatus = StockAlertCalculator.GetStatus(item, shopStock, totalInput);
+
+            decimal whThreshold = item.LowStockCriticalFixed ?? (totalInput * item.LowStockCriticalPct);
+            decimal shopThreshold = item.LowStockCriticalFixed ?? (totalInput * item.LowStockCriticalPct);
+
+            if (whStatus == StockStatus.Critical)
+                criticalList.Add((item, whStock, "انبار", whThreshold));
+
+            if (shopStatus == StockStatus.Critical)
+                criticalList.Add((item, shopStock, "مغازه", shopThreshold));
+        }
+
+        CriticalCountText.Text = PersianNumber.ToPersian(criticalList.Count);
+        CriticalItemsPanel.Children.Clear();
+
+        if (criticalList.Count == 0)
+        {
+            CriticalItemsPanel.Children.Add(new TextBlock
+            {
+                Text = "✓ همه کالاها موجودی کافی دارند",
+                Foreground = new SolidColorBrush(Color.Parse("#10B981")),
+                FontSize = 13,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 40, 0, 40)
+            });
+            return;
+        }
+
+        foreach (var c in criticalList.Take(10))
+        {
+            var row = new Avalonia.Controls.Border
+            {
+                Padding = new Thickness(12, 10),
+                BorderBrush = new SolidColorBrush(Color.Parse("#FEE2E2")),
+                BorderThickness = new Thickness(0, 0, 0, 1)
+            };
+
+            var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("70,*,90,110") };
+
+            var codeText = new TextBlock
+            {
+                Text = PersianNumber.ToPersian(c.Item.ItemCode),
+                FontSize = 12,
+                FontWeight = FontWeight.SemiBold,
+                Foreground = new SolidColorBrush(Color.Parse("#DC2626")),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(codeText, 0);
+
+            var nameText = new TextBlock
+            {
+                Text = c.Item.Name,
+                FontSize = 13,
+                Foreground = new SolidColorBrush(Color.Parse("#0F172A")),
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            Grid.SetColumn(nameText, 1);
+
+            var locationText = new TextBlock
+            {
+                Text = c.Location,
+                FontSize = 11,
+                Foreground = new SolidColorBrush(Color.Parse("#DC2626")),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(locationText, 2);
+
+            var stockText = new TextBlock
+            {
+                Text = PersianNumber.ToPersian(c.Stock) + " " + c.Item.Unit,
+                FontSize = 12,
+                FontWeight = FontWeight.Bold,
+                Foreground = new SolidColorBrush(Color.Parse("#DC2626")),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(stockText, 3);
+
+            grid.Children.Add(codeText);
+            grid.Children.Add(nameText);
+            grid.Children.Add(locationText);
+            grid.Children.Add(stockText);
+
+            row.Child = grid;
+            CriticalItemsPanel.Children.Add(row);
+        }
+    }
+
+    private void LoadTopToday(
+        List<Domain.Entities.Sale> todaySales,
+        Infrastructure.Persistence.AppDbContext db)
+    {
+        TopTodayPanel.Children.Clear();
+
+        if (todaySales.Count == 0)
+        {
+            TopTodayPanel.Children.Add(new TextBlock
+            {
+                Text = "امروز فروشی ثبت نشده",
+                Foreground = new SolidColorBrush(Color.Parse("#94A3B8")),
+                FontSize = 13,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 40, 0, 40)
+            });
+            return;
+        }
+
+        var itemsDict = db.Items.ToDictionary(i => i.Id);
+
+        var topItems = todaySales
+            .GroupBy(s => s.ItemId)
+            .Select(g => new
+            {
+                ItemId = g.Key,
+                Qty = g.Sum(s => s.Qty),
+                Revenue = g.Sum(s => s.Revenue),
+                Profit = g.Sum(s => s.Profit)
+            })
+            .OrderByDescending(x => x.Qty)
+            .Take(5)
+            .ToList();
+
+        int rank = 1;
+        foreach (var t in topItems)
+        {
+            var item = itemsDict.GetValueOrDefault(t.ItemId);
+
+            var row = new Avalonia.Controls.Border
+            {
+                Padding = new Thickness(12, 10),
+                BorderBrush = new SolidColorBrush(Color.Parse("#F1F5F9")),
+                BorderThickness = new Thickness(0, 0, 0, 1)
+            };
+
+            var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("40,*,90,110") };
+
+            var rankText = new TextBlock
+            {
+                Text = PersianNumber.ToPersian(rank),
+                FontSize = 13,
+                FontWeight = FontWeight.Bold,
+                Foreground = new SolidColorBrush(Color.Parse(rank <= 3 ? "#D97706" : "#94A3B8")),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(rankText, 0);
+
+            var nameText = new TextBlock
+            {
+                Text = item?.Name ?? "—",
+                FontSize = 13,
+                FontWeight = FontWeight.SemiBold,
+                Foreground = new SolidColorBrush(Color.Parse("#0F172A")),
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            Grid.SetColumn(nameText, 1);
+
+            var qtyText = new TextBlock
+            {
+                Text = PersianNumber.ToPersian(t.Qty) + " " + (item?.Unit ?? ""),
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.Parse("#4F46E5")),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(qtyText, 2);
+
+            var profitText = new TextBlock
+            {
+                Text = PersianNumber.ToToman(t.Profit),
+                FontSize = 12,
+                FontWeight = FontWeight.Bold,
+                Foreground = new SolidColorBrush(Color.Parse("#10B981")),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(profitText, 3);
+
+            grid.Children.Add(rankText);
+            grid.Children.Add(nameText);
+            grid.Children.Add(qtyText);
+            grid.Children.Add(profitText);
+
+            row.Child = grid;
+            TopTodayPanel.Children.Add(row);
+
+            rank++;
+        }
+    }
+
+    private void LoadRecentSales(
+        List<Domain.Entities.Sale> sales,
+        Infrastructure.Persistence.AppDbContext db)
+    {
+        RecentSalesPanel.Children.Clear();
+
+        var recentSales = sales
+            .OrderByDescending(s => s.DateGregorian)
+            .ThenByDescending(s => s.Id)
+            .Take(8)
+            .ToList();
+
+        if (recentSales.Count == 0)
+        {
+            RecentSalesPanel.Children.Add(new TextBlock
+            {
+                Text = "فروشی ثبت نشده",
+                Foreground = new SolidColorBrush(Color.Parse("#94A3B8")),
+                FontSize = 13,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 40, 0, 40)
+            });
+            return;
+        }
+
+        var itemsDict = db.Items.ToDictionary(i => i.Id);
+
+        foreach (var s in recentSales)
+        {
+            var item = itemsDict.GetValueOrDefault(s.ItemId);
+
+            var row = new Avalonia.Controls.Border
+            {
+                Padding = new Thickness(12, 10),
+                BorderBrush = new SolidColorBrush(Color.Parse("#F1F5F9")),
+                BorderThickness = new Thickness(0, 0, 0, 1)
+            };
+
+            var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("110,70,*,80,120,120") };
+
+            var dateText = new TextBlock
+            {
+                Text = PersianNumber.ToPersianDigits(s.DateShamsi),
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.Parse("#475569")),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(dateText, 0);
+
+            var codeText = new TextBlock
+            {
+                Text = PersianNumber.ToPersian(item?.ItemCode ?? 0),
+                FontSize = 12,
+                FontWeight = FontWeight.SemiBold,
+                Foreground = new SolidColorBrush(Color.Parse("#0F172A")),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(codeText, 1);
+
+            var nameText = new TextBlock
+            {
+                Text = item?.Name ?? "—",
+                FontSize = 13,
+                Foreground = new SolidColorBrush(Color.Parse("#0F172A")),
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            Grid.SetColumn(nameText, 2);
+
+            var qtyText = new TextBlock
+            {
+                Text = PersianNumber.ToPersian(s.Qty),
+                FontSize = 12,
+                FontWeight = FontWeight.Bold,
+                Foreground = new SolidColorBrush(Color.Parse("#4F46E5")),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(qtyText, 3);
+
+            var revenueText = new TextBlock
+            {
+                Text = PersianNumber.ToToman(s.Revenue),
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.Parse("#059669")),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(revenueText, 4);
+
+            var profitText = new TextBlock
+            {
+                Text = PersianNumber.ToToman(s.Profit),
+                FontSize = 12,
+                FontWeight = FontWeight.Bold,
+                Foreground = new SolidColorBrush(Color.Parse("#10B981")),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(profitText, 5);
+
+            grid.Children.Add(dateText);
+            grid.Children.Add(codeText);
+            grid.Children.Add(nameText);
+            grid.Children.Add(qtyText);
+            grid.Children.Add(revenueText);
+            grid.Children.Add(profitText);
+
+            row.Child = grid;
+            RecentSalesPanel.Children.Add(row);
+        }
+    }
+
+    private void OnRefreshClick(object? sender, RoutedEventArgs e)
+    {
+        LoadDashboard();
+    }
+
+    private void OnCloseClick(object? sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+}
+
+
+==================== ShopManager.Desktop\Views\StatsWindow.axaml ====================
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="ShopManager.Desktop.Views.StatsWindow"
+        Title="آمار و تحلیل"
+        Width="1300" Height="850"
+        MinWidth="1100" MinHeight="650"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        FlowDirection="RightToLeft"
+        FontFamily="Vazirmatn,IRANSans,Segoe UI"
+        Background="#F1F5F9">
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+        <Border Grid.Row="0" Background="#2C3E50" Padding="24,18">
+            <TextBlock Text="آمار و تحلیل"
+                       FontSize="20" FontWeight="Bold"
+                       Foreground="White"
+                       HorizontalAlignment="Center"/>
+        </Border>
+
+        <Border Grid.Row="1" 
+                Background="White" 
+                Padding="20,16"
+                BorderBrush="#E2E8F0"
+                BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="از تاریخ" FontSize="13" FontWeight="SemiBold" 
+                               Foreground="#334155" Margin="0,0,0,6"/>
+                    <TextBox x:Name="FromDateBox" Width="140"
+                             Watermark="1405/01/01"
+                             FontSize="14" Padding="12,10"/>
+                </StackPanel>
+                <StackPanel>
+                    <TextBlock Text="تا تاریخ" FontSize="13" FontWeight="SemiBold" 
+                               Foreground="#334155" Margin="0,0,0,6"/>
+                    <TextBox x:Name="ToDateBox" Width="140"
+                             Watermark="1405/12/29"
+                             FontSize="14" Padding="12,10"/>
+                </StackPanel>
+                <Button Content="امروز" FontSize="14" FontWeight="SemiBold"
+                        Background="#EEF2FF" Foreground="#4F46E5"
+                        Padding="16,10" Margin="0,24,0,0" Click="OnTodayClick"/>
+                <Button Content="این هفته" FontSize="14" FontWeight="SemiBold"
+                        Background="#EEF2FF" Foreground="#4F46E5"
+                        Padding="16,10" Margin="0,24,0,0" Click="OnWeekClick"/>
+                <Button Content="این ماه" FontSize="14" FontWeight="SemiBold"
+                        Background="#EEF2FF" Foreground="#4F46E5"
+                        Padding="16,10" Margin="0,24,0,0" Click="OnMonthClick"/>
+                <Button Content="کل دوره" FontSize="14" FontWeight="SemiBold"
+                        Background="#FEF3C7" Foreground="#D97706"
+                        Padding="16,10" Margin="0,24,0,0" Click="OnAllClick"/>
+                <Button Content="اعمال" FontSize="14" FontWeight="Bold"
+                        Background="#4F46E5" Foreground="White"
+                        Padding="20,10" Margin="0,24,0,0" Click="OnApplyClick"/>
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="2">
+            <StackPanel Margin="20" Spacing="16">
+
+                <Grid ColumnDefinitions="*,16,*,16,*,16,*">
+                    <Border Grid.Column="0" Background="White" CornerRadius="12" Padding="20,18">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="جمع درآمد" FontSize="13" Foreground="#94A3B8"/>
+                            <TextBlock x:Name="KpiRevenueText" Text="۰ تومان"
+                                       FontSize="20" FontWeight="Bold" Foreground="#059669"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="2" Background="White" CornerRadius="12" Padding="20,18">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="جمع سود" FontSize="13" Foreground="#94A3B8"/>
+                            <TextBlock x:Name="KpiProfitText" Text="۰ تومان"
+                                       FontSize="20" FontWeight="Bold" Foreground="#10B981"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="4" Background="White" CornerRadius="12" Padding="20,18">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="تعداد فروش" FontSize="13" Foreground="#94A3B8"/>
+                            <TextBlock x:Name="KpiSalesCountText" Text="۰"
+                                       FontSize="20" FontWeight="Bold" Foreground="#4F46E5"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="6" Background="White" CornerRadius="12" Padding="20,18">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="میانگین سود هر فروش" FontSize="13" Foreground="#94A3B8"/>
+                            <TextBlock x:Name="KpiAvgProfitText" Text="۰ تومان"
+                                       FontSize="20" FontWeight="Bold" Foreground="#F59E0B"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Border Background="White" CornerRadius="12">
+                    <Grid RowDefinitions="Auto,Auto">
+                        <Border Grid.Row="0" Background="#EEF2FF" Padding="20,14" CornerRadius="12,12,0,0">
+                            <TextBlock Text="🏆 پرفروش‌ترین کالاها"
+                                       FontSize="15" FontWeight="Bold" Foreground="#4F46E5"/>
+                        </Border>
+                        <Border Grid.Row="1" Background="#F8FAFC" Margin="20" CornerRadius="6"
+                                MinHeight="100" MaxHeight="280">
+                            <ScrollViewer>
+                                <StackPanel x:Name="TopSellingPanel" Spacing="0">
+                                    <TextBlock Text="داده‌ای وجود ندارد"
+                                               Foreground="#94A3B8" FontSize="13"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,30,0,30"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <Border Background="White" CornerRadius="12">
+                    <Grid RowDefinitions="Auto,Auto">
+                        <Border Grid.Row="0" Background="#ECFDF5" Padding="20,14" CornerRadius="12,12,0,0">
+                            <TextBlock Text="💰 پرسودترین کالاها"
+                                       FontSize="15" FontWeight="Bold" Foreground="#059669"/>
+                        </Border>
+                        <Border Grid.Row="1" Background="#F8FAFC" Margin="20" CornerRadius="6"
+                                MinHeight="100" MaxHeight="280">
+                            <ScrollViewer>
+                                <StackPanel x:Name="TopProfitPanel" Spacing="0">
+                                    <TextBlock Text="داده‌ای وجود ندارد"
+                                               Foreground="#94A3B8" FontSize="13"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,30,0,30"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <Border Background="White" CornerRadius="12">
+                    <Grid RowDefinitions="Auto,Auto">
+                        <Border Grid.Row="0" Background="#FEF3C7" Padding="20,14" CornerRadius="12,12,0,0">
+                            <TextBlock Text="⭐ بهترین مشتری‌ها"
+                                       FontSize="15" FontWeight="Bold" Foreground="#D97706"/>
+                        </Border>
+                        <Border Grid.Row="1" Background="#F8FAFC" Margin="20" CornerRadius="6"
+                                MinHeight="100" MaxHeight="280">
+                            <ScrollViewer>
+                                <StackPanel x:Name="TopCustomerPanel" Spacing="0">
+                                    <TextBlock Text="داده‌ای وجود ندارد"
+                                               Foreground="#94A3B8" FontSize="13"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,30,0,30"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="3" Background="White" Padding="20,16"
+                BorderBrush="#E2E8F0" BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" x:Name="StatusText"
+                           Text="آماده" VerticalAlignment="Center"
+                           FontSize="13" FontWeight="SemiBold"
+                           Foreground="#475569"/>
+                <Button Grid.Column="1" Content="بستن"
+                        FontSize="15" Background="#F1F5F9" Foreground="#475569"
+                        BorderBrush="#CBD5E1" BorderThickness="1"
+                        Padding="25,10" Click="OnCloseClick"/>
+            </Grid>
+        </Border>
+
+    </Grid>
+
+</Window>
+
+
+==================== ShopManager.Desktop\Views\StatsWindow.axaml.cs ====================
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Layout;
+using Avalonia.Media;
+using ShopManager.Desktop.Services;
+using ShopManager.Domain.Enums;
+using ShopManager.Domain.Helpers;
+
+namespace ShopManager.Desktop.Views;
+
+public partial class StatsWindow : Window
+{
+    public StatsWindow()
+    {
+        InitializeComponent();
+        SetMonthRange();
+        LoadStats();
+    }
+
+    private void SetMonthRange()
+    {
+        var todayShamsi = JalaliDate.TodayShamsi();
+        var parts = todayShamsi.Split('/');
+        if (parts.Length == 3)
+        {
+            FromDateBox.Text = $"{parts[0]}/{parts[1]}/01";
+            ToDateBox.Text = todayShamsi;
+        }
+    }
+
+    private void LoadStats()
+    {
+        try
+        {
+            using var db = DatabaseService.CreateContext();
+
+            var allSales = db.Sales
+                .Where(s => s.EntryType == EntryType.Normal)
+                .ToList();
+
+            var filtered = allSales.AsEnumerable();
+
+            var fromText = PersianNumber.ToEnglishDigits(FromDateBox.Text ?? "").Trim();
+            var toText = PersianNumber.ToEnglishDigits(ToDateBox.Text ?? "").Trim();
+
+            if (!string.IsNullOrWhiteSpace(fromText))
+            {
+                try
+                {
+                    var fromDate = JalaliDate.ToGregorian(fromText);
+                    filtered = filtered.Where(s => s.DateGregorian.Date >= fromDate.Date);
+                }
+                catch { }
+            }
+
+            if (!string.IsNullOrWhiteSpace(toText))
+            {
+                try
+                {
+                    var toDate = JalaliDate.ToGregorian(toText);
+                    filtered = filtered.Where(s => s.DateGregorian.Date <= toDate.Date);
+                }
+                catch { }
+            }
+
+            var sales = filtered.ToList();
+
+            var totalRevenue = sales.Sum(s => s.Revenue);
+            var totalProfit = sales.Sum(s => s.Profit);
+            var salesCount = sales.Select(s => s.InvoiceNumber ?? s.Id.ToString()).Distinct().Count();
+            var avgProfit = salesCount > 0 ? totalProfit / salesCount : 0;
+
+            KpiRevenueText.Text = PersianNumber.ToToman(totalRevenue);
+            KpiProfitText.Text = PersianNumber.ToToman(totalProfit);
+            KpiSalesCountText.Text = PersianNumber.ToPersian(salesCount);
+            KpiAvgProfitText.Text = PersianNumber.ToToman(avgProfit);
+
+            var topSelling = sales
+                .GroupBy(s => s.ItemId)
+                .Select(g => new { ItemId = g.Key, Qty = g.Sum(s => s.Qty), Revenue = g.Sum(s => s.Revenue) })
+                .OrderByDescending(x => x.Qty)
+                .Take(10)
+                .ToList();
+
+            var itemsDict = db.Items.ToDictionary(i => i.Id);
+
+            TopSellingPanel.Children.Clear();
+
+            if (topSelling.Count == 0)
+            {
+                TopSellingPanel.Children.Add(MakeEmptyText());
+            }
+            else
+            {
+                int rank = 1;
+                foreach (var t in topSelling)
+                {
+                    var item = itemsDict.GetValueOrDefault(t.ItemId);
+                    TopSellingPanel.Children.Add(MakeTopItemRow(
+                        rank, item?.ItemCode.ToString() ?? "—", item?.Name ?? "—",
+                        item?.Unit ?? "—", PersianNumber.ToPersian(t.Qty),
+                        PersianNumber.ToToman(t.Revenue), "#4F46E5"));
+                    rank++;
+                }
+            }
+
+            var topProfit = sales
+                .GroupBy(s => s.ItemId)
+                .Select(g => new { ItemId = g.Key, Profit = g.Sum(s => s.Profit), Revenue = g.Sum(s => s.Revenue) })
+                .OrderByDescending(x => x.Profit)
+                .Take(10)
+                .ToList();
+
+            TopProfitPanel.Children.Clear();
+
+            if (topProfit.Count == 0)
+            {
+                TopProfitPanel.Children.Add(MakeEmptyText());
+            }
+            else
+            {
+                int rank = 1;
+                foreach (var t in topProfit)
+                {
+                    var item = itemsDict.GetValueOrDefault(t.ItemId);
+                    TopProfitPanel.Children.Add(MakeTopItemRow(
+                        rank, item?.ItemCode.ToString() ?? "—", item?.Name ?? "—",
+                        item?.Unit ?? "—", PersianNumber.ToToman(t.Profit),
+                        PersianNumber.ToToman(t.Revenue), "#059669"));
+                    rank++;
+                }
+            }
+
+            var topCustomers = sales
+                .Where(s => s.CustomerId.HasValue)
+                .GroupBy(s => s.CustomerId!.Value)
+                .Select(g => new {
+                    CustomerId = g.Key,
+                    Revenue = g.Sum(s => s.Revenue),
+                    Count = g.Select(s => s.InvoiceNumber ?? s.Id.ToString()).Distinct().Count()
+                })
+                .OrderByDescending(x => x.Revenue)
+                .Take(10)
+                .ToList();
+
+            var customersDict = db.Customers.ToDictionary(c => c.Id);
+
+            TopCustomerPanel.Children.Clear();
+
+            if (topCustomers.Count == 0)
+            {
+                TopCustomerPanel.Children.Add(MakeEmptyText());
+            }
+            else
+            {
+                int rank = 1;
+                foreach (var t in topCustomers)
+                {
+                    var customer = customersDict.GetValueOrDefault(t.CustomerId);
+                    if (customer == null) continue;
+
+                    TopCustomerPanel.Children.Add(MakeTopCustomerRow(
+                        rank, customer.Name, PersianNumber.ToPersianDigits(customer.Phone),
+                        PersianNumber.ToPersian(t.Count), PersianNumber.ToToman(t.Revenue)));
+                    rank++;
+                }
+            }
+
+            StatusText.Text = $"تعداد کل فروش‌ها در این بازه: {PersianNumber.ToPersian(sales.Count)} قلم";
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"خطا: {ex.Message}";
+        }
+    }
+
+    private TextBlock MakeEmptyText()
+    {
+        return new TextBlock
+        {
+            Text = "داده‌ای در این بازه وجود ندارد",
+            Foreground = new SolidColorBrush(Color.Parse("#94A3B8")),
+            FontSize = 13,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 30, 0, 30)
+        };
+    }
+
+    private Border MakeTopItemRow(int rank, string code, string name, string unit,
+                                   string mainValue, string secondary, string colorHex)
+    {
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("60,80,*,80,110,120") };
+
+        var rankBorder = new Border
+        {
+            Background = new SolidColorBrush(Color.Parse(rank <= 3 ? "#FEF3C7" : "#F1F5F9")),
+            CornerRadius = new CornerRadius(20),
+            Width = 32,
+            Height = 32,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        rankBorder.Child = new TextBlock
+        {
+            Text = PersianNumber.ToPersian(rank),
+            FontSize = 13,
+            FontWeight = FontWeight.Bold,
+            Foreground = new SolidColorBrush(Color.Parse(rank <= 3 ? "#D97706" : "#475569")),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(rankBorder, 0);
+
+        var codeText = new TextBlock
+        {
+            Text = PersianNumber.ToPersianDigits(code),
+            FontSize = 13,
+            FontWeight = FontWeight.SemiBold,
+            Foreground = new SolidColorBrush(Color.Parse("#0F172A")),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(codeText, 1);
+
+        var nameText = new TextBlock
+        {
+            Text = name,
+            FontSize = 13,
+            FontWeight = FontWeight.SemiBold,
+            Foreground = new SolidColorBrush(Color.Parse("#0F172A")),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(nameText, 2);
+
+        var unitText = new TextBlock
+        {
+            Text = unit,
+            FontSize = 12,
+            Foreground = new SolidColorBrush(Color.Parse("#475569")),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(unitText, 3);
+
+        var mainText = new TextBlock
+        {
+            Text = mainValue,
+            FontSize = 13,
+            FontWeight = FontWeight.Bold,
+            Foreground = new SolidColorBrush(Color.Parse(colorHex)),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(mainText, 4);
+
+        var secText = new TextBlock
+        {
+            Text = secondary,
+            FontSize = 12,
+            Foreground = new SolidColorBrush(Color.Parse("#475569")),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(secText, 5);
+
+        grid.Children.Add(rankBorder); grid.Children.Add(codeText); grid.Children.Add(nameText);
+        grid.Children.Add(unitText); grid.Children.Add(mainText); grid.Children.Add(secText);
+
+        return new Border
+        {
+            Padding = new Thickness(12, 10),
+            BorderBrush = new SolidColorBrush(Color.Parse("#F1F5F9")),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Child = grid
+        };
+    }
+
+    private Border MakeTopCustomerRow(int rank, string name, string phone, string count, string amount)
+    {
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("60,*,180,120,150") };
+
+        var rankBorder = new Border
+        {
+            Background = new SolidColorBrush(Color.Parse(rank <= 3 ? "#FEF3C7" : "#F1F5F9")),
+            CornerRadius = new CornerRadius(20),
+            Width = 32,
+            Height = 32,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        rankBorder.Child = new TextBlock
+        {
+            Text = PersianNumber.ToPersian(rank),
+            FontSize = 13,
+            FontWeight = FontWeight.Bold,
+            Foreground = new SolidColorBrush(Color.Parse(rank <= 3 ? "#D97706" : "#475569")),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(rankBorder, 0);
+
+        var nameText = new TextBlock
+        {
+            Text = name,
+            FontSize = 13,
+            FontWeight = FontWeight.SemiBold,
+            Foreground = new SolidColorBrush(Color.Parse("#0F172A")),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(nameText, 1);
+
+        var phoneText = new TextBlock
+        {
+            Text = phone,
+            FontSize = 13,
+            Foreground = new SolidColorBrush(Color.Parse("#4F46E5")),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(phoneText, 2);
+
+        var countText = new TextBlock
+        {
+            Text = count,
+            FontSize = 13,
+            FontWeight = FontWeight.Bold,
+            Foreground = new SolidColorBrush(Color.Parse("#0F172A")),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(countText, 3);
+
+        var amountText = new TextBlock
+        {
+            Text = amount,
+            FontSize = 13,
+            FontWeight = FontWeight.Bold,
+            Foreground = new SolidColorBrush(Color.Parse("#059669")),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(amountText, 4);
+
+        grid.Children.Add(rankBorder); grid.Children.Add(nameText); grid.Children.Add(phoneText);
+        grid.Children.Add(countText); grid.Children.Add(amountText);
+
+        return new Border
+        {
+            Padding = new Thickness(12, 10),
+            BorderBrush = new SolidColorBrush(Color.Parse("#F1F5F9")),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Child = grid
+        };
+    }
+
+    private void OnTodayClick(object? sender, RoutedEventArgs e)
+    {
+        var today = JalaliDate.TodayShamsi();
+        FromDateBox.Text = today;
+        ToDateBox.Text = today;
+        LoadStats();
+    }
+
+    private void OnWeekClick(object? sender, RoutedEventArgs e)
+    {
+        var today = JalaliDate.TodayGregorian();
+        var weekAgo = today.AddDays(-7);
+        FromDateBox.Text = JalaliDate.ToShamsi(weekAgo);
+        ToDateBox.Text = JalaliDate.ToShamsi(today);
+        LoadStats();
+    }
+
+    private void OnMonthClick(object? sender, RoutedEventArgs e)
+    {
+        SetMonthRange();
+        LoadStats();
+    }
+
+    private void OnAllClick(object? sender, RoutedEventArgs e)
+    {
+        FromDateBox.Text = "";
+        ToDateBox.Text = "";
+        LoadStats();
+    }
+
+    private void OnApplyClick(object? sender, RoutedEventArgs e) => LoadStats();
+
+    private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();
+}
+
+
+==================== ShopManager.Desktop\ViewModels\MainViewModel.cs ====================
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace ShopManager.Desktop.ViewModels;
+
+/// <summary>
+/// ViewModel پنجره اصلی — منطق UI اینجا نوشته می‌شه
+/// </summary>
+public partial class MainViewModel : ViewModelBase
+{
+    /// <summary>عنوان برنامه</summary>
+    public string Title => "سیستم مدیریت مغازه";
+
+    /// <summary>
+    /// وقتی کاربر روی دکمه «کالاها» کلیک می‌کنه این اجرا می‌شه
+    /// </summary>
+    [RelayCommand]
+    private void OpenItems()
+    {
+        // فعلاً فقط یه پیام نشون می‌ده
+        System.Diagnostics.Debug.WriteLine("دکمه کالاها کلیک شد!");
+    }
+}

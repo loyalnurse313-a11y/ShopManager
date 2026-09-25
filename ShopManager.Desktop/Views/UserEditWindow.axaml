@@ -1,0 +1,259 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="ShopManager.Desktop.Views.UserEditWindow"
+        Title="کاربر"
+        Width="700" Height="850"
+        MinWidth="650" MinHeight="750"
+        WindowStartupLocation="CenterScreen"
+        FlowDirection="RightToLeft"
+        FontFamily="{DynamicResource AppFontFamily}"
+        Background="{DynamicResource AppBackground}">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <Border Grid.Row="0" 
+                Background="{DynamicResource AppHeaderBackground}" 
+                Padding="24,18">
+            <TextBlock x:Name="HeaderText"
+                       Text="افزودن کاربر جدید"
+                       FontSize="20" FontWeight="Bold"
+                       Foreground="White"
+                       HorizontalAlignment="Center"/>
+        </Border>
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Margin="20" Spacing="16">
+
+                <Border Background="{DynamicResource AppCardBackground}" 
+                        CornerRadius="12"
+                        BorderBrush="{DynamicResource AppBorder}"
+                        BorderThickness="1"
+                        Padding="24">
+                    <StackPanel Spacing="16">
+
+                        <TextBlock Text="📋 اطلاعات پایه"
+                                   FontSize="16" FontWeight="Bold"
+                                   Foreground="{DynamicResource AppAccent}"/>
+
+                        <Grid ColumnDefinitions="*,20,*">
+                            <StackPanel Grid.Column="0" Spacing="8">
+                                <TextBlock Text="نام کاربری" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <TextBox x:Name="UsernameTextBox"
+                                         Watermark="مثال: ali"
+                                         FontSize="14"
+                                         Padding="12,10"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Spacing="8">
+                                <TextBlock Text="نام کامل" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <TextBox x:Name="FullNameTextBox"
+                                         Watermark="مثال: علی رضایی"
+                                         FontSize="14"
+                                         Padding="12,10"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid x:Name="PasswordGrid" ColumnDefinitions="*,20,*">
+                            <StackPanel Grid.Column="0" Spacing="8">
+                                <TextBlock Text="رمز عبور" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <TextBox x:Name="PasswordTextBox"
+                                         PasswordChar="●"
+                                         Watermark="حداقل ۴ کاراکتر"
+                                         FontSize="14"
+                                         Padding="12,10"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Spacing="8">
+                                <TextBlock Text="تکرار رمز عبور" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <TextBox x:Name="ConfirmPasswordTextBox"
+                                         PasswordChar="●"
+                                         FontSize="14"
+                                         Padding="12,10"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,20,*">
+                            <StackPanel Grid.Column="0" Spacing="8">
+                                <TextBlock Text="نقش کاربر" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <ComboBox x:Name="RoleComboBox"
+                                          SelectedIndex="1"
+                                          HorizontalAlignment="Stretch"
+                                          FontSize="14"
+                                          Padding="12,10">
+                                    <ComboBoxItem>👑 ادمین</ComboBoxItem>
+                                    <ComboBoxItem>👤 کاربر عادی</ComboBoxItem>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Spacing="8">
+                                <TextBlock Text="وضعیت" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                                <CheckBox x:Name="IsActiveCheckBox"
+                                          Content="کاربر فعال است"
+                                          IsChecked="True"
+                                          FontSize="14"/>
+                            </StackPanel>
+                        </Grid>
+
+                    </StackPanel>
+                </Border>
+
+                <Border Background="{DynamicResource AppCardBackground}" 
+                        CornerRadius="12"
+                        BorderBrush="{DynamicResource AppBorder}"
+                        BorderThickness="1"
+                        Padding="24">
+                    <StackPanel Spacing="16">
+
+                        <TextBlock Text="🔐 دسترسی‌ها"
+                                   FontSize="16" FontWeight="Bold"
+                                   Foreground="{DynamicResource AppAccent}"/>
+
+                        <Border Background="#FEF3C7" CornerRadius="8" Padding="12,10">
+                            <TextBlock Text="⚠️ اگه نقش «ادمین» باشه، همه دسترسی‌ها خودکار داده می‌شه"
+                                       FontSize="12" Foreground="#D97706"
+                                       TextWrapping="Wrap"/>
+                        </Border>
+
+                        <TextBlock Text="بخش‌های اصلی"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AppTextSecondary}"/>
+
+                        <WrapPanel Orientation="Horizontal">
+                            <CheckBox x:Name="CanDashboardCheckBox" Content="📊 داشبورد" 
+                                      FontSize="13" Margin="0,0,20,10"/>
+                            <CheckBox x:Name="CanItemsCheckBox" Content="📦 کالاها" 
+                                      FontSize="13" Margin="0,0,20,10"/>
+                            <CheckBox x:Name="CanPurchaseCheckBox" Content="🛒 خرید" 
+                                      FontSize="13" Margin="0,0,20,10"/>
+                            <CheckBox x:Name="CanTransferCheckBox" Content="🚚 انتقال" 
+                                      FontSize="13" Margin="0,0,20,10"/>
+                            <CheckBox x:Name="CanPOSCheckBox" Content="🖥️ صندوق فروش (POS)" 
+                                      FontSize="13" Margin="0,0,20,10"/>
+                            <CheckBox x:Name="CanCustomersCheckBox" Content="👥 مشتری‌ها" 
+                                      FontSize="13" Margin="0,0,20,10"/>
+                            <CheckBox x:Name="CanStatsCheckBox" Content="📈 آمار" 
+                                      FontSize="13" Margin="0,0,20,10"/>
+                            <CheckBox x:Name="CanCashboxCheckBox" Content="🏦 صندوق" 
+                                      FontSize="13" Margin="0,0,20,10"/>
+                            <CheckBox x:Name="CanSettingsCheckBox" Content="⚙️ تنظیمات" 
+                                      FontSize="13" Margin="0,0,20,10"/>
+                        </WrapPanel>
+
+                        <TextBlock Text="دسترسی‌های ویژه"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AppTextSecondary}"
+                                   Margin="0,10,0,0"/>
+
+                        <WrapPanel Orientation="Horizontal">
+                            <CheckBox x:Name="CanPrintCheckBox" Content="🖨️ چاپ" 
+                                      FontSize="13" Margin="0,0,20,10"
+                                      IsChecked="True"/>
+                            <CheckBox x:Name="CanExportExcelCheckBox" Content="📤 خروجی اکسل" 
+                                      FontSize="13" Margin="0,0,20,10"/>
+                            <CheckBox x:Name="CanUserManagementCheckBox" Content="👑 مدیریت کاربران" 
+                                      FontSize="13" Margin="0,0,20,10"/>
+                        </WrapPanel>
+
+                    </StackPanel>
+                </Border>
+
+                <!-- 🆕 کارت دسترسی مالی -->
+                <Border Background="{DynamicResource AppCardBackground}" 
+                        CornerRadius="12"
+                        BorderBrush="{DynamicResource AppBorder}"
+                        BorderThickness="1"
+                        Padding="24">
+                    <StackPanel Spacing="14">
+
+                        <TextBlock Text="💰 دسترسی مالی"
+                                   FontSize="16" FontWeight="Bold"
+                                   Foreground="{DynamicResource AppAccent}"/>
+
+                        <Border Background="#FEF2F2" CornerRadius="8" Padding="14,12">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="🔒 وقتی این گزینه غیرفعال باشه، اعداد مالی در همه‌جا نمایش داده نمیشن"
+                                           FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#DC2626"
+                                           TextWrapping="Wrap"/>
+
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="• موجودی صندوق (نقد فیزیکی)"
+                                               FontSize="11" Foreground="#991B1B"/>
+                                    <TextBlock Text="• ارزش انبار و مغازه"
+                                               FontSize="11" Foreground="#991B1B"/>
+                                    <TextBlock Text="• سود و درآمد فروش‌ها"
+                                               FontSize="11" Foreground="#991B1B"/>
+                                    <TextBlock Text="• گزارش‌های مالی و آماری"
+                                               FontSize="11" Foreground="#991B1B"/>
+                                    <TextBlock Text="• مبالغ خرید و مشتری‌ها"
+                                               FontSize="11" Foreground="#991B1B"/>
+                                </StackPanel>
+
+                                <TextBlock Text="✓ فقط POS (صندوق فروش روزانه خودش) کار می‌کنه"
+                                           FontSize="11" FontWeight="SemiBold"
+                                           Foreground="#059669"
+                                           TextWrapping="Wrap"
+                                           Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <CheckBox x:Name="CanViewFinanceCheckBox" 
+                                  Content="💰 اجازه مشاهده اعداد و ارقام مالی"
+                                  FontSize="15" FontWeight="SemiBold"
+                                  Foreground="{DynamicResource AppTextPrimary}"/>
+
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="2" 
+                Background="{DynamicResource AppCardBackground}" 
+                Padding="20,16"
+                BorderBrush="{DynamicResource AppBorder}"
+                BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Grid.Column="0"
+                           x:Name="StatusText"
+                           Text=""
+                           VerticalAlignment="Center"
+                           FontSize="13" FontWeight="SemiBold"
+                           Foreground="#EF4444"
+                           TextWrapping="Wrap"/>
+
+                <Button Grid.Column="1"
+                        Content="ذخیره"
+                        FontSize="15" FontWeight="Bold"
+                        Background="{DynamicResource AppSuccess}"
+                        Foreground="White"
+                        Padding="30,12"
+                        Margin="0,0,10,0"
+                        CornerRadius="8"
+                        Click="OnSaveClick"/>
+
+                <Button Grid.Column="2"
+                        Content="انصراف"
+                        FontSize="15"
+                        Background="{DynamicResource AppBackground}"
+                        Foreground="{DynamicResource AppTextPrimary}"
+                        BorderBrush="{DynamicResource AppBorder}"
+                        BorderThickness="1"
+                        Padding="30,12"
+                        CornerRadius="8"
+                        Click="OnCancelClick"/>
+            </Grid>
+        </Border>
+
+    </Grid>
+
+</Window>

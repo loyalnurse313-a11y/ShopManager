@@ -1,0 +1,362 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:ShopManager.Desktop.ViewModels"
+        mc:Ignorable="d"
+        x:Class="ShopManager.Desktop.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="فروشگاه خوی"
+        Width="1150" Height="800"
+        MinWidth="950" MinHeight="700"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        FlowDirection="RightToLeft"
+        FontFamily="{DynamicResource AppFontFamily}"
+        Background="{DynamicResource AppBackground}">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.FadeInUp">
+            <Style.Animations>
+                <Animation Duration="0:0:0.8" Delay="0:0:0.15" Easing="CubicEaseOut" FillMode="Forward">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="0"/>
+                        <Setter Property="TranslateTransform.Y" Value="30"/>
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="1"/>
+                        <Setter Property="TranslateTransform.Y" Value="0"/>
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+
+        <Style Selector="TextBlock.FadeInUpSlow">
+            <Style.Animations>
+                <Animation Duration="0:0:0.8" Delay="0:0:0.4" Easing="CubicEaseOut" FillMode="Forward">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="0"/>
+                        <Setter Property="TranslateTransform.Y" Value="30"/>
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="1"/>
+                        <Setter Property="TranslateTransform.Y" Value="0"/>
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+
+        <Style Selector="TextBlock.FadeInUpSlower">
+            <Style.Animations>
+                <Animation Duration="0:0:0.8" Delay="0:0:0.6" Easing="CubicEaseOut" FillMode="Forward">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="0"/>
+                        <Setter Property="TranslateTransform.Y" Value="30"/>
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="1"/>
+                        <Setter Property="TranslateTransform.Y" Value="0"/>
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+
+        <Style Selector="Border.FadeInScale">
+            <Style.Animations>
+                <Animation Duration="0:0:0.9" Easing="CubicEaseOut" FillMode="Forward">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="0"/>
+                        <Setter Property="ScaleTransform.ScaleX" Value="0.7"/>
+                        <Setter Property="ScaleTransform.ScaleY" Value="0.7"/>
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="1"/>
+                        <Setter Property="ScaleTransform.ScaleX" Value="1"/>
+                        <Setter Property="ScaleTransform.ScaleY" Value="1"/>
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*">
+
+        <Border Grid.Row="0" 
+                Background="{DynamicResource AppHeaderBackground}" 
+                Padding="28,18">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="فروشگاه ظروف یکبار مصرف خوی"
+                           FontSize="20" FontWeight="Bold"
+                           Foreground="White"
+                           VerticalAlignment="Center"/>
+
+                <TextBlock Grid.Column="1"
+                           x:Name="ClockText"
+                           Text=""
+                           FontSize="13"
+                           Foreground="#94A3B8"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"/>
+
+                <Button Grid.Column="2"
+                        x:Name="UpdateButton"
+                        Content="🔄 بروزرسانی"
+                        FontSize="12"
+                        FontWeight="SemiBold"
+                        Background="#F59E0B"
+                        Foreground="White"
+                        Padding="14,8"
+                        CornerRadius="20"
+                        Margin="0,0,10,0"
+                        IsVisible="False"
+                        Click="OnUpdateClick"/>
+
+                <Border Grid.Column="3"
+                        Background="#334155"
+                        CornerRadius="20"
+                        Padding="14,8"
+                        Margin="0,0,10,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="👤"
+                                   FontSize="14"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock x:Name="UserInfoText"
+                                   Text=""
+                                   FontSize="13"
+                                   Foreground="White"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <Button Grid.Column="4"
+                        Content="خروج"
+                        FontSize="13"
+                        FontWeight="SemiBold"
+                        Background="#EF4444"
+                        Foreground="White"
+                        Padding="18,8"
+                        CornerRadius="8"
+                        Click="OnLogoutClick"/>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" ColumnDefinitions="260,*">
+
+            <Border Grid.Column="0" 
+                    Background="{DynamicResource AppMenuBackground}" 
+                    Padding="15">
+                <ScrollViewer>
+                    <StackPanel Spacing="8">
+
+                        <TextBlock Text="منوی اصلی"
+                                   FontSize="15" FontWeight="Bold"
+                                   Foreground="#94A3B8"
+                                   Margin="12,8,12,14"/>
+
+                        <Button x:Name="DashboardButton"
+                                Content="داشبورد"
+                                FontSize="16" FontWeight="SemiBold"
+                                Background="{DynamicResource AppAccent}"
+                                Foreground="White"
+                                Padding="18,14"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                CornerRadius="8"
+                                Click="OnDashboardClick"/>
+
+                        <Button x:Name="ItemsButton"
+                                Content="کالاها"
+                                FontSize="16" FontWeight="SemiBold"
+                                Background="{DynamicResource AppAccent}"
+                                Foreground="White"
+                                Padding="18,14"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                CornerRadius="8"
+                                Click="OnItemsClick"/>
+
+                        <Button x:Name="PurchaseButton"
+                                Content="خرید"
+                                FontSize="16" FontWeight="SemiBold"
+                                Background="{DynamicResource AppAccent}"
+                                Foreground="White"
+                                Padding="18,14"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                CornerRadius="8"
+                                Click="OnPurchaseClick"/>
+
+                        <Button x:Name="TransferButton"
+                                Content="انتقال به مغازه"
+                                FontSize="16" FontWeight="SemiBold"
+                                Background="{DynamicResource AppAccent}"
+                                Foreground="White"
+                                Padding="18,14"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                CornerRadius="8"
+                                Click="OnTransferClick"/>
+
+                        <Button x:Name="POSButton"
+                                Content="🖥️ صندوق فروش (POS)"
+                                FontSize="16" FontWeight="SemiBold"
+                                Background="#10B981"
+                                Foreground="White"
+                                Padding="18,14"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                CornerRadius="8"
+                                Click="OnPOSClick"/>
+
+                        <Button x:Name="CustomersButton"
+                                Content="مشتری‌ها"
+                                FontSize="16" FontWeight="SemiBold"
+                                Background="{DynamicResource AppAccent}"
+                                Foreground="White"
+                                Padding="18,14"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                CornerRadius="8"
+                                Click="OnCustomersClick"/>
+
+                        <Button x:Name="CashboxButton"
+                                Content="صندوق"
+                                FontSize="16" FontWeight="SemiBold"
+                                Background="{DynamicResource AppAccent}"
+                                Foreground="White"
+                                Padding="18,14"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                CornerRadius="8"
+                                Click="OnCashboxClick"/>
+
+                        <Button x:Name="UserManagementButton"
+                                Content="مدیریت کاربران"
+                                FontSize="16" FontWeight="SemiBold"
+                                Background="#8B5CF6"
+                                Foreground="White"
+                                Padding="18,14"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                CornerRadius="8"
+                                IsVisible="False"
+                                Click="OnUserManagementClick"/>
+
+                        <Button x:Name="SettingsButton"
+                                Content="تنظیمات"
+                                FontSize="16" FontWeight="SemiBold"
+                                Background="{DynamicResource AppAccent}"
+                                Foreground="White"
+                                Padding="18,14"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                CornerRadius="8"
+                                Click="OnSettingsClick"/>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <Border Grid.Column="1" 
+                    Margin="20" 
+                    CornerRadius="16"
+                    ClipToBounds="True">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Color="#0F172A" Offset="0"/>
+                        <GradientStop Color="#1E293B" Offset="0.5"/>
+                        <GradientStop Color="#334155" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+
+                <Grid>
+                    <Ellipse Width="400" Height="400"
+                             Fill="#10FFFFFF"
+                             HorizontalAlignment="Left"
+                             VerticalAlignment="Top"
+                             Margin="-100,-150,0,0"/>
+                    
+                    <Ellipse Width="500" Height="500"
+                             Fill="#08FFFFFF"
+                             HorizontalAlignment="Right"
+                             VerticalAlignment="Bottom"
+                             Margin="0,0,-150,-200"/>
+                    
+                    <Ellipse Width="250" Height="250"
+                             Fill="#06FFFFFF"
+                             HorizontalAlignment="Right"
+                             VerticalAlignment="Top"
+                             Margin="0,-80,-80,0"/>
+
+                    <StackPanel HorizontalAlignment="Center" 
+                                VerticalAlignment="Center" 
+                                Spacing="24">
+
+                        <Border Width="180" Height="180"
+                                CornerRadius="90"
+                                Background="#FFFFFF"
+                                HorizontalAlignment="Center"
+                                BoxShadow="0 8 32 0 #60000000"
+                                Classes="FadeInScale"
+                                RenderTransformOrigin="50%,50%">
+                            <Border.RenderTransform>
+                                <ScaleTransform ScaleX="1" ScaleY="1"/>
+                            </Border.RenderTransform>
+                            <Grid>
+                                <Border Width="160" Height="160"
+                                        CornerRadius="80"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                            <GradientStop Color="#0F172A" Offset="0"/>
+                                            <GradientStop Color="#475569" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                    
+                                    <TextBlock Text="🛍️"
+                                               FontSize="80"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock Text="فروشگاه ظروف یکبار مصرف"
+                                   FontSize="34" FontWeight="Bold"
+                                   Foreground="White"
+                                   HorizontalAlignment="Center"
+                                   TextAlignment="Center"
+                                   Classes="FadeInUp"/>
+
+                        <TextBlock Text="خوی"
+                                   FontSize="42" FontWeight="Bold"
+                                   Foreground="White"
+                                   HorizontalAlignment="Center"
+                                   TextAlignment="Center"
+                                   LetterSpacing="2"
+                                   Classes="FadeInUp"/>
+
+                        <Border Width="120" Height="3"
+                                Background="#80FFFFFF"
+                                CornerRadius="2"
+                                HorizontalAlignment="Center"
+                                Margin="0,8,0,8"
+                                Classes="FadeInUpSlow"/>
+
+                        <TextBlock Text="سیستم مدیریت فروشگاه و انبار"
+                                   FontSize="18"
+                                   Foreground="#B0FFFFFF"
+                                   HorizontalAlignment="Center"
+                                   Classes="FadeInUpSlower"/>
+
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+        </Grid>
+
+    </Grid>
+
+</Window>

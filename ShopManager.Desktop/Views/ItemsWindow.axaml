@@ -1,0 +1,257 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:ShopManager.Desktop.ViewModels"
+        mc:Ignorable="d"
+        x:Class="ShopManager.Desktop.Views.ItemsWindow"
+        Title="مدیریت کالاها"
+        Width="1300" Height="720"
+        MinWidth="1100" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        FlowDirection="RightToLeft"
+        FontFamily="{DynamicResource AppFontFamily}"
+        Background="{DynamicResource AppBackground}">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+
+        <!-- هدر -->
+        <Border Grid.Row="0" 
+                Background="{DynamicResource AppHeaderBackground}" 
+                Padding="24,18">
+            <TextBlock Text="مدیریت کالاها"
+                       FontSize="20" FontWeight="Bold"
+                       Foreground="White"
+                       HorizontalAlignment="Center"/>
+        </Border>
+
+        <!-- نوار ابزار -->
+        <Border Grid.Row="1" 
+                Background="{DynamicResource AppCardBackground}" 
+                Padding="20,14"
+                BorderBrush="{DynamicResource AppBorder}"
+                BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" 
+                        HorizontalAlignment="Right" 
+                        Spacing="10">
+                <Button Content="➕ افزودن کالا"
+                        FontSize="14" FontWeight="Bold"
+                        Background="{DynamicResource AppAccent}" Foreground="White"
+                        Padding="18,10"
+                        CornerRadius="8"
+                        Click="OnAddClick"/>
+                <Button Content="✏️ ویرایش"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="#FEF3C7" Foreground="#D97706"
+                        Padding="18,10"
+                        CornerRadius="8"
+                        Click="OnEditClick"/>
+                <Button Content="🗑️ حذف"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="#FEF2F2" Foreground="#DC2626"
+                        Padding="18,10"
+                        CornerRadius="8"
+                        Click="OnDeleteClick"/>
+                <Button Content="📤 خروجی اکسل"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="{DynamicResource AppSuccess}" Foreground="White"
+                        Padding="18,10"
+                        CornerRadius="8"
+                        Click="OnExportExcelClick"/>
+                <Button Content="🔄 بروزرسانی"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="{DynamicResource AppBackground}" 
+                        Foreground="{DynamicResource AppTextPrimary}"
+                        BorderBrush="{DynamicResource AppBorder}"
+                        BorderThickness="1"
+                        Padding="18,10"
+                        CornerRadius="8"
+                        Click="OnRefreshClick"/>
+            </StackPanel>
+        </Border>
+
+        <!-- جستجو -->
+        <Border Grid.Row="2" 
+                Background="{DynamicResource AppCardBackground}" 
+                Padding="20,12"
+                BorderBrush="{DynamicResource AppBorder}"
+                BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*">
+                <TextBlock Grid.Column="0"
+                           Text="جستجو:"
+                           FontSize="14" FontWeight="SemiBold"
+                           Foreground="{DynamicResource AppTextPrimary}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0"/>
+                <TextBox Grid.Column="1"
+                         x:Name="SearchBox"
+                         Watermark="جستجو بر اساس کد یا نام کالا..."
+                         FontSize="14" Padding="12,10"
+                         TextChanged="OnSearchChanged"/>
+            </Grid>
+        </Border>
+
+        <!-- جدول -->
+        <Border Grid.Row="3" 
+                Background="{DynamicResource AppCardBackground}" 
+                Margin="20" 
+                CornerRadius="12"
+                BorderBrush="{DynamicResource AppBorder}"
+                BorderThickness="1">
+            <Grid RowDefinitions="Auto,*">
+
+                <!-- سرستون‌ها -->
+                <Border Grid.Row="0" 
+                        Background="{DynamicResource AppTableHeader}" 
+                        Padding="15,14"
+                        CornerRadius="12,12,0,0">
+                    <Grid ColumnDefinitions="80,*,110,70,110,110,120,100,120,100">
+                        <TextBlock Grid.Column="0" Text="کد" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="نام کالا" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"/>
+                        <TextBlock Grid.Column="2" Text="دسته" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="3" Text="واحد" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="4" Text="موجودی انبار" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="5" Text="موجودی مغازه" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="6" Text="قیمت خرید" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="7" Text="سود %" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="8" Text="قیمت فروش" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="9" Text="نوع" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <!-- ردیف‌ها -->
+                <Grid Grid.Row="1">
+                    <ScrollViewer x:Name="ItemsScrollViewer">
+                        <ListBox x:Name="ItemsList" 
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 SelectionChanged="OnSelectionChanged">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="vm:ItemRow">
+                                    <Border Padding="15,12"
+                                            BorderBrush="{DynamicResource AppTableBorder}"
+                                            BorderThickness="0,0,0,1">
+                                        <Grid ColumnDefinitions="80,*,110,70,110,110,120,100,120,100">
+                                            <TextBlock Grid.Column="0" Text="{Binding ItemCode}"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource AppTextPrimary}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Name}"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource AppTextPrimary}"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Category}"
+                                                       Foreground="{DynamicResource AppTextSecondary}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding Unit}"
+                                                       Foreground="{DynamicResource AppTextSecondary}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding WarehouseStock}"
+                                                       FontWeight="SemiBold" Foreground="#059669"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="5" Text="{Binding ShopStock}"
+                                                       FontWeight="SemiBold" Foreground="#4F46E5"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="6" Text="{Binding PurchasePrice}"
+                                                       Foreground="{DynamicResource AppTextSecondary}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="7" Text="{Binding MarkupPct}"
+                                                       Foreground="#D97706"
+                                                       FontWeight="SemiBold"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="8" Text="{Binding SalePrice}"
+                                                       FontWeight="Bold" Foreground="#059669"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="9" Text="{Binding PriceType}"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource AppTextSecondary}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </ScrollViewer>
+
+                    <StackPanel x:Name="EmptyStatePanel"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Spacing="15">
+                        <TextBlock Text="📦"
+                                   FontSize="60"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="EmptyStateTitle"
+                                   Text="هنوز کالایی ثبت نشده است"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource AppTextPrimary}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="برای شروع، روی دکمه «افزودن کالا» کلیک کنید"
+                                   FontSize="14"
+                                   Foreground="{DynamicResource AppTextSecondary}"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- پایین -->
+        <Border Grid.Row="4" 
+                Background="{DynamicResource AppCardBackground}" 
+                Padding="20,14"
+                BorderBrush="{DynamicResource AppBorder}"
+                BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <TextBlock Grid.Column="0"
+                           x:Name="StatusText"
+                           Text="آماده"
+                           VerticalAlignment="Center"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource AppTextSecondary}"/>
+                <Button Grid.Column="2"
+                        Content="بستن"
+                        FontSize="14"
+                        Background="{DynamicResource AppBackground}"
+                        Foreground="{DynamicResource AppTextPrimary}"
+                        BorderBrush="{DynamicResource AppBorder}"
+                        BorderThickness="1"
+                        Padding="25,10"
+                        CornerRadius="8"
+                        Click="OnCloseClick"/>
+            </Grid>
+        </Border>
+
+    </Grid>
+
+</Window>

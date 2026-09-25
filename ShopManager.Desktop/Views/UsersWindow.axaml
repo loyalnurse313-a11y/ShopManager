@@ -1,0 +1,286 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:ShopManager.Desktop.ViewModels"
+        mc:Ignorable="d"
+        x:Class="ShopManager.Desktop.Views.UsersWindow"
+        Title="مدیریت کاربران"
+        Width="1200" Height="750"
+        MinWidth="1000" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        FlowDirection="RightToLeft"
+        FontFamily="{DynamicResource AppFontFamily}"
+        Background="{DynamicResource AppBackground}">
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+        <!-- هدر -->
+        <Border Grid.Row="0" 
+                Background="{DynamicResource AppHeaderBackground}" 
+                Padding="24,18">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="مدیریت کاربران"
+                           FontSize="20" FontWeight="Bold"
+                           Foreground="White"
+                           VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1"
+                           x:Name="TotalCountText"
+                           Text=""
+                           FontSize="14"
+                           Foreground="#94A3B8"
+                           VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- نوار ابزار + جستجو -->
+        <Border Grid.Row="1" 
+                Background="{DynamicResource AppCardBackground}" 
+                Padding="20,14"
+                BorderBrush="{DynamicResource AppBorder}"
+                BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+
+                <!-- دکمه‌ها -->
+                <StackPanel Grid.Column="0" 
+                            Orientation="Horizontal" 
+                            Spacing="10">
+                    <Button Content="➕ افزودن کاربر"
+                            FontSize="14" FontWeight="Bold"
+                            Background="{DynamicResource AppAccent}"
+                            Foreground="White"
+                            Padding="20,10"
+                            CornerRadius="8"
+                            Click="OnAddUserClick"/>
+
+                    <Button Content="🔄 بروزرسانی"
+                            FontSize="14" FontWeight="SemiBold"
+                            Background="{DynamicResource AppBackground}"
+                            Foreground="{DynamicResource AppTextPrimary}"
+                            BorderBrush="{DynamicResource AppBorder}"
+                            BorderThickness="1"
+                            Padding="18,10"
+                            CornerRadius="8"
+                            Click="OnRefreshClick"/>
+                </StackPanel>
+
+                <!-- جستجو -->
+                <Grid Grid.Column="2" 
+                      ColumnDefinitions="Auto,220">
+                    <TextBlock Grid.Column="0"
+                               Text="جستجو:"
+                               FontSize="14" FontWeight="SemiBold"
+                               Foreground="{DynamicResource AppTextPrimary}"
+                               VerticalAlignment="Center"
+                               Margin="0,0,10,0"/>
+                    <TextBox Grid.Column="1"
+                             x:Name="SearchBox"
+                             Watermark="نام کاربری یا نام کامل..."
+                             FontSize="14" 
+                             Padding="12,10"
+                             TextChanged="OnSearchChanged"/>
+                </Grid>
+
+            </Grid>
+        </Border>
+
+        <!-- جدول -->
+        <Border Grid.Row="2" 
+                Background="{DynamicResource AppCardBackground}" 
+                Margin="20" 
+                CornerRadius="12"
+                BorderBrush="{DynamicResource AppBorder}"
+                BorderThickness="1">
+            <Grid RowDefinitions="Auto,*">
+
+                <!-- سرستون‌ها -->
+                <Border Grid.Row="0" 
+                        Background="{DynamicResource AppTableHeader}" 
+                        Padding="15,14"
+                        CornerRadius="12,12,0,0">
+                    <Grid ColumnDefinitions="50,150,*,120,100,150,180">
+                        <TextBlock Grid.Column="0" Text="#" 
+                                   FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="نام کاربری" 
+                                   FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="نام کامل" 
+                                   FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"/>
+                        <TextBlock Grid.Column="3" Text="نقش" 
+                                   FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="4" Text="وضعیت" 
+                                   FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="5" Text="آخرین ورود" 
+                                   FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="6" Text="عملیات" 
+                                   FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AppTableHeaderText}"
+                                   HorizontalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <!-- ردیف‌ها -->
+                <Grid Grid.Row="1">
+                    <ScrollViewer x:Name="UsersScrollViewer">
+                        <ListBox x:Name="UsersList" 
+                                 BorderThickness="0" 
+                                 Background="Transparent">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="vm:UserRow">
+                                    <Border Padding="15,12" 
+                                            BorderBrush="{DynamicResource AppTableBorder}"
+                                            BorderThickness="0,0,0,1">
+                                        <Grid ColumnDefinitions="50,150,*,120,100,150,180">
+                                            <TextBlock Grid.Column="0" 
+                                                       Text="{Binding RowNumber}"
+                                                       Foreground="{DynamicResource AppTextSecondary}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" 
+                                                       Text="{Binding Username}"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource AppAccent}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" 
+                                                       Text="{Binding FullName}"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource AppTextPrimary}"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="3" 
+                                                       Text="{Binding RoleDisplay}"
+                                                       FontWeight="Bold"
+                                                       Foreground="{DynamicResource AppTextPrimary}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="4" 
+                                                       Text="{Binding StatusDisplay}"
+                                                       FontWeight="Bold"
+                                                       Foreground="{DynamicResource AppTextPrimary}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="5" 
+                                                       Text="{Binding LastLoginDisplay}"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource AppTextSecondary}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                            
+                                            <!-- دکمه‌های عملیات -->
+                                            <StackPanel Grid.Column="6"
+                                                        Orientation="Horizontal"
+                                                        Spacing="6"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center">
+                                                <Button Content="✏️ ویرایش"
+                                                        FontSize="12"
+                                                        FontWeight="SemiBold"
+                                                        Background="#EEF2FF"
+                                                        Foreground="#4F46E5"
+                                                        Padding="12,6"
+                                                        CornerRadius="6"
+                                                        Tag="{Binding Id}"
+                                                        Click="OnEditUserClick"/>
+                                                
+                                                <Button Content="🔑 رمز"
+                                                        FontSize="12"
+                                                        FontWeight="SemiBold"
+                                                        Background="#FEF3C7"
+                                                        Foreground="#D97706"
+                                                        Padding="12,6"
+                                                        CornerRadius="6"
+                                                        Tag="{Binding Id}"
+                                                        Click="OnChangePasswordClick"/>
+                                                
+                                                <Button Content="🗑️"
+                                                        FontSize="12"
+                                                        FontWeight="SemiBold"
+                                                        Background="#FEF2F2"
+                                                        Foreground="#DC2626"
+                                                        Padding="12,6"
+                                                        CornerRadius="6"
+                                                        Tag="{Binding Id}"
+                                                        Click="OnDeleteUserClick"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </ScrollViewer>
+
+                    <!-- Empty state -->
+                    <StackPanel x:Name="EmptyPanel"
+                                HorizontalAlignment="Center" 
+                                VerticalAlignment="Center"
+                                Spacing="15"
+                                IsVisible="False">
+                        <TextBlock Text="👥" 
+                                   FontSize="60" 
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="EmptyTitle"
+                                   Text="هنوز کاربری ثبت نشده"
+                                   FontSize="18" FontWeight="Bold"
+                                   Foreground="{DynamicResource AppTextPrimary}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="برای شروع، روی دکمه «افزودن کاربر» کلیک کنید"
+                                   FontSize="13" 
+                                   Foreground="{DynamicResource AppTextSecondary}"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- پایین -->
+        <Border Grid.Row="3" 
+                Background="{DynamicResource AppCardBackground}" 
+                Padding="20,16"
+                BorderBrush="{DynamicResource AppBorder}"
+                BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Grid.Column="0"
+                           x:Name="StatusText"
+                           Text=""
+                           VerticalAlignment="Center"
+                           FontSize="13" FontWeight="SemiBold"
+                           Foreground="{DynamicResource AppTextSecondary}"/>
+
+                <Button Grid.Column="1"
+                        Content="📜 سابقه ورود"
+                        FontSize="14" FontWeight="SemiBold"
+                        Background="#8B5CF6" 
+                        Foreground="White"
+                        Padding="22,10"
+                        Margin="0,0,10,0"
+                        CornerRadius="8"
+                        Click="OnLoginHistoryClick"/>
+
+                <Button Grid.Column="2"
+                        Content="بستن"
+                        FontSize="14"
+                        Background="{DynamicResource AppBackground}"
+                        Foreground="{DynamicResource AppTextPrimary}"
+                        BorderBrush="{DynamicResource AppBorder}"
+                        BorderThickness="1"
+                        Padding="25,10"
+                        CornerRadius="8"
+                        Click="OnCloseClick"/>
+            </Grid>
+        </Border>
+
+    </Grid>
+
+</Window>

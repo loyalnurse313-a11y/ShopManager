@@ -1,0 +1,153 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:ShopManager.Desktop.ViewModels"
+        mc:Ignorable="d"
+        x:Class="ShopManager.Desktop.Views.CustomersWindow"
+        Title="مشتری‌ها"
+        Width="1100" Height="700"
+        MinWidth="900" MinHeight="500"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        FlowDirection="RightToLeft"
+        FontFamily="Vazirmatn,IRANSans,Segoe UI"
+        Background="#F1F5F9">
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+        <Border Grid.Row="0" Background="#2C3E50" Padding="24,18">
+            <TextBlock Text="لیست مشتری‌ها"
+                       FontSize="20" FontWeight="Bold"
+                       Foreground="White"
+                       HorizontalAlignment="Center"/>
+        </Border>
+
+        <Border Grid.Row="1" 
+                Background="White" 
+                Padding="20,14"
+                BorderBrush="#E2E8F0"
+                BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*">
+                <TextBlock Grid.Column="0"
+                           Text="جستجو:"
+                           FontSize="15" FontWeight="SemiBold"
+                           Foreground="#334155"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0"/>
+                <TextBox Grid.Column="1"
+                         x:Name="SearchBox"
+                         Watermark="جستجو بر اساس نام یا شماره تماس..."
+                         FontSize="15" Padding="14,10"
+                         TextChanged="OnSearchChanged"/>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="2" Background="White" Margin="20" CornerRadius="12">
+            <Grid RowDefinitions="Auto,*">
+
+                <Border Grid.Row="0" Background="#EEF2FF" Padding="15,14"
+                        CornerRadius="12,12,0,0">
+                    <Grid ColumnDefinitions="50,*,150,120,120,150">
+                        <TextBlock Grid.Column="0" Text="#" FontWeight="Bold" FontSize="13"
+                                   Foreground="#4F46E5" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="نام مشتری" FontWeight="Bold" FontSize="13"
+                                   Foreground="#4F46E5"/>
+                        <TextBlock Grid.Column="2" Text="شماره تماس" FontWeight="Bold" FontSize="13"
+                                   Foreground="#4F46E5" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="3" Text="تعداد خرید" FontWeight="Bold" FontSize="13"
+                                   Foreground="#4F46E5" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="4" Text="آخرین خرید" FontWeight="Bold" FontSize="13"
+                                   Foreground="#4F46E5" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="5" Text="جمع خرید" FontWeight="Bold" FontSize="13"
+                                   Foreground="#4F46E5" HorizontalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Row="1">
+                    <ScrollViewer x:Name="CustomersScrollViewer">
+                        <ListBox x:Name="CustomersList" BorderThickness="0" Background="Transparent">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="vm:CustomerRow">
+                                    <Border Padding="15,12" BorderBrush="#F1F5F9"
+                                            BorderThickness="0,0,0,1">
+                                        <Grid ColumnDefinitions="50,*,150,120,120,150">
+                                            <TextBlock Grid.Column="0" Text="{Binding RowNumber}"
+                                                       Foreground="#475569"
+                                                       HorizontalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Name}"
+                                                       FontWeight="SemiBold" Foreground="#0F172A"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Phone}"
+                                                       Foreground="#4F46E5"
+                                                       HorizontalAlignment="Center"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding PurchaseCount}"
+                                                       FontWeight="Bold" Foreground="#0F172A"
+                                                       HorizontalAlignment="Center"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding LastPurchaseDate}"
+                                                       FontSize="12" Foreground="#475569"
+                                                       HorizontalAlignment="Center"/>
+                                            <TextBlock Grid.Column="5" Text="{Binding TotalAmount}"
+                                                       FontWeight="Bold" Foreground="#059669"
+                                                       HorizontalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </ScrollViewer>
+
+                    <StackPanel x:Name="EmptyPanel"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Spacing="15">
+                        <TextBlock Text="👥" FontSize="60" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="EmptyTitle"
+                                   Text="هنوز مشتری‌ای ثبت نشده"
+                                   FontSize="18" FontWeight="Bold"
+                                   Foreground="#0F172A" HorizontalAlignment="Center"/>
+                        <TextBlock Text="با ثبت اولین فروش با شماره تماس، مشتری‌ها اینجا ظاهر می‌شن"
+                                   FontSize="13" Foreground="#94A3B8"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="3" 
+                Background="White" 
+                Padding="20,14"
+                BorderBrush="#E2E8F0" 
+                BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Grid.Column="0" 
+                           x:Name="StatusText" 
+                           Text="آماده"
+                           VerticalAlignment="Center" 
+                           FontSize="13"
+                           FontWeight="SemiBold" 
+                           Foreground="#475569"/>
+                
+                <Button Grid.Column="1"
+                        Content="خروجی اکسل"
+                        FontSize="14" 
+                        FontWeight="SemiBold"
+                        Background="#10B981" 
+                        Foreground="White"
+                        Padding="18,10" 
+                        Margin="0,0,10,0"
+                        Click="OnExportExcelClick"/>
+                
+                <Button Grid.Column="2"
+                        Content="بستن"
+                        FontSize="15"
+                        Background="#F1F5F9" 
+                        Foreground="#475569"
+                        BorderBrush="#CBD5E1" 
+                        BorderThickness="1"
+                        Padding="25,10"
+                        Click="OnCloseClick"/>
+            </Grid>
+        </Border>
+
+    </Grid>
+
+</Window>
