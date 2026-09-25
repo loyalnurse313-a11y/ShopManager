@@ -191,7 +191,7 @@
                                    TextAlignment="Center"
                                    TextWrapping="Wrap"/>
                         <TextBlock x:Name="VersionText"
-                                   Text=""
+                                   Text="VersionText.Text = "نسخه ۱.۰.۱";"
                                    FontSize="10"
                                    Foreground="#CBD5E1"
                                    HorizontalAlignment="Center"/>

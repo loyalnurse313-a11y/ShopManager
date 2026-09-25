@@ -21,7 +21,7 @@ public class UpdateService
     /// <summary>
     /// آدرس سرور آپدیت (وب سرور، S3، Azure Blob و...)
     /// </summary>
-    private const string UpdateUrl = "https://your-server.com/updates";
+  private const string GithubRepoUrl = "https://github.com/loyalnurse313-a11y/ShopManager";
 
     /// <summary>
     /// یا آدرس GitHub Releases
