@@ -1,0 +1,53 @@
+﻿name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Get Version
+        id: get_version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Publish
+        run: dotnet publish ShopManager.Desktop -c Release -r win-x64 --self-contained true -o ./publish
+
+      - name: Install Velopack
+        run: dotnet tool install -g vpk
+
+      - name: Pack with Velopack
+        run: |
+          vpk pack --packId ShopManager --packVersion ${{ steps.get_version.outputs.VERSION }} --packDir ./publish --mainExe ShopManager.Desktop.exe --outputDir ./releases --icon ./ShopManager.Desktop/Assets/avalonia-logo.ico
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            releases/*.exe
+            releases/*.nupkg
+            releases/*.json
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
