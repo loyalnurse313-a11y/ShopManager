@@ -26,7 +26,7 @@ public class UpdateService
     /// <summary>
     /// یا آدرس GitHub Releases
     /// </summary>
-    private const string GithubRepoUrl = "https://github.com/yourname/ShopManager";
+    private const string GithubRepoUrl = "https://github.com/loyalnurse313-a11y/ShopManager";
 
     // ─── انتخاب منبع: SimpleWebSource یا GithubSource ───
     private static readonly bool UseGithub = false; // اگه true باشه از GitHub استفاده می‌کنه
