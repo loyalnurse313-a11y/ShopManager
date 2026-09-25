@@ -39,13 +39,7 @@ jobs:
 
       - name: Pack with Velopack
         run: |
-          vpk pack `
-            --packId ShopManager `
-            --packVersion ${{ steps.get_version.outputs.VERSION }} `
-            --packDir ./publish `
-            --mainExe ShopManager.Desktop.exe `
-            --outputDir ./releases `
-            --icon ./ShopManager.Desktop/Assets/avalonia-logo.ico
+          vpk pack --packId ShopManager --packVersion ${{ steps.get_version.outputs.VERSION }} --packDir ./publish --mainExe ShopManager.Desktop.exe --outputDir ./releases --icon ./ShopManager.Desktop/Assets/avalonia-logo.ico
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
