@@ -11,12 +11,39 @@ public static class DatabaseService
 {
     public static event Action? DataChanged;
 
+    /// <summary>مسیر اصلی داده‌ها روی درایو G (اولویت اول)</summary>
+    private const string PrimaryDataPath = @"G:\ShopManager-Data";
+
     public static string DataFolder
     {
         get
         {
+            try
+            {
+                // ─── بررسی وجود درایو G و استفاده از مسیر اصلی ───
+                var gDrive = Path.GetPathRoot(PrimaryDataPath);
+                if (!string.IsNullOrEmpty(gDrive) && Directory.Exists(gDrive))
+                {
+                    Directory.CreateDirectory(PrimaryDataPath);
+                    return PrimaryDataPath;
+                }
+            }
+            catch { }
+
+            // ─── جایگزین: پوشه Documents ───
             var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
             var folder = Path.Combine(documents, "ShopManager");
+            Directory.CreateDirectory(folder);
+            return folder;
+        }
+    }
+
+    /// <summary>پوشه محل ذخیره بکاپ‌ها — کنار دیتابیس اصلی (روی درایو G)</summary>
+    public static string BackupFolder
+    {
+        get
+        {
+            var folder = Path.Combine(DataFolder, "Backups");
             Directory.CreateDirectory(folder);
             return folder;
         }
@@ -91,6 +118,8 @@ public static class DatabaseService
             // ─── چک و اضافه کردن ستون‌ها ───
             EnsureColumnAdoNet(conn, log, "Users", "CanPOS", "INTEGER NOT NULL DEFAULT 0");
             EnsureColumnAdoNet(conn, log, "Users", "CanViewFinance", "INTEGER NOT NULL DEFAULT 0");
+            // ─── ستون اجبار تغییر رمز در اولین ورود (پرامپت ۱.۳) ───
+            EnsureColumnAdoNet(conn, log, "Users", "MustChangePassword", "INTEGER NOT NULL DEFAULT 0");
             EnsureColumnAdoNet(conn, log, "Sales", "CardTerminal", "TEXT");
 
             conn.Close();

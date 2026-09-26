@@ -9,7 +9,8 @@ public class StoreSettings
 {
     // ═══════════ اطلاعات فروشگاه ═══════════
 
-    public string StoreName { get; set; } = "فروشگاه ظروف یکبار مصرف خوی";
+    // نام پیش‌فرض فروشگاه — مقدار واقعی در زمان اجرا از فایل store-settings.json خوانده می‌شود
+    public string StoreName { get; set; } = "فروشگاه";
     public string Address { get; set; } = "";
     public string Phone { get; set; } = "";
     public string LogoPath { get; set; } = "";

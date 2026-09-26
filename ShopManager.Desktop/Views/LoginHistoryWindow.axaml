@@ -6,27 +6,41 @@
         mc:Ignorable="d"
         x:Class="ShopManager.Desktop.Views.LoginHistoryWindow"
         Title="سابقه ورود کاربران"
-        Width="1300" Height="750"
-        MinWidth="1100" MinHeight="600"
+        Width="1280" Height="800"
+        MinWidth="1000" MinHeight="650"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
+        ExtendClientAreaToDecorationsHint="False"
         FlowDirection="RightToLeft"
         FontFamily="{DynamicResource AppFontFamily}"
         Background="{DynamicResource AppBackground}">
 
+    <Window.Styles>
+        <!-- الگوی «Solid Modern»: ردیف‌های جدول به‌صورت یک‌درمیان سفید و #FAFBFC -->
+        <Style Selector="ListBox#HistoryList ListBoxItem:nth-child(even)">
+            <Setter Property="Background" Value="#FAFBFC"/>
+        </Style>
+        <Style Selector="ListBox#HistoryList ListBoxItem:nth-child(odd)">
+            <Setter Property="Background" Value="#FFFFFF"/>
+        </Style>
+    </Window.Styles>
+
     <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
 
-        <!-- هدر -->
+        <!-- هدر — پس‌زمینه تیره ثابت (#0F172A) طبق الگوی Solid Modern -->
         <Border Grid.Row="0" 
-                Background="{DynamicResource AppHeaderBackground}" 
+                Background="#0F172A" 
                 Padding="24,18">
-            <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Grid.Column="0"
-                           Text="سابقه ورود و خروج کاربران"
-                           FontSize="20" FontWeight="Bold"
-                           Foreground="White"
-                           VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="1"
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+                    <PathIcon Data="{StaticResource IconHistory}" Width="22" Height="22"
+                              Foreground="White" VerticalAlignment="Center"/>
+                    <TextBlock Text="سابقه ورود و خروج کاربران"
+                               FontSize="20" FontWeight="Bold"
+                               Foreground="White"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Grid.Column="2"
                            x:Name="TotalCountText"
                            Text=""
                            FontSize="14"
@@ -44,10 +58,13 @@
             <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
 
                 <StackPanel>
-                    <TextBlock Text="از تاریخ" 
-                               FontSize="13" FontWeight="SemiBold" 
-                               Foreground="{DynamicResource AppTextPrimary}" 
-                               Margin="0,0,0,6"/>
+                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,0,6">
+                        <PathIcon Data="{StaticResource IconClockOutline}" Width="14" Height="14"
+                                  Foreground="{DynamicResource AppTextSecondary}" VerticalAlignment="Center"/>
+                        <TextBlock Text="از تاریخ" 
+                                   FontSize="13" FontWeight="SemiBold" 
+                                   Foreground="{DynamicResource AppTextPrimary}"/>
+                    </StackPanel>
                     <TextBox x:Name="FromDateBox" 
                              Width="140"
                              Watermark="1405/01/01"
@@ -55,50 +72,62 @@
                 </StackPanel>
 
                 <StackPanel>
-                    <TextBlock Text="تا تاریخ" 
-                               FontSize="13" FontWeight="SemiBold" 
-                               Foreground="{DynamicResource AppTextPrimary}" 
-                               Margin="0,0,0,6"/>
+                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,0,6">
+                        <PathIcon Data="{StaticResource IconClockOutline}" Width="14" Height="14"
+                                  Foreground="{DynamicResource AppTextSecondary}" VerticalAlignment="Center"/>
+                        <TextBlock Text="تا تاریخ" 
+                                   FontSize="13" FontWeight="SemiBold" 
+                                   Foreground="{DynamicResource AppTextPrimary}"/>
+                    </StackPanel>
                     <TextBox x:Name="ToDateBox" 
                              Width="140"
                              Watermark="1405/12/29"
                              FontSize="14" Padding="12,10"/>
                 </StackPanel>
 
+                <!-- دکمه‌های بازه سریع — سبک ثانویه (کادر سیاه‌وسفید خنثی) -->
                 <Button Content="امروز"
                         FontSize="14" FontWeight="SemiBold"
-                        Background="#EEF2FF" Foreground="#4F46E5"
+                        Background="{DynamicResource AppBackground}" Foreground="{DynamicResource AppTextPrimary}"
+                        BorderBrush="{DynamicResource AppBorder}" BorderThickness="1"
                         Padding="16,10" Margin="0,24,0,0"
-                        CornerRadius="8"
+                        CornerRadius="6"
                         Click="OnTodayClick"/>
 
                 <Button Content="این هفته"
                         FontSize="14" FontWeight="SemiBold"
-                        Background="#EEF2FF" Foreground="#4F46E5"
+                        Background="{DynamicResource AppBackground}" Foreground="{DynamicResource AppTextPrimary}"
+                        BorderBrush="{DynamicResource AppBorder}" BorderThickness="1"
                         Padding="16,10" Margin="0,24,0,0"
-                        CornerRadius="8"
+                        CornerRadius="6"
                         Click="OnWeekClick"/>
 
                 <Button Content="این ماه"
                         FontSize="14" FontWeight="SemiBold"
-                        Background="#EEF2FF" Foreground="#4F46E5"
+                        Background="{DynamicResource AppBackground}" Foreground="{DynamicResource AppTextPrimary}"
+                        BorderBrush="{DynamicResource AppBorder}" BorderThickness="1"
                         Padding="16,10" Margin="0,24,0,0"
-                        CornerRadius="8"
+                        CornerRadius="6"
                         Click="OnMonthClick"/>
 
+                <!-- همه سوابق — رنگ Warning چون نمایش کل بازه (توجه‌برانگیز) -->
                 <Button Content="همه سوابق"
                         FontSize="14" FontWeight="SemiBold"
-                        Background="#FEF3C7" Foreground="#D97706"
+                        Background="{DynamicResource AppWarning}" Foreground="White"
                         Padding="16,10" Margin="0,24,0,0"
-                        CornerRadius="8"
+                        CornerRadius="6"
                         Click="OnAllClick"/>
 
-                <Button Content="اعمال فیلتر"
-                        FontSize="14" FontWeight="Bold"
+                <Button FontSize="14" FontWeight="Bold"
                         Background="{DynamicResource AppAccent}" Foreground="White"
                         Padding="20,10" Margin="0,24,0,0"
-                        CornerRadius="8"
-                        Click="OnApplyFilterClick"/>
+                        CornerRadius="6"
+                        Click="OnApplyFilterClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconFilter}" Width="16" Height="16" VerticalAlignment="Center"/>
+                        <TextBlock Text="اعمال فیلتر" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </Border>
 
@@ -127,15 +156,16 @@
         <Border Grid.Row="3" 
                 Background="{DynamicResource AppCardBackground}" 
                 Margin="20" 
-                CornerRadius="12"
+                CornerRadius="6"
                 BorderBrush="{DynamicResource AppBorder}"
                 BorderThickness="1">
             <Grid RowDefinitions="Auto,*">
 
+                <!-- سرستون‌ها — هدر جدول #F1F5F9 -->
                 <Border Grid.Row="0" 
                         Background="{DynamicResource AppTableHeader}" 
                         Padding="15,14"
-                        CornerRadius="12,12,0,0">
+                        CornerRadius="6,6,0,0">
                     <Grid ColumnDefinitions="50,150,180,170,170,140,100,*">
                         <TextBlock Grid.Column="0" Text="#" FontWeight="Bold" FontSize="13"
                                    Foreground="{DynamicResource AppTableHeaderText}"
@@ -218,7 +248,8 @@
                     <StackPanel x:Name="EmptyPanel"
                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                 Spacing="15" IsVisible="False">
-                        <TextBlock Text="📜" FontSize="60" HorizontalAlignment="Center"/>
+                        <PathIcon Data="{StaticResource IconHistory}" Width="60" Height="60"
+                                  Foreground="{DynamicResource AppTextMuted}" HorizontalAlignment="Center"/>
                         <TextBlock x:Name="EmptyTitle"
                                    Text="سابقه‌ای در این بازه وجود ندارد"
                                    FontSize="18" FontWeight="Bold"
@@ -250,14 +281,14 @@
                                    Foreground="{DynamicResource AppTextSecondary}"/>
                         <TextBlock x:Name="SuccessCountText" Text="۰"
                                    FontSize="15" FontWeight="Bold"
-                                   Foreground="#10B981"/>
+                                   Foreground="{DynamicResource AppSuccess}"/>
                     </StackPanel>
                     <StackPanel>
                         <TextBlock Text="ورود ناموفق" FontSize="12" 
                                    Foreground="{DynamicResource AppTextSecondary}"/>
                         <TextBlock x:Name="FailedCountText" Text="۰"
                                    FontSize="15" FontWeight="Bold"
-                                   Foreground="#EF4444"/>
+                                   Foreground="{DynamicResource AppDanger}"/>
                     </StackPanel>
                     <StackPanel>
                         <TextBlock Text="جمع مدت حضور" FontSize="12" 
@@ -269,42 +300,58 @@
                 </StackPanel>
 
                 <Button Grid.Column="1"
-                        Content="خروجی اکسل"
                         FontSize="14" FontWeight="SemiBold"
                         Background="{DynamicResource AppSuccess}" Foreground="White"
                         Padding="18,10" Margin="0,0,10,0"
-                        CornerRadius="8"
-                        Click="OnExportExcelClick"/>
+                        CornerRadius="6"
+                        Click="OnExportExcelClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconFileExcel}" Width="16" Height="16" VerticalAlignment="Center"/>
+                        <TextBlock Text="خروجی اکسل" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
 
                 <Button Grid.Column="2"
-                        Content="چاپ گزارش"
                         FontSize="14" FontWeight="SemiBold"
-                        Background="#8B5CF6" Foreground="White"
+                        Background="{DynamicResource AppAccent}" Foreground="White"
                         Padding="18,10" Margin="0,0,10,0"
-                        CornerRadius="8"
-                        Click="OnPrintClick"/>
+                        CornerRadius="6"
+                        Click="OnPrintClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconPrinter}" Width="16" Height="16" VerticalAlignment="Center"/>
+                        <TextBlock Text="چاپ گزارش" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
 
                 <Button Grid.Column="3"
-                        Content="بروزرسانی"
                         FontSize="14" FontWeight="SemiBold"
                         Background="{DynamicResource AppBackground}" 
                         Foreground="{DynamicResource AppTextPrimary}"
                         BorderBrush="{DynamicResource AppBorder}"
                         BorderThickness="1"
                         Padding="18,10" Margin="0,0,10,0"
-                        CornerRadius="8"
-                        Click="OnRefreshClick"/>
+                        CornerRadius="6"
+                        Click="OnRefreshClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16" VerticalAlignment="Center"/>
+                        <TextBlock Text="بروزرسانی" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
 
                 <Button Grid.Column="4"
-                        Content="بستن"
                         FontSize="14"
                         Background="{DynamicResource AppBackground}"
                         Foreground="{DynamicResource AppTextPrimary}"
                         BorderBrush="{DynamicResource AppBorder}"
                         BorderThickness="1"
                         Padding="22,10"
-                        CornerRadius="8"
-                        Click="OnCloseClick"/>
+                        CornerRadius="6"
+                        Click="OnCloseClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconClose}" Width="16" Height="16" VerticalAlignment="Center"/>
+                        <TextBlock Text="بستن" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
             </Grid>
         </Border>
 

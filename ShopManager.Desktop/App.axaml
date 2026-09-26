@@ -5,30 +5,104 @@
 
     <Application.Resources>
         <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- آیکون‌های برنامه (Material Design) — جایگزین پکیج Material.Icons.Avalonia -->
+                <ResourceInclude Source="avares://ShopManager.Desktop/Themes/Icons.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- ═══ فونت ═══ -->
+            <!-- فونت و اندازه فونت مستقل از تم هستند و با تغییر تم عوض نمی‌شوند -->
             <FontFamily x:Key="AppFontFamily">Vazirmatn, IRANSans, Segoe UI</FontFamily>
             <x:Double x:Key="AppFontSize">14</x:Double>
 
-            <SolidColorBrush x:Key="AppBackground">#F1F5F9</SolidColorBrush>
-            <SolidColorBrush x:Key="AppCardBackground">#FFFFFF</SolidColorBrush>
-            <SolidColorBrush x:Key="AppHeaderBackground">#2C3E50</SolidColorBrush>
-            <SolidColorBrush x:Key="AppMenuBackground">#34495E</SolidColorBrush>
-            <SolidColorBrush x:Key="AppMenuText">#FFFFFF</SolidColorBrush>
+            <!-- ═══════════════════════════════════════════════════════════
+                 پالت رنگی بر اساس تم (Light / Dark)
+                 ───────────────────────────────────────────────────────────
+                 هر کلید رنگ در «هر دو» تم تعریف شده است تا کلیدواژه
+                 {DynamicResource AppXxx} در هیچ تمی بدون مقدار نماند.
+                 چون همه‌ی مصرف‌کننده‌ها از DynamicResource استفاده می‌کنند،
+                 تغییر RequestedThemeVariant به‌صورت خودکار کل برنامه را
+                 دوباره رنگ‌آمیزی می‌کند.
+                 ═══════════════════════════════════════════════════════════ -->
+            <ResourceDictionary.ThemeDictionaries>
 
-            <SolidColorBrush x:Key="AppTextPrimary">#0F172A</SolidColorBrush>
-            <SolidColorBrush x:Key="AppTextSecondary">#475569</SolidColorBrush>
-            <SolidColorBrush x:Key="AppBorder">#E2E8F0</SolidColorBrush>
+                <!-- ═══════════ تم روشن ═══════════ -->
+                <ResourceDictionary x:Key="Light">
 
-            <SolidColorBrush x:Key="AppAccent">#4F46E5</SolidColorBrush>
-            <SolidColorBrush x:Key="AppButtonText">#FFFFFF</SolidColorBrush>
-            <SolidColorBrush x:Key="AppSuccess">#10B981</SolidColorBrush>
-            <SolidColorBrush x:Key="AppDanger">#EF4444</SolidColorBrush>
+                    <!-- ═══ پس‌زمینه‌ها ═══ -->
+                    <SolidColorBrush x:Key="AppBackground">#F5F7FA</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppCardBackground">#FFFFFF</SolidColorBrush>
+                    <!-- هدر و منو در تم روشن هم تیره‌اند (ظاهر امضای برنامه) -->
+                    <SolidColorBrush x:Key="AppHeaderBackground">#0F172A</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppMenuBackground">#0F172A</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppMenuText">#CBD5E1</SolidColorBrush>
 
-            <SolidColorBrush x:Key="AppTableHeader">#EEF2FF</SolidColorBrush>
-            <SolidColorBrush x:Key="AppTableHeaderText">#4F46E5</SolidColorBrush>
-            <SolidColorBrush x:Key="AppTableRow">#FFFFFF</SolidColorBrush>
-            <SolidColorBrush x:Key="AppTableAltRow">#F8FAFC</SolidColorBrush>
-            <SolidColorBrush x:Key="AppTableText">#0F172A</SolidColorBrush>
-            <SolidColorBrush x:Key="AppTableBorder">#F1F5F9</SolidColorBrush>
+                    <!-- ═══ متن‌ها و حاشیه‌ها ═══ -->
+                    <SolidColorBrush x:Key="AppTextPrimary">#0F172A</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTextSecondary">#64748B</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTextMuted">#94A3B8</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppBorder">#E2E8F0</SolidColorBrush>
+
+                    <!-- ═══ رنگ اصلی (Accent) — پیش‌فرض: سرمه‌ای/آبی ═══ -->
+                    <SolidColorBrush x:Key="AppAccent">#1E40AF</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppAccentHover">#1E3A8A</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppButtonText">#FFFFFF</SolidColorBrush>
+
+                    <!-- ═══ رنگ‌های معنایی ═══ -->
+                    <SolidColorBrush x:Key="AppSuccess">#047857</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppWarning">#B45309</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppDanger">#B91C1C</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppInfo">#1E40AF</SolidColorBrush>
+
+                    <!-- ═══ جداول ═══ -->
+                    <SolidColorBrush x:Key="AppTableHeader">#F1F5F9</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTableHeaderText">#0F172A</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTableRow">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTableAltRow">#F8FAFC</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTableText">#0F172A</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTableBorder">#E2E8F0</SolidColorBrush>
+
+                </ResourceDictionary>
+
+                <!-- ═══════════ تم تاریک ═══════════ -->
+                <ResourceDictionary x:Key="Dark">
+
+                    <!-- ═══ پس‌زمینه‌ها ═══ -->
+                    <SolidColorBrush x:Key="AppBackground">#0B1220</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppCardBackground">#111827</SolidColorBrush>
+                    <!-- در تم تاریک، هدر/منو یک پله تیره‌تر می‌شوند تا حس یکپارچه‌ی تاریک بدهد -->
+                    <SolidColorBrush x:Key="AppHeaderBackground">#0B1220</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppMenuBackground">#0B1220</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppMenuText">#CBD5E1</SolidColorBrush>
+
+                    <!-- ═══ متن‌ها و حاشیه‌ها ═══ -->
+                    <SolidColorBrush x:Key="AppTextPrimary">#E5E7EB</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTextSecondary">#9CA3AF</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTextMuted">#6B7280</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppBorder">#1F2937</SolidColorBrush>
+
+                    <!-- ═══ رنگ اصلی (Accent) — نسخه‌ی روشن‌تر برای کنتراست روی پس‌زمینه‌ی تیره ═══ -->
+                    <SolidColorBrush x:Key="AppAccent">#2563EB</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppAccentHover">#3B82F6</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppButtonText">#FFFFFF</SolidColorBrush>
+
+                    <!-- ═══ رنگ‌های معنایی — پالت تیره برای خوانایی روی زمینه‌ی تیره ═══ -->
+                    <SolidColorBrush x:Key="AppSuccess">#10B981</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppWarning">#F59E0B</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppDanger">#EF4444</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppInfo">#3B82F6</SolidColorBrush>
+
+                    <!-- ═══ جداول ═══ -->
+                    <SolidColorBrush x:Key="AppTableHeader">#1F2937</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTableHeaderText">#E5E7EB</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTableRow">#111827</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTableAltRow">#0F172A</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTableText">#E5E7EB</SolidColorBrush>
+                    <SolidColorBrush x:Key="AppTableBorder">#1F2937</SolidColorBrush>
+
+                </ResourceDictionary>
+
+            </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
     </Application.Resources>
 
@@ -37,9 +111,9 @@
 
         <!-- ═══ دکمه‌های پایه ═══ -->
         <Style Selector="Button">
-            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="18,10"/>
+            <Setter Property="Padding" Value="16,10"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
 
@@ -54,58 +128,45 @@
             <Setter Property="BorderBrush" Value="{TemplateBinding BorderBrush}"/>
         </Style>
 
-        <!-- ═══ Hover: فقط کمی کمرنگ‌تر (نه محو) ═══ -->
         <Style Selector="Button:pointerover">
-            <Setter Property="Opacity" Value="0.88"/>
+            <Setter Property="Opacity" Value="0.9"/>
         </Style>
 
         <Style Selector="Button:pressed">
-            <Setter Property="Opacity" Value="0.75"/>
+            <Setter Property="Opacity" Value="0.8"/>
         </Style>
 
         <!-- ═══ فیلدها ═══ -->
         <Style Selector="TextBox">
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="MinHeight" Value="42"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="MinHeight" Value="40"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="{DynamicResource AppCardBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorder}"/>
         </Style>
 
         <Style Selector="ComboBox">
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="MinHeight" Value="42"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="MinHeight" Value="40"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="Background" Value="{DynamicResource AppCardBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorder}"/>
         </Style>
-        <!-- ═══ RadioButton — رنگ متن داینامیک ═══ -->
-<Style Selector="RadioButton">
-    <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
-</Style>
 
-<Style Selector="RadioButton /template/ ContentPresenter">
-    <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
-</Style>
+        <!-- ═══ Radio/CheckBox ═══ -->
+        <Style Selector="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
+        </Style>
 
-<Style Selector="RadioButton:checked /template/ ContentPresenter">
-    <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
-</Style>
+        <Style Selector="RadioButton /template/ ContentPresenter">
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
+        </Style>
 
-<!-- ═══ CheckBox — رنگ متن داینامیک ═══ -->
-<Style Selector="CheckBox">
-    <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
-</Style>
-
-<!-- ═══ TextBox — پس‌زمینه و متن داینامیک ═══ -->
-<Style Selector="TextBox">
-    <Setter Property="Background" Value="{DynamicResource AppCardBackground}"/>
-    <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource AppBorder}"/>
-</Style>
-
-<!-- ═══ ComboBox — داینامیک ═══ -->
-<Style Selector="ComboBox">
-    <Setter Property="Background" Value="{DynamicResource AppCardBackground}"/>
-    <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource AppBorder}"/>
-</Style>
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}"/>
+        </Style>
     </Application.Styles>
 
 </Application>

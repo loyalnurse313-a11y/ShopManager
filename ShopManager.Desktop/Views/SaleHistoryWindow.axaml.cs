@@ -315,7 +315,7 @@ public partial class SaleHistoryWindow : Window
             sb.AppendLine(".total { background: #ECFDF5; font-weight: bold; padding: 12px; margin-top: 15px; text-align: center; font-size: 14px; color: #059669; }");
             sb.AppendLine("@media print { @page { size: A4; margin: 10mm; } body { margin: 0; } }");
             sb.AppendLine("</style></head><body>");
-            sb.AppendLine("<h1>فروشگاه ظروف یکبار مصرف خوی </h1>");
+            sb.AppendLine($"<h1>{HtmlEncoder.Encode(string.IsNullOrWhiteSpace(StoreSettingsService.Current.StoreName) ? "فروشگاه" : StoreSettingsService.Current.StoreName)}</h1>");
             sb.AppendLine("<h2>سابقه فروش روزانه</h2>");
             sb.AppendLine($"<p style='text-align:center; font-size: 12px;'>از: {FromDateBox.Text} — تا: {ToDateBox.Text}</p>");
             sb.AppendLine("<table><thead><tr>");

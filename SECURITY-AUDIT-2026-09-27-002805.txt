@@ -1,0 +1,28 @@
+﻿═══════════════════════════════════════════════════
+  گزارش اسکن امنیتی — 2026-09-27 00:28
+═══════════════════════════════════════════════════
+
+فایل‌های بررسی‌شده: 109
+یافته‌های مشکوک: 3
+
+
+═══════════════════════════════════════════════════
+  Admin/Admin Default — 1 مورد
+═══════════════════════════════════════════════════
+
+ShopManager.Desktop\Services\AuthServiceInitializer.cs:11
+  public const string DefaultAdminPassword = "admin";
+
+═══════════════════════════════════════════════════
+  Hardcoded Password — 1 مورد
+═══════════════════════════════════════════════════
+
+ShopManager.Desktop\Services\AuthServiceInitializer.cs:11
+  public const string DefaultAdminPassword = "admin";
+
+═══════════════════════════════════════════════════
+  IPv4 Address — 1 مورد
+═══════════════════════════════════════════════════
+
+ShopManager.Desktop\app.manifest:3
+  <assemblyIdentity version="1.0.0.0" name="ShopManager.Desktop"/>

@@ -73,7 +73,8 @@ public partial class CashboxWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"خطا: {ex.Message}";
+            ErrorHandler.LogError(ex, "Cashbox");
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 
@@ -303,7 +304,8 @@ public partial class CashboxWindow : Window
             }
             catch (Exception ex)
             {
-                StatusText.Text = $"خطا: {ex.Message}";
+                ErrorHandler.LogError(ex, "Cashbox");
+                StatusText.Text = ErrorHandler.GetUserMessage(ex);
             }
         };
 
@@ -412,8 +414,9 @@ public partial class CashboxWindow : Window
         }
         catch (Exception ex)
         {
+            ErrorHandler.LogError(ex, "Cashbox");
             StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
-            StatusText.Text = $"خطا: {ex.Message}";
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 
@@ -445,7 +448,8 @@ public partial class CashboxWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"خطا: {ex.Message}";
+            ErrorHandler.LogError(ex, "Cashbox");
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 

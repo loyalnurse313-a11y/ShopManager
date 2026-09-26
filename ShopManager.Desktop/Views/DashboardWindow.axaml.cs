@@ -148,7 +148,8 @@ public partial class DashboardWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"خطا: {ex.Message}";
+            ErrorHandler.LogError(ex, "Dashboard");
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 
@@ -199,22 +200,45 @@ public partial class DashboardWindow : Window
     {
         var color = Color.Parse(colorHex);
 
+        // ─── کارت سفید با نوار رنگی ۳ پیکسلی کناری (سبک Solid Modern) ───
         var card = new Border
         {
             Width = 240,
             Margin = new Thickness(5),
-            Padding = new Thickness(16, 14),
-            Background = new SolidColorBrush(Color.Parse("#F8FAFC")),
-            BorderBrush = new SolidColorBrush(color),
-            BorderThickness = new Thickness(0, 0, 0, 4),
-            CornerRadius = new CornerRadius(10)
+            Padding = new Thickness(0),
+            Background = new SolidColorBrush(Color.Parse("#FFFFFF")),
+            BorderBrush = new SolidColorBrush(Color.Parse("#E2E8F0")),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6)
         };
 
-        var panel = new StackPanel { Spacing = 8 };
+        // ریشه: نوار کناری (۳px) + محتوا
+        var rootGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("3,*") };
+
+        var sideBar = new Border
+        {
+            Background = new SolidColorBrush(color),
+            CornerRadius = new CornerRadius(0, 6, 6, 0)
+        };
+        Grid.SetColumn(sideBar, 0);
+        rootGrid.Children.Add(sideBar);
+
+        var panel = new StackPanel { Spacing = 8, Margin = new Thickness(16, 14) };
+        Grid.SetColumn(panel, 1);
 
         var headerGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto") };
 
-        var icon = new TextBlock { Text = "🏧", FontSize = 18, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+        // آیکون Material به جای ایموجی 🏧
+        var icon = new PathIcon
+        {
+            Data = this.FindResource("IconCreditCard") as Geometry
+                   ?? Geometry.Parse("M20 4H4A2 2 0 0 0 2 6V18A2 2 0 0 0 4 20H20A2 2 0 0 0 22 18V6A2 2 0 0 0 20 4M20 11H4V8H20Z"),
+            Width = 18,
+            Height = 18,
+            Foreground = new SolidColorBrush(color),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0)
+        };
         Grid.SetColumn(icon, 0);
 
         var nameText = new TextBlock
@@ -259,12 +283,14 @@ public partial class DashboardWindow : Window
 
         panel.Children.Add(new TextBlock
         {
-            Text = $"🧾 {PersianNumber.ToPersian(invoiceCount)} فاکتور",
+            Text = $"{PersianNumber.ToPersian(invoiceCount)} فاکتور",
             FontSize = 12,
             Foreground = new SolidColorBrush(Color.Parse("#64748B"))
         });
 
-        card.Child = panel;
+        rootGrid.Children.Add(panel);
+
+        card.Child = rootGrid;
         return card;
     }
 
@@ -322,7 +348,7 @@ public partial class DashboardWindow : Window
             var bar = new Avalonia.Controls.Border
             {
                 Height = height,
-                Background = new SolidColorBrush(Color.Parse("#4F46E5")),
+                Background = new SolidColorBrush(Color.Parse("#1E40AF")),
                 CornerRadius = new CornerRadius(4, 4, 0, 0),
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 MinWidth = 20
@@ -864,7 +890,8 @@ public partial class DashboardWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"خطا: {ex.Message}";
+            ErrorHandler.LogError(ex, "Dashboard");
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 
@@ -1147,8 +1174,9 @@ public partial class DashboardWindow : Window
         }
         catch (Exception ex)
         {
+            ErrorHandler.LogError(ex, "Dashboard");
             StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
-            StatusText.Text = $"خطا در چاپ: {ex.Message}";
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 
@@ -1247,43 +1275,60 @@ public partial class DashboardWindow : Window
         sb.AppendLine("<title>گزارش داشبورد</title>");
         sb.AppendLine("<style>");
         sb.AppendLine("* { font-family: Vazirmatn, Tahoma, sans-serif; box-sizing: border-box; }");
-        sb.AppendLine("body { margin: 15px; background: white; color: #0F172A; }");
-        sb.AppendLine("h1 { text-align: center; color: #2C3E50; font-size: 20px; margin-bottom: 5px; }");
-        sb.AppendLine("h2 { text-align: center; color: #4F46E5; font-size: 14px; margin-top: 0; margin-bottom: 15px; }");
-        sb.AppendLine(".meta { text-align: center; font-size: 11px; color: #64748B; margin-bottom: 20px; }");
-        sb.AppendLine(".section { margin-bottom: 20px; page-break-inside: avoid; }");
-        sb.AppendLine(".section-title { font-size: 14px; font-weight: bold; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; }");
-        sb.AppendLine(".kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }");
-        sb.AppendLine(".kpi { padding: 12px; border-radius: 8px; }");
-        sb.AppendLine(".kpi-label { font-size: 11px; color: #64748B; margin-bottom: 4px; }");
-        sb.AppendLine(".kpi-value { font-size: 15px; font-weight: bold; }");
-        sb.AppendLine(".kpi-sub { font-size: 10px; color: #94A3B8; margin-top: 3px; }");
-        sb.AppendLine(".kpi-indigo { background: #EEF2FF; } .kpi-indigo .kpi-value { color: #4F46E5; }");
-        sb.AppendLine(".kpi-green { background: #ECFDF5; } .kpi-green .kpi-value { color: #059669; }");
-        sb.AppendLine(".kpi-yellow { background: #FEF3C7; } .kpi-yellow .kpi-value { color: #D97706; }");
-        sb.AppendLine(".kpi-blue { background: #F0F9FF; } .kpi-blue .kpi-value { color: #0284C7; }");
-        sb.AppendLine(".kpi-gray { background: #F1F5F9; } .kpi-gray .kpi-value { color: #475569; }");
-        sb.AppendLine(".kpi-red { background: #FEF2F2; } .kpi-red .kpi-value { color: #DC2626; }");
-        sb.AppendLine("table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 5px; }");
-        sb.AppendLine("th { background: #EEF2FF; color: #4F46E5; padding: 7px; text-align: center; border-bottom: 2px solid #4F46E5; }");
-        sb.AppendLine("td { padding: 6px; border-bottom: 1px solid #F1F5F9; text-align: center; }");
-        sb.AppendLine("td.name { text-align: right; font-weight: 600; }");
-        sb.AppendLine("tr:nth-child(even) { background: #F8FAFC; }");
-        sb.AppendLine(".footer { text-align: center; margin-top: 25px; padding-top: 12px; border-top: 2px solid #E2E8F0; color: #94A3B8; font-size: 10px; }");
-        sb.AppendLine("@media print { @page { size: A4; margin: 8mm; } body { margin: 0; } .section { page-break-inside: avoid; } }");
+        sb.AppendLine("body { margin: 20px; background: #F5F7FA; color: #0F172A; font-size: 12px; }");
+        sb.AppendLine(".container { max-width: 900px; margin: 0 auto; }");
+        // هدر
+        sb.AppendLine(".header { background: #0F172A; color: white; padding: 24px 30px; border-radius: 6px 6px 0 0; }");
+        sb.AppendLine(".header h1 { margin: 0; font-size: 20px; font-weight: bold; }");
+        sb.AppendLine(".header .meta { font-size: 11px; color: #94A3B8; margin-top: 6px; }");
+        // بخش
+        sb.AppendLine(".section { background: white; margin-bottom: 16px; border-radius: 6px; border: 1px solid #E2E8F0; overflow: hidden; }");
+        sb.AppendLine(".section-header { padding: 14px 20px; border-bottom: 1px solid #E2E8F0; background: white; }");
+        sb.AppendLine(".section-header h2 { margin: 0; font-size: 14px; font-weight: 600; color: #0F172A; }");
+        sb.AppendLine(".section-body { padding: 20px; }");
+        // KPI
+        sb.AppendLine(".kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }");
+        sb.AppendLine(".kpi { background: white; border: 1px solid #E2E8F0; border-radius: 6px; padding: 16px; border-right: 3px solid #1E40AF; }");
+        sb.AppendLine(".kpi.success { border-right-color: #047857; }");
+        sb.AppendLine(".kpi.warning { border-right-color: #B45309; }");
+        sb.AppendLine(".kpi.danger { border-right-color: #B91C1C; }");
+        sb.AppendLine(".kpi .label { font-size: 11px; color: #64748B; margin-bottom: 8px; font-weight: 600; }");
+        sb.AppendLine(".kpi .value { font-size: 16px; font-weight: bold; color: #0F172A; }");
+        sb.AppendLine(".kpi .sub { font-size: 10px; color: #94A3B8; margin-top: 4px; }");
+        // جدول
+        sb.AppendLine("table { width: 100%; border-collapse: collapse; font-size: 11px; }");
+        sb.AppendLine("th { background: #F1F5F9; color: #0F172A; padding: 10px 8px; font-size: 11px; font-weight: 600; text-align: center; border-bottom: 1px solid #E2E8F0; }");
+        sb.AppendLine("td { padding: 8px; border-bottom: 1px solid #F1F5F9; text-align: center; color: #334155; }");
+        sb.AppendLine("td.name { text-align: right; font-weight: 600; color: #0F172A; }");
+        sb.AppendLine("tr:last-child td { border-bottom: none; }");
+        sb.AppendLine("tr:nth-child(even) td { background: #FAFBFC; }");
+        sb.AppendLine("tr.total td { background: #F1F5F9; font-weight: bold; border-top: 2px solid #E2E8F0; }");
+        // رنگ‌های وضعیت
+        sb.AppendLine(".text-success { color: #047857; font-weight: 600; }");
+        sb.AppendLine(".text-warning { color: #B45309; font-weight: 600; }");
+        sb.AppendLine(".text-danger { color: #B91C1C; font-weight: 600; }");
+        sb.AppendLine(".text-accent { color: #1E40AF; font-weight: 600; }");
+        // فوتر
+        sb.AppendLine(".footer { text-align: center; color: #94A3B8; font-size: 10px; margin-top: 24px; padding: 16px; }");
+        // چاپ
+        sb.AppendLine("@media print { @page { size: A4; margin: 10mm; } body { margin: 0; background: white; } .section { page-break-inside: avoid; } .header { border-radius: 0; } }");
         sb.AppendLine("</style></head><body>");
 
-        sb.AppendLine("<h1>فروشگاه ظروف یکبار مصرف خوی</h1>");
-        sb.AppendLine("<h2>📊 گزارش داشبورد — نمای کلی</h2>");
-        sb.AppendLine($"<div class='meta'>تاریخ چاپ: {PersianNumber.ToPersianDigits(JalaliDate.ToShamsi(DateTime.Today))} — ساعت {PersianNumber.ToPersianDigits(DateTime.Now.ToString("HH:mm"))}</div>");
+        sb.AppendLine("<div class='container'>");
+        sb.AppendLine("<div class='header'>");
+        sb.AppendLine($"<h1>{HtmlEncoder.Encode(string.IsNullOrWhiteSpace(StoreSettingsService.Current.StoreName) ? "فروشگاه" : StoreSettingsService.Current.StoreName)}</h1>");
+        sb.AppendLine($"<div class='meta'>گزارش داشبورد — نمای کلی | تاریخ: {PersianNumber.ToPersianDigits(JalaliDate.ToShamsi(DateTime.Today))} | ساعت: {PersianNumber.ToPersianDigits(DateTime.Now.ToString("HH:mm"))}</div>");
+        sb.AppendLine("</div>");
 
         sb.AppendLine("<div class='section'>");
-        sb.AppendLine("<div class='section-title' style='background:#EEF2FF;color:#4F46E5;'>📊 شاخص‌های کلی</div>");
+        sb.AppendLine("<div class='section-header'><h2>شاخص‌های کلی</h2></div>");
+        sb.AppendLine("<div class='section-body'>");
         sb.AppendLine("<div class='kpi-grid'>");
-        sb.AppendLine($"<div class='kpi kpi-indigo'><div class='kpi-label'>📦 موجودی انبار</div><div class='kpi-value'>{PersianNumber.ToToman(warehouseValue)}</div><div class='kpi-sub'>{PersianNumber.ToPersian(warehouseItemCount)} قلم</div></div>");
-        sb.AppendLine($"<div class='kpi kpi-green'><div class='kpi-label'>🏪 موجودی مغازه</div><div class='kpi-value'>{PersianNumber.ToToman(shopValue)}</div><div class='kpi-sub'>{PersianNumber.ToPersian(shopItemCount)} قلم</div></div>");
-        sb.AppendLine($"<div class='kpi kpi-yellow'><div class='kpi-label'>💰 صندوق نقدی</div><div class='kpi-value'>{PersianNumber.ToToman(cashbox)}</div><div class='kpi-sub'>طلب: {PersianNumber.ToToman(receivables)}</div></div>");
-        sb.AppendLine($"<div class='kpi kpi-green'><div class='kpi-label'>📈 سود امروز</div><div class='kpi-value'>{PersianNumber.ToToman(todayProfit)}</div><div class='kpi-sub'>{PersianNumber.ToPersian(todayInvoices)} فروش</div></div>");
+        sb.AppendLine($"<div class='kpi'><div class='label'>موجودی انبار</div><div class='value'>{PersianNumber.ToToman(warehouseValue)}</div><div class='sub'>{PersianNumber.ToPersian(warehouseItemCount)} قلم</div></div>");
+        sb.AppendLine($"<div class='kpi success'><div class='label'>موجودی مغازه</div><div class='value'>{PersianNumber.ToToman(shopValue)}</div><div class='sub'>{PersianNumber.ToPersian(shopItemCount)} قلم</div></div>");
+        sb.AppendLine($"<div class='kpi warning'><div class='label'>صندوق نقدی</div><div class='value'>{PersianNumber.ToToman(cashbox)}</div><div class='sub'>طلب: {PersianNumber.ToToman(receivables)}</div></div>");
+        sb.AppendLine($"<div class='kpi success'><div class='label'>سود امروز</div><div class='value'>{PersianNumber.ToToman(todayProfit)}</div><div class='sub'>{PersianNumber.ToPersian(todayInvoices)} فروش</div></div>");
+        sb.AppendLine("</div>");
         sb.AppendLine("</div></div>");
 
         var todayTotal = todayCash + todayCard + todayCredit;
@@ -1292,35 +1337,40 @@ public partial class DashboardWindow : Window
         var creditPct = todayTotal > 0 ? (todayCredit / todayTotal) * 100 : 0;
 
         sb.AppendLine("<div class='section'>");
-        sb.AppendLine("<div class='section-title' style='background:#F0F9FF;color:#0284C7;'>💵 فروش امروز — تفکیک نقد / کارت / نسیه</div>");
+        sb.AppendLine("<div class='section-header'><h2>فروش امروز — تفکیک پرداخت</h2></div>");
+        sb.AppendLine("<div class='section-body'>");
         sb.AppendLine("<div class='kpi-grid'>");
-        sb.AppendLine($"<div class='kpi kpi-green'><div class='kpi-label'>💵 نقدی</div><div class='kpi-value'>{PersianNumber.ToToman(todayCash)}</div><div class='kpi-sub'>{PersianNumber.ToPersian(todayCashInv)} فاکتور — {PersianNumber.ToPersian(decimal.Round(cashPct, 1))}٪</div></div>");
-        sb.AppendLine($"<div class='kpi kpi-indigo'><div class='kpi-label'>💳 کارتی (POS بانکی)</div><div class='kpi-value'>{PersianNumber.ToToman(todayCard)}</div><div class='kpi-sub'>{PersianNumber.ToPersian(todayCardInv)} فاکتور — {PersianNumber.ToPersian(decimal.Round(cardPct, 1))}٪</div></div>");
-        sb.AppendLine($"<div class='kpi kpi-yellow'><div class='kpi-label'>📝 نسیه</div><div class='kpi-value'>{PersianNumber.ToToman(todayCredit)}</div><div class='kpi-sub'>{PersianNumber.ToPersian(todayCreditInv)} فاکتور — {PersianNumber.ToPersian(decimal.Round(creditPct, 1))}٪</div></div>");
-        sb.AppendLine($"<div class='kpi kpi-gray'><div class='kpi-label'>🧾 جمع فاکتورها</div><div class='kpi-value'>{PersianNumber.ToPersian(todayInvoices)} فاکتور</div><div class='kpi-sub'>جمع: {PersianNumber.ToToman(todayTotal)}</div></div>");
+        sb.AppendLine($"<div class='kpi success'><div class='label'>نقدی</div><div class='value'>{PersianNumber.ToToman(todayCash)}</div><div class='sub'>{PersianNumber.ToPersian(todayCashInv)} فاکتور — {PersianNumber.ToPersian(decimal.Round(cashPct, 1))}٪</div></div>");
+        sb.AppendLine($"<div class='kpi'><div class='label'>کارتی</div><div class='value'>{PersianNumber.ToToman(todayCard)}</div><div class='sub'>{PersianNumber.ToPersian(todayCardInv)} فاکتور — {PersianNumber.ToPersian(decimal.Round(cardPct, 1))}٪</div></div>");
+        sb.AppendLine($"<div class='kpi warning'><div class='label'>نسیه</div><div class='value'>{PersianNumber.ToToman(todayCredit)}</div><div class='sub'>{PersianNumber.ToPersian(todayCreditInv)} فاکتور — {PersianNumber.ToPersian(decimal.Round(creditPct, 1))}٪</div></div>");
+        sb.AppendLine($"<div class='kpi'><div class='label'>تعداد فاکتور</div><div class='value'>{PersianNumber.ToPersian(todayInvoices)}</div><div class='sub'>جمع: {PersianNumber.ToToman(todayTotal)}</div></div>");
+        sb.AppendLine("</div>");
         sb.AppendLine("</div></div>");
 
         if (terminalToday.Count > 0)
         {
             sb.AppendLine("<div class='section'>");
-            sb.AppendLine("<div class='section-title' style='background:#EEF2FF;color:#4F46E5;'>💳 فروش کارتی امروز — تفکیک پایانه‌ها</div>");
-            sb.AppendLine("<table><thead><tr><th>پایانه</th><th>مبلغ</th><th>تعداد فاکتور</th><th>درصد</th></tr></thead><tbody>");
+            sb.AppendLine("<div class='section-header'><h2>فروش کارتی — تفکیک پایانه‌ها</h2></div>");
+            sb.AppendLine("<div class='section-body'>");
+            sb.AppendLine("<table><thead><tr><th style='text-align: right;'>پایانه</th><th>مبلغ</th><th>تعداد فاکتور</th><th>درصد</th></tr></thead><tbody>");
             var totalCardToday = terminalToday.Sum(t => t.Revenue);
             foreach (var t in terminalToday)
             {
                 var pct = totalCardToday > 0 ? (t.Revenue / totalCardToday) * 100 : 0;
-                sb.AppendLine($"<tr><td class='name'>🏧 {t.Terminal}</td><td style='color:#4F46E5;font-weight:bold;'>{PersianNumber.ToToman(t.Revenue)}</td><td>{PersianNumber.ToPersian(t.Count)}</td><td>{PersianNumber.ToPersian(decimal.Round(pct, 1))}٪</td></tr>");
+                // escape نام پایانه برای جلوگیری از XSS
+                sb.AppendLine($"<tr><td class='name'>{HtmlEncoder.Encode(t.Terminal)}</td><td class='text-accent'>{PersianNumber.ToToman(t.Revenue)}</td><td>{PersianNumber.ToPersian(t.Count)}</td><td>{PersianNumber.ToPersian(decimal.Round(pct, 1))}٪</td></tr>");
             }
-            sb.AppendLine($"<tr style='background:#EEF2FF;font-weight:bold;'><td class='name'>جمع کل</td><td style='color:#4F46E5;'>{PersianNumber.ToToman(totalCardToday)}</td><td>{PersianNumber.ToPersian(terminalToday.Sum(t => t.Count))}</td><td>۱۰۰٪</td></tr>");
+            sb.AppendLine($"<tr class='total'><td class='name'>جمع کل</td><td class='text-accent'>{PersianNumber.ToToman(totalCardToday)}</td><td>{PersianNumber.ToPersian(terminalToday.Sum(t => t.Count))}</td><td>۱۰۰٪</td></tr>");
             sb.AppendLine("</tbody></table>");
-            sb.AppendLine("</div>");
+            sb.AppendLine("</div></div>");
         }
 
         sb.AppendLine("<div class='section'>");
-        sb.AppendLine("<div class='section-title' style='background:#FEF2F2;color:#DC2626;'>⚠️ کالاهای بحرانی</div>");
+        sb.AppendLine("<div class='section-header'><h2>کالاهای بحرانی</h2></div>");
+        sb.AppendLine("<div class='section-body'>");
         if (criticalList.Count == 0)
         {
-            sb.AppendLine("<p style='text-align:center;color:#10B981;font-size:12px;'>✓ همه کالاها موجودی کافی دارند</p>");
+            sb.AppendLine("<div style='text-align:center;color:#047857;padding:20px;'>✓ همه کالاها موجودی کافی دارند</div>");
         }
         else
         {
@@ -1328,18 +1378,20 @@ public partial class DashboardWindow : Window
             int idx = 1;
             foreach (var c in criticalList.Take(15))
             {
-                sb.AppendLine($"<tr><td>{PersianNumber.ToPersian(idx)}</td><td class='name'>{c.Name}</td><td style='color:#DC2626;font-weight:bold;'>{c.Location}</td><td style='color:#DC2626;font-weight:bold;'>{PersianNumber.ToPersian(c.Stock)} {c.Unit}</td></tr>");
+                // escape نام و واحد کالای بحرانی برای جلوگیری از XSS
+                sb.AppendLine($"<tr><td>{PersianNumber.ToPersian(idx)}</td><td class='name'>{HtmlEncoder.Encode(c.Name)}</td><td class='text-danger'>{c.Location}</td><td class='text-danger'>{PersianNumber.ToPersian(c.Stock)} {HtmlEncoder.Encode(c.Unit)}</td></tr>");
                 idx++;
             }
             sb.AppendLine("</tbody></table>");
         }
-        sb.AppendLine("</div>");
+        sb.AppendLine("</div></div>");
 
         sb.AppendLine("<div class='section'>");
-        sb.AppendLine("<div class='section-title' style='background:#ECFDF5;color:#059669;'>🏆 پرفروش‌ترین امروز</div>");
+        sb.AppendLine("<div class='section-header'><h2>پرفروش‌ترین امروز</h2></div>");
+        sb.AppendLine("<div class='section-body'>");
         if (topToday.Count == 0)
         {
-            sb.AppendLine("<p style='text-align:center;color:#94A3B8;font-size:12px;'>امروز فروشی ثبت نشده</p>");
+            sb.AppendLine("<div style='text-align:center;color:#94A3B8;padding:20px;'>امروز فروشی ثبت نشده</div>");
         }
         else
         {
@@ -1347,18 +1399,20 @@ public partial class DashboardWindow : Window
             int idx = 1;
             foreach (var t in topToday)
             {
-                sb.AppendLine($"<tr><td><b>{PersianNumber.ToPersian(idx)}</b></td><td class='name'>{t.Name}</td><td style='color:#4F46E5;font-weight:bold;'>{PersianNumber.ToPersian(t.Qty)} {t.Unit}</td><td style='color:#10B981;font-weight:bold;'>{PersianNumber.ToToman(t.Profit)}</td></tr>");
+                // escape نام و واحد کالا برای جلوگیری از XSS
+                sb.AppendLine($"<tr><td>{PersianNumber.ToPersian(idx)}</td><td class='name'>{HtmlEncoder.Encode(t.Name)}</td><td class='text-accent'>{PersianNumber.ToPersian(t.Qty)} {HtmlEncoder.Encode(t.Unit)}</td><td class='text-success'>{PersianNumber.ToToman(t.Profit)}</td></tr>");
                 idx++;
             }
             sb.AppendLine("</tbody></table>");
         }
-        sb.AppendLine("</div>");
+        sb.AppendLine("</div></div>");
 
         sb.AppendLine("<div class='section'>");
-        sb.AppendLine("<div class='section-title' style='background:#FEF3C7;color:#D97706;'>🕒 آخرین فروش‌ها</div>");
+        sb.AppendLine("<div class='section-header'><h2>آخرین فروش‌ها</h2></div>");
+        sb.AppendLine("<div class='section-body'>");
         if (recentSales.Count == 0)
         {
-            sb.AppendLine("<p style='text-align:center;color:#94A3B8;font-size:12px;'>فروشی ثبت نشده</p>");
+            sb.AppendLine("<div style='text-align:center;color:#94A3B8;padding:20px;'>فروشی ثبت نشده</div>");
         }
         else
         {
@@ -1370,25 +1424,28 @@ public partial class DashboardWindow : Window
                 var payType = s.PaymentStatus switch
                 {
                     PaymentStatus.Cash => "نقدی",
-                    PaymentStatus.Card => string.IsNullOrWhiteSpace(s.CardTerminal) ? "کارتی" : $"کارتی ({s.CardTerminal})",
+                    // escape شماره پایانه برای جلوگیری از XSS
+                    PaymentStatus.Card => string.IsNullOrWhiteSpace(s.CardTerminal) ? "کارتی" : $"کارتی ({HtmlEncoder.Encode(s.CardTerminal)})",
                     PaymentStatus.Credit => "نسیه",
                     _ => "—"
                 };
-                var payColor = s.PaymentStatus switch
+                var payClass = s.PaymentStatus switch
                 {
-                    PaymentStatus.Cash => "#059669",
-                    PaymentStatus.Card => "#4F46E5",
-                    PaymentStatus.Credit => "#D97706",
-                    _ => "#94A3B8"
+                    PaymentStatus.Cash => "text-success",
+                    PaymentStatus.Card => "text-accent",
+                    PaymentStatus.Credit => "text-warning",
+                    _ => ""
                 };
-                sb.AppendLine($"<tr><td>{PersianNumber.ToPersian(idx)}</td><td>{PersianNumber.ToPersianDigits(s.DateShamsi)}</td><td class='name'>{item?.Name ?? "—"}</td><td style='color:#4F46E5;'>{PersianNumber.ToPersian(s.Qty)}</td><td style='color:#059669;font-weight:bold;'>{PersianNumber.ToToman(s.Revenue)}</td><td style='color:{payColor};font-weight:bold;font-size:10px;'>{payType}</td><td style='color:#10B981;font-weight:bold;'>{PersianNumber.ToToman(s.Profit)}</td></tr>");
+                // escape تاریخ و نام کالا برای جلوگیری از XSS
+                sb.AppendLine($"<tr><td>{PersianNumber.ToPersian(idx)}</td><td>{HtmlEncoder.Encode(PersianNumber.ToPersianDigits(s.DateShamsi))}</td><td class='name'>{HtmlEncoder.Encode(item?.Name ?? "—")}</td><td class='text-accent'>{PersianNumber.ToPersian(s.Qty)}</td><td class='text-success'>{PersianNumber.ToToman(s.Revenue)}</td><td class='{payClass}'>{payType}</td><td class='text-success'>{PersianNumber.ToToman(s.Profit)}</td></tr>");
                 idx++;
             }
             sb.AppendLine("</tbody></table>");
         }
-        sb.AppendLine("</div>");
+        sb.AppendLine("</div></div>");
 
-        sb.AppendLine("<div class='footer'>گزارش خودکار از سیستم مدیریت فروشگاه — خوی</div>");
+        sb.AppendLine("<div class='footer'>گزارش خودکار از سیستم مدیریت فروشگاه</div>");
+        sb.AppendLine("</div>");
         sb.AppendLine("</body></html>");
 
         OpenPrintPreview(sb.ToString(), "dashboard-overview");
@@ -1501,73 +1558,98 @@ public partial class DashboardWindow : Window
         sb.AppendLine("<title>گزارش آمار تفصیلی</title>");
         sb.AppendLine("<style>");
         sb.AppendLine("* { font-family: Vazirmatn, Tahoma, sans-serif; box-sizing: border-box; }");
-        sb.AppendLine("body { margin: 15px; background: white; color: #0F172A; }");
-        sb.AppendLine("h1 { text-align: center; color: #2C3E50; font-size: 20px; margin-bottom: 5px; }");
-        sb.AppendLine("h2 { text-align: center; color: #4F46E5; font-size: 14px; margin-top: 0; margin-bottom: 15px; }");
-        sb.AppendLine(".meta { text-align: center; font-size: 11px; color: #64748B; margin-bottom: 20px; padding: 8px; background: #F8FAFC; border-radius: 6px; }");
-        sb.AppendLine(".section { margin-bottom: 20px; page-break-inside: avoid; }");
-        sb.AppendLine(".section-title { font-size: 14px; font-weight: bold; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; }");
-        sb.AppendLine(".kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }");
-        sb.AppendLine(".kpi { padding: 12px; border-radius: 8px; }");
-        sb.AppendLine(".kpi-label { font-size: 11px; color: #64748B; margin-bottom: 4px; }");
-        sb.AppendLine(".kpi-value { font-size: 15px; font-weight: bold; }");
-        sb.AppendLine(".kpi-sub { font-size: 10px; color: #94A3B8; margin-top: 3px; }");
-        sb.AppendLine(".kpi-indigo { background: #EEF2FF; } .kpi-indigo .kpi-value { color: #4F46E5; }");
-        sb.AppendLine(".kpi-green { background: #ECFDF5; } .kpi-green .kpi-value { color: #059669; }");
-        sb.AppendLine(".kpi-yellow { background: #FEF3C7; } .kpi-yellow .kpi-value { color: #D97706; }");
-        sb.AppendLine(".kpi-gray { background: #F1F5F9; } .kpi-gray .kpi-value { color: #475569; }");
-        sb.AppendLine("table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 5px; }");
-        sb.AppendLine("th { background: #EEF2FF; color: #4F46E5; padding: 7px; text-align: center; border-bottom: 2px solid #4F46E5; }");
-        sb.AppendLine("td { padding: 6px; border-bottom: 1px solid #F1F5F9; text-align: center; }");
-        sb.AppendLine("td.name { text-align: right; font-weight: 600; }");
-        sb.AppendLine("tr:nth-child(even) { background: #F8FAFC; }");
-        sb.AppendLine(".footer { text-align: center; margin-top: 25px; padding-top: 12px; border-top: 2px solid #E2E8F0; color: #94A3B8; font-size: 10px; }");
-        sb.AppendLine("@media print { @page { size: A4; margin: 8mm; } body { margin: 0; } .section { page-break-inside: avoid; } }");
+        sb.AppendLine("body { margin: 20px; background: #F5F7FA; color: #0F172A; font-size: 12px; }");
+        sb.AppendLine(".container { max-width: 900px; margin: 0 auto; }");
+        // هدر
+        sb.AppendLine(".header { background: #0F172A; color: white; padding: 24px 30px; border-radius: 6px 6px 0 0; }");
+        sb.AppendLine(".header h1 { margin: 0; font-size: 20px; font-weight: bold; }");
+        sb.AppendLine(".header .meta { font-size: 11px; color: #94A3B8; margin-top: 6px; }");
+        // بخش
+        sb.AppendLine(".section { background: white; margin-bottom: 16px; border-radius: 6px; border: 1px solid #E2E8F0; overflow: hidden; }");
+        sb.AppendLine(".section-header { padding: 14px 20px; border-bottom: 1px solid #E2E8F0; background: white; }");
+        sb.AppendLine(".section-header h2 { margin: 0; font-size: 14px; font-weight: 600; color: #0F172A; }");
+        sb.AppendLine(".section-body { padding: 20px; }");
+        // KPI
+        sb.AppendLine(".kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }");
+        sb.AppendLine(".kpi { background: white; border: 1px solid #E2E8F0; border-radius: 6px; padding: 16px; border-right: 3px solid #1E40AF; }");
+        sb.AppendLine(".kpi.success { border-right-color: #047857; }");
+        sb.AppendLine(".kpi.warning { border-right-color: #B45309; }");
+        sb.AppendLine(".kpi.danger { border-right-color: #B91C1C; }");
+        sb.AppendLine(".kpi .label { font-size: 11px; color: #64748B; margin-bottom: 8px; font-weight: 600; }");
+        sb.AppendLine(".kpi .value { font-size: 16px; font-weight: bold; color: #0F172A; }");
+        sb.AppendLine(".kpi .sub { font-size: 10px; color: #94A3B8; margin-top: 4px; }");
+        // جدول
+        sb.AppendLine("table { width: 100%; border-collapse: collapse; font-size: 11px; }");
+        sb.AppendLine("th { background: #F1F5F9; color: #0F172A; padding: 10px 8px; font-size: 11px; font-weight: 600; text-align: center; border-bottom: 1px solid #E2E8F0; }");
+        sb.AppendLine("td { padding: 8px; border-bottom: 1px solid #F1F5F9; text-align: center; color: #334155; }");
+        sb.AppendLine("td.name { text-align: right; font-weight: 600; color: #0F172A; }");
+        sb.AppendLine("tr:last-child td { border-bottom: none; }");
+        sb.AppendLine("tr:nth-child(even) td { background: #FAFBFC; }");
+        sb.AppendLine("tr.total td { background: #F1F5F9; font-weight: bold; border-top: 2px solid #E2E8F0; }");
+        // رنگ‌های وضعیت
+        sb.AppendLine(".text-success { color: #047857; font-weight: 600; }");
+        sb.AppendLine(".text-warning { color: #B45309; font-weight: 600; }");
+        sb.AppendLine(".text-danger { color: #B91C1C; font-weight: 600; }");
+        sb.AppendLine(".text-accent { color: #1E40AF; font-weight: 600; }");
+        // فوتر
+        sb.AppendLine(".footer { text-align: center; color: #94A3B8; font-size: 10px; margin-top: 24px; padding: 16px; }");
+        // چاپ
+        sb.AppendLine("@media print { @page { size: A4; margin: 10mm; } body { margin: 0; background: white; } .section { page-break-inside: avoid; } .header { border-radius: 0; } }");
         sb.AppendLine("</style></head><body>");
 
-        sb.AppendLine("<h1>فروشگاه ظروف یکبار مصرف خوی</h1>");
-        sb.AppendLine("<h2>📈 گزارش آمار تفصیلی</h2>");
-        sb.AppendLine($"<div class='meta'>بازه گزارش: از <b>{PersianNumber.ToPersianDigits(FromDateBox.Text ?? "—")}</b> تا <b>{PersianNumber.ToPersianDigits(ToDateBox.Text ?? "—")}</b> — تاریخ چاپ: {PersianNumber.ToPersianDigits(JalaliDate.ToShamsi(DateTime.Today))}</div>");
+        sb.AppendLine("<div class='container'>");
+        sb.AppendLine("<div class='header'>");
+        sb.AppendLine($"<h1>{HtmlEncoder.Encode(string.IsNullOrWhiteSpace(StoreSettingsService.Current.StoreName) ? "فروشگاه" : StoreSettingsService.Current.StoreName)}</h1>");
+        // escape بازه تاریخ ورودی کاربر برای جلوگیری از XSS
+        sb.AppendLine($"<div class='meta'>گزارش آمار تفصیلی | بازه: از {HtmlEncoder.Encode(PersianNumber.ToPersianDigits(FromDateBox.Text ?? "—"))} تا {HtmlEncoder.Encode(PersianNumber.ToPersianDigits(ToDateBox.Text ?? "—"))} | تاریخ چاپ: {PersianNumber.ToPersianDigits(JalaliDate.ToShamsi(DateTime.Today))}</div>");
+        sb.AppendLine("</div>");
 
         sb.AppendLine("<div class='section'>");
-        sb.AppendLine("<div class='section-title' style='background:#EEF2FF;color:#4F46E5;'>📊 شاخص‌های کلی بازه</div>");
+        sb.AppendLine("<div class='section-header'><h2>شاخص‌های کلی بازه</h2></div>");
+        sb.AppendLine("<div class='section-body'>");
         sb.AppendLine("<div class='kpi-grid'>");
-        sb.AppendLine($"<div class='kpi kpi-green'><div class='kpi-label'>جمع درآمد</div><div class='kpi-value'>{PersianNumber.ToToman(totalRevenue)}</div></div>");
-        sb.AppendLine($"<div class='kpi kpi-green'><div class='kpi-label'>جمع سود</div><div class='kpi-value'>{PersianNumber.ToToman(totalProfit)}</div></div>");
-        sb.AppendLine($"<div class='kpi kpi-indigo'><div class='kpi-label'>تعداد فروش</div><div class='kpi-value'>{PersianNumber.ToPersian(salesCount)} فاکتور</div></div>");
-        sb.AppendLine($"<div class='kpi kpi-yellow'><div class='kpi-label'>میانگین سود هر فروش</div><div class='kpi-value'>{PersianNumber.ToToman(avgProfit)}</div></div>");
+        sb.AppendLine($"<div class='kpi'><div class='label'>جمع درآمد</div><div class='value'>{PersianNumber.ToToman(totalRevenue)}</div></div>");
+        sb.AppendLine($"<div class='kpi success'><div class='label'>جمع سود</div><div class='value'>{PersianNumber.ToToman(totalProfit)}</div></div>");
+        sb.AppendLine($"<div class='kpi'><div class='label'>تعداد فروش</div><div class='value'>{PersianNumber.ToPersian(salesCount)} فاکتور</div></div>");
+        sb.AppendLine($"<div class='kpi warning'><div class='label'>میانگین سود هر فروش</div><div class='value'>{PersianNumber.ToToman(avgProfit)}</div></div>");
+        sb.AppendLine("</div>");
         sb.AppendLine("</div></div>");
 
         sb.AppendLine("<div class='section'>");
-        sb.AppendLine("<div class='section-title' style='background:#F0F9FF;color:#0284C7;'>💵 تفکیک فروش — نقد / کارت / نسیه</div>");
+        sb.AppendLine("<div class='section-header'><h2>تفکیک فروش — نقد / کارت / نسیه</h2></div>");
+        sb.AppendLine("<div class='section-body'>");
         sb.AppendLine("<div class='kpi-grid'>");
-        sb.AppendLine($"<div class='kpi kpi-green'><div class='kpi-label'>💵 نقدی</div><div class='kpi-value'>{PersianNumber.ToToman(cashTotal)}</div><div class='kpi-sub'>{PersianNumber.ToPersian(decimal.Round(cashPct, 1))}٪ از کل</div></div>");
-        sb.AppendLine($"<div class='kpi kpi-indigo'><div class='kpi-label'>💳 کارتی (POS بانکی)</div><div class='kpi-value'>{PersianNumber.ToToman(cardTotal)}</div><div class='kpi-sub'>{PersianNumber.ToPersian(decimal.Round(cardPct, 1))}٪ از کل</div></div>");
-        sb.AppendLine($"<div class='kpi kpi-yellow'><div class='kpi-label'>📝 نسیه</div><div class='kpi-value'>{PersianNumber.ToToman(creditTotal)}</div><div class='kpi-sub'>{PersianNumber.ToPersian(decimal.Round(creditPct, 1))}٪ از کل</div></div>");
-        sb.AppendLine($"<div class='kpi kpi-gray'><div class='kpi-label'>🧾 میانگین هر فاکتور</div><div class='kpi-value'>{PersianNumber.ToToman(avgInvoice)}</div><div class='kpi-sub'>از {PersianNumber.ToPersian(salesCount)} فاکتور</div></div>");
+        sb.AppendLine($"<div class='kpi success'><div class='label'>نقدی</div><div class='value'>{PersianNumber.ToToman(cashTotal)}</div><div class='sub'>{PersianNumber.ToPersian(decimal.Round(cashPct, 1))}٪ از کل</div></div>");
+        sb.AppendLine($"<div class='kpi'><div class='label'>کارتی</div><div class='value'>{PersianNumber.ToToman(cardTotal)}</div><div class='sub'>{PersianNumber.ToPersian(decimal.Round(cardPct, 1))}٪ از کل</div></div>");
+        sb.AppendLine($"<div class='kpi warning'><div class='label'>نسیه</div><div class='value'>{PersianNumber.ToToman(creditTotal)}</div><div class='sub'>{PersianNumber.ToPersian(decimal.Round(creditPct, 1))}٪ از کل</div></div>");
+        sb.AppendLine($"<div class='kpi'><div class='label'>میانگین هر فاکتور</div><div class='value'>{PersianNumber.ToToman(avgInvoice)}</div><div class='sub'>از {PersianNumber.ToPersian(salesCount)} فاکتور</div></div>");
+        sb.AppendLine("</div>");
         sb.AppendLine("</div></div>");
 
         if (terminalInRange.Count > 0)
         {
             sb.AppendLine("<div class='section'>");
-            sb.AppendLine("<div class='section-title' style='background:#EEF2FF;color:#4F46E5;'>💳 فروش کارتی در بازه — تفکیک پایانه‌ها</div>");
-            sb.AppendLine("<table><thead><tr><th>پایانه</th><th>مبلغ</th><th>تعداد فاکتور</th><th>درصد</th></tr></thead><tbody>");
+            sb.AppendLine("<div class='section-header'><h2>فروش کارتی در بازه — تفکیک پایانه‌ها</h2></div>");
+            sb.AppendLine("<div class='section-body'>");
+            sb.AppendLine("<table><thead><tr><th style='text-align: right;'>پایانه</th><th>مبلغ</th><th>تعداد فاکتور</th><th>درصد</th></tr></thead><tbody>");
             var totalCardInRange = terminalInRange.Sum(t => t.Revenue);
             foreach (var t in terminalInRange)
             {
                 var pct = totalCardInRange > 0 ? (t.Revenue / totalCardInRange) * 100 : 0;
-                sb.AppendLine($"<tr><td class='name'>🏧 {t.Terminal}</td><td style='color:#4F46E5;font-weight:bold;'>{PersianNumber.ToToman(t.Revenue)}</td><td>{PersianNumber.ToPersian(t.Count)}</td><td>{PersianNumber.ToPersian(decimal.Round(pct, 1))}٪</td></tr>");
+                // escape نام پایانه برای جلوگیری از XSS
+                sb.AppendLine($"<tr><td class='name'>{HtmlEncoder.Encode(t.Terminal)}</td><td class='text-accent'>{PersianNumber.ToToman(t.Revenue)}</td><td>{PersianNumber.ToPersian(t.Count)}</td><td>{PersianNumber.ToPersian(decimal.Round(pct, 1))}٪</td></tr>");
             }
-            sb.AppendLine($"<tr style='background:#EEF2FF;font-weight:bold;'><td class='name'>جمع کل</td><td style='color:#4F46E5;'>{PersianNumber.ToToman(totalCardInRange)}</td><td>{PersianNumber.ToPersian(terminalInRange.Sum(t => t.Count))}</td><td>۱۰۰٪</td></tr>");
+            sb.AppendLine($"<tr class='total'><td class='name'>جمع کل</td><td class='text-accent'>{PersianNumber.ToToman(totalCardInRange)}</td><td>{PersianNumber.ToPersian(terminalInRange.Sum(t => t.Count))}</td><td>۱۰۰٪</td></tr>");
             sb.AppendLine("</tbody></table>");
-            sb.AppendLine("</div>");
+            sb.AppendLine("</div></div>");
         }
 
         sb.AppendLine("<div class='section'>");
-        sb.AppendLine("<div class='section-title' style='background:#EEF2FF;color:#4F46E5;'>🏆 پرفروش‌ترین کالاها</div>");
+        sb.AppendLine("<div class='section-header'><h2>پرفروش‌ترین کالاها</h2></div>");
+        sb.AppendLine("<div class='section-body'>");
         if (topSelling.Count == 0)
         {
-            sb.AppendLine("<p style='text-align:center;color:#94A3B8;font-size:12px;'>داده‌ای وجود ندارد</p>");
+            sb.AppendLine("<div style='text-align:center;color:#94A3B8;padding:20px;'>داده‌ای وجود ندارد</div>");
         }
         else
         {
@@ -1575,18 +1657,20 @@ public partial class DashboardWindow : Window
             int idx = 1;
             foreach (var t in topSelling)
             {
-                sb.AppendLine($"<tr><td><b>{PersianNumber.ToPersian(idx)}</b></td><td class='name'>{t.Name}</td><td>{t.Unit}</td><td style='color:#4F46E5;font-weight:bold;'>{PersianNumber.ToPersian(t.Qty)}</td><td style='color:#059669;font-weight:bold;'>{PersianNumber.ToToman(t.Revenue)}</td></tr>");
+                // escape نام و واحد کالا برای جلوگیری از XSS
+                sb.AppendLine($"<tr><td>{PersianNumber.ToPersian(idx)}</td><td class='name'>{HtmlEncoder.Encode(t.Name)}</td><td>{HtmlEncoder.Encode(t.Unit)}</td><td class='text-accent'>{PersianNumber.ToPersian(t.Qty)}</td><td class='text-success'>{PersianNumber.ToToman(t.Revenue)}</td></tr>");
                 idx++;
             }
             sb.AppendLine("</tbody></table>");
         }
-        sb.AppendLine("</div>");
+        sb.AppendLine("</div></div>");
 
         sb.AppendLine("<div class='section'>");
-        sb.AppendLine("<div class='section-title' style='background:#ECFDF5;color:#059669;'>💰 پرسودترین کالاها</div>");
+        sb.AppendLine("<div class='section-header'><h2>پرسودترین کالاها</h2></div>");
+        sb.AppendLine("<div class='section-body'>");
         if (topProfit.Count == 0)
         {
-            sb.AppendLine("<p style='text-align:center;color:#94A3B8;font-size:12px;'>داده‌ای وجود ندارد</p>");
+            sb.AppendLine("<div style='text-align:center;color:#94A3B8;padding:20px;'>داده‌ای وجود ندارد</div>");
         }
         else
         {
@@ -1594,18 +1678,20 @@ public partial class DashboardWindow : Window
             int idx = 1;
             foreach (var t in topProfit)
             {
-                sb.AppendLine($"<tr><td><b>{PersianNumber.ToPersian(idx)}</b></td><td class='name'>{t.Name}</td><td>{t.Unit}</td><td style='color:#10B981;font-weight:bold;'>{PersianNumber.ToToman(t.Profit)}</td><td style='color:#059669;'>{PersianNumber.ToToman(t.Revenue)}</td></tr>");
+                // escape نام و واحد کالا برای جلوگیری از XSS
+                sb.AppendLine($"<tr><td>{PersianNumber.ToPersian(idx)}</td><td class='name'>{HtmlEncoder.Encode(t.Name)}</td><td>{HtmlEncoder.Encode(t.Unit)}</td><td class='text-success'>{PersianNumber.ToToman(t.Profit)}</td><td class='text-success'>{PersianNumber.ToToman(t.Revenue)}</td></tr>");
                 idx++;
             }
             sb.AppendLine("</tbody></table>");
         }
-        sb.AppendLine("</div>");
+        sb.AppendLine("</div></div>");
 
         sb.AppendLine("<div class='section'>");
-        sb.AppendLine("<div class='section-title' style='background:#FEF3C7;color:#D97706;'>⭐ بهترین مشتری‌ها</div>");
+        sb.AppendLine("<div class='section-header'><h2>بهترین مشتری‌ها</h2></div>");
+        sb.AppendLine("<div class='section-body'>");
         if (topCustomers.Count == 0)
         {
-            sb.AppendLine("<p style='text-align:center;color:#94A3B8;font-size:12px;'>داده‌ای وجود ندارد</p>");
+            sb.AppendLine("<div style='text-align:center;color:#94A3B8;padding:20px;'>داده‌ای وجود ندارد</div>");
         }
         else
         {
@@ -1613,14 +1699,16 @@ public partial class DashboardWindow : Window
             int idx = 1;
             foreach (var c in topCustomers)
             {
-                sb.AppendLine($"<tr><td><b>{PersianNumber.ToPersian(idx)}</b></td><td class='name'>{c.Name}</td><td style='color:#4F46E5;'>{PersianNumber.ToPersianDigits(c.Phone)}</td><td style='font-weight:bold;'>{PersianNumber.ToPersian(c.Count)}</td><td style='color:#059669;font-weight:bold;'>{PersianNumber.ToToman(c.Revenue)}</td></tr>");
+                // escape نام و تلفن مشتری برای جلوگیری از XSS
+                sb.AppendLine($"<tr><td>{PersianNumber.ToPersian(idx)}</td><td class='name'>{HtmlEncoder.Encode(c.Name)}</td><td class='text-accent'>{HtmlEncoder.Encode(PersianNumber.ToPersianDigits(c.Phone))}</td><td>{PersianNumber.ToPersian(c.Count)}</td><td class='text-success'>{PersianNumber.ToToman(c.Revenue)}</td></tr>");
                 idx++;
             }
             sb.AppendLine("</tbody></table>");
         }
-        sb.AppendLine("</div>");
+        sb.AppendLine("</div></div>");
 
-        sb.AppendLine("<div class='footer'>گزارش خودکار از سیستم مدیریت فروشگاه — خوی</div>");
+        sb.AppendLine("<div class='footer'>گزارش خودکار از سیستم مدیریت فروشگاه</div>");
+        sb.AppendLine("</div>");
         sb.AppendLine("</body></html>");
 
         OpenPrintPreview(sb.ToString(), "dashboard-reports");

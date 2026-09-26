@@ -6,99 +6,93 @@
         mc:Ignorable="d"
         x:Class="ShopManager.Desktop.Views.MainWindow"
         x:DataType="vm:MainViewModel"
-        Title="فروشگاه خوی"
-        Width="1150" Height="800"
-        MinWidth="950" MinHeight="700"
+        Title="فروشگاه"
+        Width="1280" Height="800"
+        MinWidth="1000" MinHeight="650"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
+        ExtendClientAreaToDecorationsHint="False"
         FlowDirection="RightToLeft"
         FontFamily="{DynamicResource AppFontFamily}"
         Background="{DynamicResource AppBackground}">
 
     <Window.Styles>
-        <Style Selector="TextBlock.FadeInUp">
-            <Style.Animations>
-                <Animation Duration="0:0:0.8" Delay="0:0:0.15" Easing="CubicEaseOut" FillMode="Forward">
-                    <KeyFrame Cue="0%">
-                        <Setter Property="Opacity" Value="0"/>
-                        <Setter Property="TranslateTransform.Y" Value="30"/>
-                    </KeyFrame>
-                    <KeyFrame Cue="100%">
-                        <Setter Property="Opacity" Value="1"/>
-                        <Setter Property="TranslateTransform.Y" Value="0"/>
-                    </KeyFrame>
-                </Animation>
-            </Style.Animations>
+        <!-- دکمه منو -->
+        <Style Selector="Button.menuItem">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="14,11"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppMenuText}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,2"/>
         </Style>
 
-        <Style Selector="TextBlock.FadeInUpSlow">
-            <Style.Animations>
-                <Animation Duration="0:0:0.8" Delay="0:0:0.4" Easing="CubicEaseOut" FillMode="Forward">
-                    <KeyFrame Cue="0%">
-                        <Setter Property="Opacity" Value="0"/>
-                        <Setter Property="TranslateTransform.Y" Value="30"/>
-                    </KeyFrame>
-                    <KeyFrame Cue="100%">
-                        <Setter Property="Opacity" Value="1"/>
-                        <Setter Property="TranslateTransform.Y" Value="0"/>
-                    </KeyFrame>
-                </Animation>
-            </Style.Animations>
+        <Style Selector="Button.menuItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#1E293B"/>
         </Style>
 
-        <Style Selector="TextBlock.FadeInUpSlower">
-            <Style.Animations>
-                <Animation Duration="0:0:0.8" Delay="0:0:0.6" Easing="CubicEaseOut" FillMode="Forward">
-                    <KeyFrame Cue="0%">
-                        <Setter Property="Opacity" Value="0"/>
-                        <Setter Property="TranslateTransform.Y" Value="30"/>
-                    </KeyFrame>
-                    <KeyFrame Cue="100%">
-                        <Setter Property="Opacity" Value="1"/>
-                        <Setter Property="TranslateTransform.Y" Value="0"/>
-                    </KeyFrame>
-                </Animation>
-            </Style.Animations>
+        <Style Selector="Button.menuItem:pointerover">
+            <Setter Property="Opacity" Value="1"/>
         </Style>
 
-        <Style Selector="Border.FadeInScale">
-            <Style.Animations>
-                <Animation Duration="0:0:0.9" Easing="CubicEaseOut" FillMode="Forward">
-                    <KeyFrame Cue="0%">
-                        <Setter Property="Opacity" Value="0"/>
-                        <Setter Property="ScaleTransform.ScaleX" Value="0.7"/>
-                        <Setter Property="ScaleTransform.ScaleY" Value="0.7"/>
-                    </KeyFrame>
-                    <KeyFrame Cue="100%">
-                        <Setter Property="Opacity" Value="1"/>
-                        <Setter Property="ScaleTransform.ScaleX" Value="1"/>
-                        <Setter Property="ScaleTransform.ScaleY" Value="1"/>
-                    </KeyFrame>
-                </Animation>
-            </Style.Animations>
+        <!-- دکمه فعال -->
+        <Style Selector="Button.menuItemActive">
+            <Setter Property="Background" Value="{DynamicResource AppAccent}"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <Style Selector="Button.menuItemActive:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AppAccent}"/>
+        </Style>
+
+        <!-- آیکون منو -->
+        <Style Selector="PathIcon.menuIcon">
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{Binding $parent[Button].Foreground}"/>
         </Style>
     </Window.Styles>
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="56,*,32">
 
-        <Border Grid.Row="0" 
-                Background="{DynamicResource AppHeaderBackground}" 
-                Padding="28,18">
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
-                <TextBlock Grid.Column="0"
-                           Text="فروشگاه ظروف یکبار مصرف خوی"
-                           FontSize="20" FontWeight="Bold"
-                           Foreground="White"
-                           VerticalAlignment="Center"/>
+        <!-- ═══════════════════════════════════════
+             هدر بالا
+             ═══════════════════════════════════════ -->
+        <Border Grid.Row="0" Background="{DynamicResource AppHeaderBackground}">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" Margin="20,0">
 
-                <TextBlock Grid.Column="1"
-                           x:Name="ClockText"
-                           Text=""
-                           FontSize="13"
-                           Foreground="#94A3B8"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"/>
+                <!-- لوگو + نام فروشگاه -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
+                            VerticalAlignment="Center">
+                    <PathIcon Data="{StaticResource IconStore}"
+                                           Width="22" Height="22"
+                                           Foreground="#3B82F6"/>
+                    <TextBlock Text="فروشگاه"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               Foreground="White"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
 
+                <!-- ساعت -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <PathIcon Data="{StaticResource IconClockOutline}"
+                                           Width="16" Height="16"
+                                           Foreground="#94A3B8"/>
+                    <TextBlock x:Name="ClockText"
+                               Text=""
+                               FontSize="13"
+                               Foreground="#94A3B8"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- دکمه بروزرسانی -->
                 <Button Grid.Column="2"
                         x:Name="UpdateButton"
                         Content="🔄 بروزرسانی"
@@ -106,256 +100,315 @@
                         FontWeight="SemiBold"
                         Background="#F59E0B"
                         Foreground="White"
-                        Padding="14,8"
-                        CornerRadius="20"
-                        Margin="0,0,10,0"
+                        Padding="12,6"
+                        CornerRadius="6"
+                        Margin="0,0,12,0"
+                        VerticalAlignment="Center"
                         IsVisible="False"
                         Click="OnUpdateClick"/>
 
+                <!-- نام کاربر -->
                 <Border Grid.Column="3"
-                        Background="#334155"
-                        CornerRadius="20"
-                        Padding="14,8"
-                        Margin="0,0,10,0">
+                        Background="#1E293B"
+                        CornerRadius="6"
+                        Padding="12,6"
+                        Margin="0,0,12,0"
+                        VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="👤"
-                                   FontSize="14"
-                                   VerticalAlignment="Center"/>
+                        <PathIcon Data="{StaticResource IconAccountCircle}"
+                                               Width="16" Height="16"
+                                               Foreground="#94A3B8"/>
                         <TextBlock x:Name="UserInfoText"
                                    Text=""
                                    FontSize="13"
-                                   Foreground="White"
+                                   Foreground="#E2E8F0"
                                    VerticalAlignment="Center"/>
                     </StackPanel>
                 </Border>
 
+                <!-- دکمه خروج -->
                 <Button Grid.Column="4"
-                        Content="خروج"
                         FontSize="13"
                         FontWeight="SemiBold"
-                        Background="#EF4444"
+                        Background="#B91C1C"
                         Foreground="White"
-                        Padding="18,8"
-                        CornerRadius="8"
-                        Click="OnLogoutClick"/>
+                        Padding="14,6"
+                        CornerRadius="6"
+                        VerticalAlignment="Center"
+                        Click="OnLogoutClick">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="{StaticResource IconLogout}"
+                                               Width="16" Height="16"
+                                               Foreground="White"/>
+                        <TextBlock Text="خروج" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1" ColumnDefinitions="260,*">
+        <!-- ═══════════════════════════════════════
+             بدنه: Sidebar + محتوا
+             ═══════════════════════════════════════ -->
+        <Grid Grid.Row="1" ColumnDefinitions="240,*">
 
-            <Border Grid.Column="0" 
-                    Background="{DynamicResource AppMenuBackground}" 
-                    Padding="15">
+            <!-- ─── Sidebar راست ─── -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource AppMenuBackground}"
+                    Padding="12,16">
                 <ScrollViewer>
-                    <StackPanel Spacing="8">
+                    <StackPanel Spacing="2">
 
+                        <!-- بخش اصلی -->
                         <TextBlock Text="منوی اصلی"
-                                   FontSize="15" FontWeight="Bold"
-                                   Foreground="#94A3B8"
-                                   Margin="12,8,12,14"/>
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Foreground="#64748B"
+                                   Margin="12,4,12,10"/>
 
                         <Button x:Name="DashboardButton"
-                                Content="داشبورد"
-                                FontSize="16" FontWeight="SemiBold"
-                                Background="{DynamicResource AppAccent}"
-                                Foreground="White"
-                                Padding="18,14"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Left"
-                                CornerRadius="8"
-                                Click="OnDashboardClick"/>
+                                Classes="menuItem menuItemActive"
+                                Click="OnDashboardClick">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <PathIcon Data="{StaticResource IconViewDashboard}"
+                                                       Classes="menuIcon"/>
+                                <TextBlock Text="داشبورد" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
 
                         <Button x:Name="ItemsButton"
-                                Content="کالاها"
-                                FontSize="16" FontWeight="SemiBold"
-                                Background="{DynamicResource AppAccent}"
-                                Foreground="White"
-                                Padding="18,14"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Left"
-                                CornerRadius="8"
-                                Click="OnItemsClick"/>
+                                Classes="menuItem"
+                                Click="OnItemsClick">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <PathIcon Data="{StaticResource IconPackage}"
+                                                       Classes="menuIcon"/>
+                                <TextBlock Text="کالاها" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
 
                         <Button x:Name="PurchaseButton"
-                                Content="خرید"
-                                FontSize="16" FontWeight="SemiBold"
-                                Background="{DynamicResource AppAccent}"
-                                Foreground="White"
-                                Padding="18,14"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Left"
-                                CornerRadius="8"
-                                Click="OnPurchaseClick"/>
+                                Classes="menuItem"
+                                Click="OnPurchaseClick">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <PathIcon Data="{StaticResource IconCartPlus}"
+                                                       Classes="menuIcon"/>
+                                <TextBlock Text="خرید" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
 
                         <Button x:Name="TransferButton"
-                                Content="انتقال به مغازه"
-                                FontSize="16" FontWeight="SemiBold"
-                                Background="{DynamicResource AppAccent}"
-                                Foreground="White"
-                                Padding="18,14"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Left"
-                                CornerRadius="8"
-                                Click="OnTransferClick"/>
+                                Classes="menuItem"
+                                Click="OnTransferClick">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <PathIcon Data="{StaticResource IconTruck}"
+                                                       Classes="menuIcon"/>
+                                <TextBlock Text="انتقال به مغازه" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
 
                         <Button x:Name="POSButton"
-                                Content="🖥️ صندوق فروش (POS)"
-                                FontSize="16" FontWeight="SemiBold"
-                                Background="#10B981"
-                                Foreground="White"
-                                Padding="18,14"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Left"
-                                CornerRadius="8"
-                                Click="OnPOSClick"/>
+                                Classes="menuItem"
+                                Click="OnPOSClick">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <PathIcon Data="{StaticResource IconPointOfSale}"
+                                                       Classes="menuIcon"/>
+                                <TextBlock Text="صندوق فروش (POS)" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
 
                         <Button x:Name="CustomersButton"
-                                Content="مشتری‌ها"
-                                FontSize="16" FontWeight="SemiBold"
-                                Background="{DynamicResource AppAccent}"
-                                Foreground="White"
-                                Padding="18,14"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Left"
-                                CornerRadius="8"
-                                Click="OnCustomersClick"/>
+                                Classes="menuItem"
+                                Click="OnCustomersClick">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <PathIcon Data="{StaticResource IconAccountGroup}"
+                                                       Classes="menuIcon"/>
+                                <TextBlock Text="مشتری‌ها" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
 
                         <Button x:Name="CashboxButton"
-                                Content="صندوق"
-                                FontSize="16" FontWeight="SemiBold"
-                                Background="{DynamicResource AppAccent}"
-                                Foreground="White"
-                                Padding="18,14"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Left"
-                                CornerRadius="8"
-                                Click="OnCashboxClick"/>
+                                Classes="menuItem"
+                                Click="OnCashboxClick">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <PathIcon Data="{StaticResource IconWallet}"
+                                                       Classes="menuIcon"/>
+                                <TextBlock Text="صندوق" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- جداکننده -->
+                        <Border Height="1"
+                                Background="#1E293B"
+                                Margin="8,12,8,12"/>
+
+                        <!-- بخش مدیریتی -->
+                        <TextBlock Text="مدیریت"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Foreground="#64748B"
+                                   Margin="12,4,12,10"/>
 
                         <Button x:Name="UserManagementButton"
-                                Content="مدیریت کاربران"
-                                FontSize="16" FontWeight="SemiBold"
-                                Background="#8B5CF6"
-                                Foreground="White"
-                                Padding="18,14"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Left"
-                                CornerRadius="8"
+                                Classes="menuItem"
                                 IsVisible="False"
-                                Click="OnUserManagementClick"/>
+                                Click="OnUserManagementClick">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <PathIcon Data="{StaticResource IconAccountCog}"
+                                                       Classes="menuIcon"/>
+                                <TextBlock Text="مدیریت کاربران" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
 
                         <Button x:Name="SettingsButton"
-                                Content="تنظیمات"
-                                FontSize="16" FontWeight="SemiBold"
-                                Background="{DynamicResource AppAccent}"
-                                Foreground="White"
-                                Padding="18,14"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Left"
-                                CornerRadius="8"
-                                Click="OnSettingsClick"/>
+                                Classes="menuItem"
+                                Click="OnSettingsClick">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <PathIcon Data="{StaticResource IconCog}"
+                                                       Classes="menuIcon"/>
+                                <TextBlock Text="تنظیمات" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
 
                     </StackPanel>
                 </ScrollViewer>
             </Border>
 
-            <Border Grid.Column="1" 
-                    Margin="20" 
-                    CornerRadius="16"
-                    ClipToBounds="True">
-                <Border.Background>
-                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                        <GradientStop Color="#0F172A" Offset="0"/>
-                        <GradientStop Color="#1E293B" Offset="0.5"/>
-                        <GradientStop Color="#334155" Offset="1"/>
-                    </LinearGradientBrush>
-                </Border.Background>
+            <!-- ─── محتوای وسط ─── -->
+            <Border Grid.Column="1"
+                    Background="{DynamicResource AppBackground}"
+                    Padding="40,32">
+                <ScrollViewer>
+                    <StackPanel Spacing="28" MaxWidth="900" HorizontalAlignment="Center">
 
-                <Grid>
-                    <Ellipse Width="400" Height="400"
-                             Fill="#10FFFFFF"
-                             HorizontalAlignment="Left"
-                             VerticalAlignment="Top"
-                             Margin="-100,-150,0,0"/>
-                    
-                    <Ellipse Width="500" Height="500"
-                             Fill="#08FFFFFF"
-                             HorizontalAlignment="Right"
-                             VerticalAlignment="Bottom"
-                             Margin="0,0,-150,-200"/>
-                    
-                    <Ellipse Width="250" Height="250"
-                             Fill="#06FFFFFF"
-                             HorizontalAlignment="Right"
-                             VerticalAlignment="Top"
-                             Margin="0,-80,-80,0"/>
+                        <!-- ─── خوش‌آمد ─── -->
+                        <StackPanel Spacing="8" HorizontalAlignment="Center" Margin="0,20,0,0">
+                            <TextBlock x:Name="WelcomeText"
+                                       Text="خوش آمدید"
+                                       FontSize="26"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource AppTextPrimary}"
+                                       HorizontalAlignment="Center"/>
 
-                    <StackPanel HorizontalAlignment="Center" 
-                                VerticalAlignment="Center" 
-                                Spacing="24">
+                            <TextBlock x:Name="WelcomeSubText"
+                                       Text="برای شروع، یکی از گزینه‌های منو رو انتخاب کنید"
+                                       FontSize="14"
+                                       Foreground="{DynamicResource AppTextSecondary}"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
 
-                        <Border Width="180" Height="180"
-                                CornerRadius="90"
-                                Background="#FFFFFF"
-                                HorizontalAlignment="Center"
-                                BoxShadow="0 8 32 0 #60000000"
-                                Classes="FadeInScale"
-                                RenderTransformOrigin="50%,50%">
-                            <Border.RenderTransform>
-                                <ScaleTransform ScaleX="1" ScaleY="1"/>
-                            </Border.RenderTransform>
-                            <Grid>
-                                <Border Width="160" Height="160"
-                                        CornerRadius="80"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center">
-                                    <Border.Background>
-                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                            <GradientStop Color="#0F172A" Offset="0"/>
-                                            <GradientStop Color="#475569" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </Border.Background>
-                                    
-                                    <TextBlock Text="🛍️"
-                                               FontSize="80"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"/>
-                                </Border>
-                            </Grid>
-                        </Border>
+                        <!-- ─── کارت‌های سریع ─── -->
+                        <TextBlock Text="دسترسی سریع"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AppTextSecondary}"
+                                   Margin="4,0,0,0"/>
 
-                        <TextBlock Text="فروشگاه ظروف یکبار مصرف"
-                                   FontSize="34" FontWeight="Bold"
-                                   Foreground="White"
-                                   HorizontalAlignment="Center"
-                                   TextAlignment="Center"
-                                   Classes="FadeInUp"/>
+                        <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center">
 
-                        <TextBlock Text="خوی"
-                                   FontSize="42" FontWeight="Bold"
-                                   Foreground="White"
-                                   HorizontalAlignment="Center"
-                                   TextAlignment="Center"
-                                   LetterSpacing="2"
-                                   Classes="FadeInUp"/>
+                            <Button Width="180" Height="100"
+                                    Margin="6"
+                                    Background="{DynamicResource AppCardBackground}"
+                                    BorderBrush="{DynamicResource AppBorder}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Cursor="Hand"
+                                    Click="OnPOSClick">
+                                <StackPanel Spacing="8" HorizontalAlignment="Center">
+                                    <PathIcon Data="{StaticResource IconPointOfSale}"
+                                                           Width="28" Height="28"
+                                                           Foreground="{DynamicResource AppAccent}"/>
+                                    <TextBlock Text="فروش سریع"
+                                               FontSize="13"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource AppTextPrimary}"/>
+                                </StackPanel>
+                            </Button>
 
-                        <Border Width="120" Height="3"
-                                Background="#80FFFFFF"
-                                CornerRadius="2"
-                                HorizontalAlignment="Center"
-                                Margin="0,8,0,8"
-                                Classes="FadeInUpSlow"/>
+                            <Button Width="180" Height="100"
+                                    Margin="6"
+                                    Background="{DynamicResource AppCardBackground}"
+                                    BorderBrush="{DynamicResource AppBorder}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Cursor="Hand"
+                                    Click="OnItemsClick">
+                                <StackPanel Spacing="8" HorizontalAlignment="Center">
+                                    <PathIcon Data="{StaticResource IconPackage}"
+                                                           Width="28" Height="28"
+                                                           Foreground="{DynamicResource AppAccent}"/>
+                                    <TextBlock Text="مدیریت کالاها"
+                                               FontSize="13"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource AppTextPrimary}"/>
+                                </StackPanel>
+                            </Button>
 
-                        <TextBlock Text="سیستم مدیریت فروشگاه و انبار"
-                                   FontSize="18"
-                                   Foreground="#B0FFFFFF"
-                                   HorizontalAlignment="Center"
-                                   Classes="FadeInUpSlower"/>
+                            <Button Width="180" Height="100"
+                                    Margin="6"
+                                    Background="{DynamicResource AppCardBackground}"
+                                    BorderBrush="{DynamicResource AppBorder}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Cursor="Hand"
+                                    Click="OnPurchaseClick">
+                                <StackPanel Spacing="8" HorizontalAlignment="Center">
+                                    <PathIcon Data="{StaticResource IconCartPlus}"
+                                                           Width="28" Height="28"
+                                                           Foreground="{DynamicResource AppAccent}"/>
+                                    <TextBlock Text="ثبت خرید"
+                                               FontSize="13"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource AppTextPrimary}"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Width="180" Height="100"
+                                    Margin="6"
+                                    Background="{DynamicResource AppCardBackground}"
+                                    BorderBrush="{DynamicResource AppBorder}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Cursor="Hand"
+                                    Click="OnDashboardClick">
+                                <StackPanel Spacing="8" HorizontalAlignment="Center">
+                                    <PathIcon Data="{StaticResource IconChartLine}"
+                                                           Width="28" Height="28"
+                                                           Foreground="{DynamicResource AppAccent}"/>
+                                    <TextBlock Text="گزارش‌ها"
+                                               FontSize="13"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource AppTextPrimary}"/>
+                                </StackPanel>
+                            </Button>
+
+                        </WrapPanel>
 
                     </StackPanel>
-                </Grid>
+                </ScrollViewer>
             </Border>
-
         </Grid>
+
+        <!-- ═══════════════════════════════════════
+             فوتر
+             ═══════════════════════════════════════ -->
+        <Border Grid.Row="2"
+                Background="{DynamicResource AppCardBackground}"
+                BorderBrush="{DynamicResource AppBorder}"
+                BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="20,0">
+                <TextBlock Grid.Column="0"
+                           Text="آماده"
+                           FontSize="12"
+                           Foreground="{DynamicResource AppTextSecondary}"
+                           VerticalAlignment="Center"/>
+
+                <TextBlock Grid.Column="2"
+                           Text="سیستم مدیریت فروشگاه — نسخه ۱.۰.۷"
+                           FontSize="12"
+                           Foreground="{DynamicResource AppTextMuted}"
+                           VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
 
     </Grid>
 

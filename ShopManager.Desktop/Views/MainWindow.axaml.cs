@@ -23,6 +23,7 @@ public partial class MainWindow : Window
 
         ApplyPermissions();
         UpdateUserInfo();
+        SetWelcomeMessage();
 
         SessionTracker.UserDeactivated += OnUserDeactivated;
         SessionTracker.Start();
@@ -32,12 +33,32 @@ public partial class MainWindow : Window
     }
 
     // ═══════════════════════════════════════════
+    // پیام خوش‌آمد
+    // ═══════════════════════════════════════════
+
+    private void SetWelcomeMessage()
+    {
+        try
+        {
+            var user = AuthService.CurrentUser;
+            if (user != null)
+            {
+                WelcomeText.Text = $"خوش آمدید، {user.FullName}";
+
+                var now = DateTime.Now;
+                var timeOfDay = now.Hour < 12 ? "صبح" : now.Hour < 17 ? "بعدازظهر" : "شب";
+                WelcomeSubText.Text = $"{timeOfDay} بخیر — برای شروع، یکی از گزینه‌های منو رو انتخاب کنید";
+            }
+        }
+        catch { }
+    }
+
+    // ═══════════════════════════════════════════
     // آپدیت خودکار
     // ═══════════════════════════════════════════
 
     private void StartUpdateCheck()
     {
-        // ═══ بررسی اولیه بعد از ۵ ثانیه ═══
         var initialTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromSeconds(5)
@@ -49,7 +70,6 @@ public partial class MainWindow : Window
         };
         initialTimer.Start();
 
-        // ═══ بررسی مجدد هر ۶ ساعت ═══
         _updateCheckTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromHours(6)
@@ -82,7 +102,7 @@ public partial class MainWindow : Window
             if (_updateService.IsUpdateReady)
             {
                 UpdateButton.Content = "✅ نصب بروزرسانی";
-                UpdateButton.Background = new SolidColorBrush(Color.Parse("#10B981"));
+                UpdateButton.Background = new SolidColorBrush(Color.Parse("#047857"));
             }
             else if (_updateService.DownloadProgress > 0)
             {
@@ -95,12 +115,10 @@ public partial class MainWindow : Window
     {
         if (_updateService.IsUpdateReady)
         {
-            // ─── اعمال آپدیت ───
             _updateService.ApplyUpdatesAndRestart();
             return;
         }
 
-        // ─── دانلود آپدیت ───
         UpdateButton.IsEnabled = false;
         UpdateButton.Content = "⬇️ در حال دانلود...";
 
@@ -109,13 +127,13 @@ public partial class MainWindow : Window
         if (success)
         {
             UpdateButton.Content = "✅ نصب بروزرسانی";
-            UpdateButton.Background = new SolidColorBrush(Color.Parse("#10B981"));
+            UpdateButton.Background = new SolidColorBrush(Color.Parse("#047857"));
             UpdateButton.IsEnabled = true;
         }
         else
         {
             UpdateButton.Content = "❌ خطا در دانلود";
-            UpdateButton.Background = new SolidColorBrush(Color.Parse("#EF4444"));
+            UpdateButton.Background = new SolidColorBrush(Color.Parse("#B91C1C"));
             UpdateButton.IsEnabled = true;
         }
     }
@@ -228,55 +246,73 @@ public partial class MainWindow : Window
     private void OnDashboardClick(object? sender, RoutedEventArgs e)
     {
         if (!AuthService.HasAccess("Dashboard")) return;
-        new DashboardWindow().Show();
+        var window = new DashboardWindow();
+        WindowHelper.OpenMaximized(window);
+        window.Show();
     }
 
     private void OnItemsClick(object? sender, RoutedEventArgs e)
     {
         if (!AuthService.HasAccess("Items")) return;
-        new ItemsWindow().Show();
+        var window = new ItemsWindow();
+        WindowHelper.OpenMaximized(window);
+        window.Show();
     }
 
     private void OnPurchaseClick(object? sender, RoutedEventArgs e)
     {
         if (!AuthService.HasAccess("Purchase")) return;
-        new PurchaseWindow().Show();
+        var window = new PurchaseWindow();
+        WindowHelper.OpenMaximized(window);
+        window.Show();
     }
 
     private void OnTransferClick(object? sender, RoutedEventArgs e)
     {
         if (!AuthService.HasAccess("Transfer")) return;
-        new TransferWindow().Show();
+        var window = new TransferWindow();
+        WindowHelper.OpenMaximized(window);
+        window.Show();
     }
 
     private void OnPOSClick(object? sender, RoutedEventArgs e)
     {
         if (!AuthService.HasAccess("POS")) return;
-        new POSWindow().Show();
+        var window = new POSWindow();
+        WindowHelper.OpenMaximized(window);
+        window.Show();
     }
 
     private void OnCustomersClick(object? sender, RoutedEventArgs e)
     {
         if (!AuthService.HasAccess("Customers")) return;
-        new CustomersWindow().Show();
+        var window = new CustomersWindow();
+        WindowHelper.OpenMaximized(window);
+        window.Show();
     }
 
     private void OnCashboxClick(object? sender, RoutedEventArgs e)
     {
         if (!AuthService.HasAccess("Cashbox")) return;
-        new CashboxWindow().Show();
+        var window = new CashboxWindow();
+        WindowHelper.OpenMaximized(window);
+        window.Show();
     }
 
     private void OnSettingsClick(object? sender, RoutedEventArgs e)
     {
         if (!AuthService.HasAccess("Settings")) return;
-        new SettingsWindow().Show();
+        var window = new SettingsWindow();
+        WindowHelper.OpenMaximized(window);
+        window.Show();
     }
 
     private void OnUserManagementClick(object? sender, RoutedEventArgs e)
     {
         if (!AuthService.HasAccess("UserManagement")) return;
-        new UsersWindow().Show();
+        var window = new UsersWindow();
+        WindowHelper.OpenMaximized(window);
+        window.Show();
     }
 
     private void OnLogoutClick(object? sender, RoutedEventArgs e)

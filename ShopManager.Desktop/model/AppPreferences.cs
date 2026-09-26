@@ -1,7 +1,7 @@
 ﻿namespace ShopManager.Desktop.Models;
 
 /// <summary>
-/// تنظیمات ظاهری و کاربری
+/// تنظیمات ظاهری — سبک Solid Modern
 /// </summary>
 public class AppPreferences
 {
@@ -14,9 +14,12 @@ public class AppPreferences
     /// <summary>سایز فونت</summary>
     public double FontSize { get; set; } = 14;
 
-    /// <summary>نام رنگ Accent (از ۱۲ تا انتخاب)</summary>
+    /// <summary>نام رنگ Accent انتخاب‌شده در تب «ظاهر» — مثل Blue، Green، Red، Orange، Purple</summary>
     public string AccentColor { get; set; } = "Blue";
 
-    /// <summary>نام آخرین پایانه POS استفاده‌شده</summary>
+    /// <summary>آخرین پایانه POS استفاده‌شده</summary>
     public string LastPOSTerminal { get; set; } = "";
+
+    /// <summary>کلید API دیپ‌سیک برای دستیار هوشمند</summary>
+    public string DeepSeekApiKey { get; set; } = "";
 }

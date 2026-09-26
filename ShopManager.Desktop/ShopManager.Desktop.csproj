@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <RootNamespace>ShopManager.Desktop</RootNamespace>
     <OutputType>WinExe</OutputType>
@@ -7,9 +7,10 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version>1.0.7</Version>
     <Authors>ShopManager</Authors>
-    <Product>فروشگاه خوی</Product>
+    <Product>فروشگاه</Product>
     <AssemblyName>ShopManager.Desktop</AssemblyName>
     <ApplicationIcon>Assets\avalonia-logo.ico</ApplicationIcon>
+    <UserSecretsId>7ce74063-3c2d-4717-af94-ca730a8ac0da</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,6 +28,7 @@
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="DeepSeek.NET" Version="1.2.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.12">
       <PrivateAssets>all</PrivateAssets>

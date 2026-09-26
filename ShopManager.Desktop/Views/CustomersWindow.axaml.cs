@@ -46,7 +46,8 @@ public partial class CustomersWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"خطا: {ex.Message}";
+            ErrorHandler.LogError(ex, "Customers");
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 
@@ -126,7 +127,8 @@ public partial class CustomersWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"خطا: {ex.Message}";
+            ErrorHandler.LogError(ex, "Customers");
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 

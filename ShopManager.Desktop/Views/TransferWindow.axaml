@@ -5,10 +5,11 @@
         mc:Ignorable="d"
         x:Class="ShopManager.Desktop.Views.TransferWindow"
         Title="انتقال به مغازه"
-        Width="760" Height="820"
-        MinWidth="660" MinHeight="650"
+        Width="1280" Height="800"
+        MinWidth="1000" MinHeight="650"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
+        ExtendClientAreaToDecorationsHint="False"
         FlowDirection="RightToLeft"
         FontFamily="Vazirmatn,IRANSans,Segoe UI"
         Background="#F1F5F9">
@@ -16,17 +17,21 @@
     <Grid RowDefinitions="Auto,*,Auto">
 
         <!-- هدر -->
-        <Border Grid.Row="0" Background="#2C3E50" Padding="24,20">
-            <TextBlock Text="انتقال کالا از انبار به مغازه"
-                       FontSize="20"
-                       FontWeight="Bold"
-                       Foreground="White"
-                       HorizontalAlignment="Center"/>
+        <Border Grid.Row="0" Background="#0F172A" Padding="24,16">
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                <PathIcon Data="{StaticResource IconTruck}" Width="20" Height="20"
+                          Foreground="White" VerticalAlignment="Center"/>
+                <TextBlock Text="انتقال کالا از انبار به مغازه"
+                           FontSize="20"
+                           FontWeight="Bold"
+                           Foreground="White"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
         </Border>
 
         <!-- فرم -->
         <ScrollViewer Grid.Row="1">
-            <Border Background="White" Margin="20" Padding="28" CornerRadius="12">
+            <Border Background="{DynamicResource AppCardBackground}" Margin="20" Padding="28" CornerRadius="6">
                 <StackPanel Spacing="18">
 
                     <!-- تاریخ -->
@@ -62,9 +67,9 @@
                                        FontSize="14" FontWeight="SemiBold" Foreground="#334155"
                                        Margin="0,0,0,8"/>
                             <Border Background="#F8FAFC" 
-                                    CornerRadius="8" 
-                                    Padding="14,12"
-                                    MinHeight="44">
+                                    CornerRadius="6" 
+                                    Padding="14,10"
+                                    MinHeight="40">
                                 <TextBlock x:Name="ItemNameText" 
                                            Text="—"
                                            FontSize="15"
@@ -74,19 +79,25 @@
                         </StackPanel>
                     </Grid>
 
-                    <!-- موجودی انبار -->
-                    <Border Background="#EEF2FF" CornerRadius="10" Padding="18,14">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Grid.Column="0"
-                                       Text="موجودی فعلی انبار:"
-                                       FontSize="15" FontWeight="SemiBold"
-                                       Foreground="#4F46E5"
-                                       VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="1"
-                                       x:Name="WarehouseStockText"
-                                       Text="—"
-                                       FontSize="18" FontWeight="Bold"
-                                       Foreground="#4F46E5"/>
+                    <!-- موجودی انبار — کارت سفید با نوار کناری Accent -->
+                    <Border Background="{DynamicResource AppCardBackground}"
+                            BorderBrush="{DynamicResource AppBorder}"
+                            BorderThickness="1"
+                            CornerRadius="6">
+                        <Grid ColumnDefinitions="3,*">
+                            <Border Grid.Column="0" Background="{DynamicResource AppAccent}" CornerRadius="0,6,6,0"/>
+                            <Grid Grid.Column="1" ColumnDefinitions="*,Auto" Margin="18,14">
+                                <TextBlock Grid.Column="0"
+                                           Text="موجودی فعلی انبار:"
+                                           FontSize="15" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppAccent}"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1"
+                                           x:Name="WarehouseStockText"
+                                           Text="—"
+                                           FontSize="18" FontWeight="Bold"
+                                           Foreground="{DynamicResource AppAccent}"/>
+                            </Grid>
                         </Grid>
                     </Border>
 
@@ -103,29 +114,35 @@
                                  TextChanged="OnQtyChanged"/>
                     </StackPanel>
 
-                    <!-- پیش‌نمایش موجودی بعد -->
-                    <Border Background="#F0FDF4" CornerRadius="10" Padding="18,14">
-                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
-                            <TextBlock Grid.Row="0" Grid.Column="0"
-                                       Text="موجودی انبار پس از انتقال:"
-                                       FontSize="14" Foreground="#059669"
-                                       VerticalAlignment="Center"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1"
-                                       x:Name="WarehouseAfterText"
-                                       Text="—"
-                                       FontSize="15" FontWeight="Bold"
-                                       Foreground="#059669"/>
-                            <TextBlock Grid.Row="1" Grid.Column="0"
-                                       Text="موجودی مغازه پس از انتقال:"
-                                       FontSize="14" Foreground="#059669"
-                                       VerticalAlignment="Center"
-                                       Margin="0,8,0,0"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1"
-                                       x:Name="ShopAfterText"
-                                       Text="—"
-                                       FontSize="15" FontWeight="Bold"
-                                       Foreground="#059669"
-                                       Margin="0,8,0,0"/>
+                    <!-- پیش‌نمایش موجودی بعد — کارت سفید با نوار کناری سبز -->
+                    <Border Background="{DynamicResource AppCardBackground}"
+                            BorderBrush="{DynamicResource AppBorder}"
+                            BorderThickness="1"
+                            CornerRadius="6">
+                        <Grid ColumnDefinitions="3,*">
+                            <Border Grid.Column="0" Background="{DynamicResource AppSuccess}" CornerRadius="0,6,6,0"/>
+                            <Grid Grid.Column="1" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="18,14">
+                                <TextBlock Grid.Row="0" Grid.Column="0"
+                                           Text="موجودی انبار پس از انتقال:"
+                                           FontSize="14" Foreground="{DynamicResource AppSuccess}"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1"
+                                           x:Name="WarehouseAfterText"
+                                           Text="—"
+                                           FontSize="15" FontWeight="Bold"
+                                           Foreground="{DynamicResource AppSuccess}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0"
+                                           Text="موجودی مغازه پس از انتقال:"
+                                           FontSize="14" Foreground="{DynamicResource AppSuccess}"
+                                           VerticalAlignment="Center"
+                                           Margin="0,8,0,0"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1"
+                                           x:Name="ShopAfterText"
+                                           Text="—"
+                                           FontSize="15" FontWeight="Bold"
+                                           Foreground="{DynamicResource AppSuccess}"
+                                           Margin="0,8,0,0"/>
+                            </Grid>
                         </Grid>
                     </Border>
 
@@ -145,7 +162,7 @@
                                    FontSize="14" FontWeight="SemiBold" Foreground="#334155"
                                    Margin="0,10,0,8"/>
                         <Border Background="#F8FAFC" 
-                                CornerRadius="8" 
+                                CornerRadius="6" 
                                 Padding="10"
                                 MinHeight="120"
                                 MaxHeight="200">
@@ -167,9 +184,9 @@
 
         <!-- پایین: پیام + دکمه‌ها -->
         <Border Grid.Row="2" 
-                Background="White" 
+                Background="{DynamicResource AppCardBackground}" 
                 Padding="24,18"
-                BorderBrush="#E2E8F0"
+                BorderBrush="{DynamicResource AppBorder}"
                 BorderThickness="0,1,0,0">
             <Grid ColumnDefinitions="*,Auto,Auto,Auto">
 
@@ -179,19 +196,25 @@
                            VerticalAlignment="Center"
                            FontSize="13"
                            FontWeight="SemiBold"
-                           Foreground="#EF4444"
+                           Foreground="{DynamicResource AppDanger}"
                            TextWrapping="Wrap"/>
 
                 <!-- سابقه انتقال -->
                 <Button Grid.Column="1"
-                        Content="سابقه انتقال"
                         FontSize="15"
                         FontWeight="SemiBold"
-                        Background="#EEF2FF"
-                        Foreground="#4F46E5"
-                        Padding="22,12"
+                        Background="{DynamicResource AppTableHeader}"
+                        Foreground="{DynamicResource AppTextPrimary}"
+                        Padding="18,12"
                         Margin="0,0,10,0"
-                        Click="OnHistoryClick"/>
+                        CornerRadius="6"
+                        Click="OnHistoryClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconHistory}" Width="16" Height="16"
+                                   Foreground="{DynamicResource AppTextPrimary}"/>
+                        <TextBlock Text="سابقه انتقال" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
 
                 <!-- بستن -->
                 <Button Grid.Column="2"
@@ -199,21 +222,27 @@
                         FontSize="15"
                         Padding="28,12"
                         Margin="0,0,10,0"
-                        Background="#F1F5F9"
-                        Foreground="#475569"
-                        BorderBrush="#CBD5E1"
+                        Background="{DynamicResource AppBackground}"
+                        Foreground="{DynamicResource AppTextPrimary}"
+                        BorderBrush="{DynamicResource AppBorder}"
                         BorderThickness="1"
+                        CornerRadius="6"
                         Click="OnCancelClick"/>
 
                 <!-- ثبت انتقال -->
                 <Button Grid.Column="3"
-                        Content="ثبت انتقال"
                         FontSize="15"
                         FontWeight="Bold"
-                        Padding="32,12"
-                        Background="#F59E0B"
+                        Padding="28,12"
+                        Background="{DynamicResource AppAccent}"
                         Foreground="White"
-                        Click="OnSaveClick"/>
+                        CornerRadius="6"
+                        Click="OnSaveClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconCheck}" Width="16" Height="16" Foreground="White"/>
+                        <TextBlock Text="ثبت انتقال" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
 
             </Grid>
         </Border>

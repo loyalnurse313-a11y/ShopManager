@@ -5,256 +5,390 @@
         mc:Ignorable="d"
         x:Class="ShopManager.Desktop.Views.CashboxWindow"
         Title="صندوق"
-        Width="1200" Height="850"
+        Width="1280" Height="800"
         MinWidth="1000" MinHeight="650"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
+        ExtendClientAreaToDecorationsHint="False"
         FlowDirection="RightToLeft"
         FontFamily="{DynamicResource AppFontFamily}"
         Background="{DynamicResource AppBackground}">
 
     <Grid RowDefinitions="Auto,*,Auto">
 
-        <Border Grid.Row="0" 
-                Background="{DynamicResource AppHeaderBackground}" 
-                Padding="24,18">
-            <TextBlock Text="صندوق و تراکنش‌های مالی"
-                       FontSize="20" FontWeight="Bold"
-                       Foreground="White"
-                       HorizontalAlignment="Center"/>
+        <!-- ═══════════ هدر ═══════════ -->
+        <Border Grid.Row="0" Background="#0F172A" Padding="24,16">
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <PathIcon Data="{StaticResource IconWallet}" Width="22" Height="22"
+                                       Foreground="White" VerticalAlignment="Center"/>
+                <TextBlock Text="صندوق و تراکنش‌های مالی"
+                           FontSize="18" FontWeight="Bold"
+                           Foreground="White"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
         </Border>
 
         <ScrollViewer Grid.Row="1">
-            <StackPanel Margin="20" Spacing="16">
+            <StackPanel Margin="20" Spacing="12">
 
-                <Border Background="{DynamicResource AppCardBackground}" CornerRadius="12" Padding="20,16">
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12"
-                                    VerticalAlignment="Center">
-                            <TextBlock Text="سرمایه اولیه:"
-                                       FontSize="15" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource AppTextPrimary}"
-                                       VerticalAlignment="Center"/>
-                            <TextBlock x:Name="InitialCapitalText"
-                                       Text="۰ تومان"
-                                       FontSize="18" FontWeight="Bold"
-                                       Foreground="{DynamicResource AppAccent}"
-                                       VerticalAlignment="Center"/>
-                        </StackPanel>
-                        <Button Grid.Column="2"
-                                Content="ویرایش سرمایه"
-                                FontSize="14" FontWeight="SemiBold"
-                                Background="#EEF2FF" Foreground="#4F46E5"
-                                Padding="18,10"
-                                Click="OnEditCapitalClick"/>
+                <!-- ═══ سرمایه اولیه ═══ -->
+                <Border Background="{DynamicResource AppCardBackground}"
+                        BorderBrush="{DynamicResource AppBorder}" BorderThickness="1"
+                        CornerRadius="6" Padding="0">
+                    <Grid ColumnDefinitions="3,*">
+                        <Border Grid.Column="0" Background="{DynamicResource AppAccent}" CornerRadius="0,6,6,0"/>
+                        <Grid Grid.Column="1" Margin="16,14" ColumnDefinitions="Auto,*,Auto">
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12"
+                                        VerticalAlignment="Center">
+                                <PathIcon Data="{StaticResource IconCashMultiple}" Width="20" Height="20"
+                                                       Foreground="{DynamicResource AppAccent}"
+                                                       VerticalAlignment="Center"/>
+                                <TextBlock Text="سرمایه اولیه:"
+                                           FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextSecondary}"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock x:Name="InitialCapitalText"
+                                           Text="۰ تومان"
+                                           FontSize="20" FontWeight="Bold"
+                                           Foreground="{DynamicResource AppAccent}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <Button Grid.Column="2"
+                                    FontSize="14" FontWeight="SemiBold"
+                                    Background="{DynamicResource AppAccent}" Foreground="White"
+                                    Padding="18,10"
+                                    Click="OnEditCapitalClick">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <PathIcon Data="{StaticResource IconPencil}" Width="16" Height="16" Foreground="White"/>
+                                    <TextBlock Text="ویرایش سرمایه" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
                     </Grid>
                 </Border>
 
+                <!-- ═══ ۴ KPI — کارت سفید با نوار رنگی کناری ═══ -->
                 <Grid ColumnDefinitions="*,16,*,16,*,16,*">
-                    <Border Grid.Column="0" Background="{DynamicResource AppCardBackground}" CornerRadius="12" Padding="18,16">
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="فروش نقدی" FontSize="13" Foreground="{DynamicResource AppTextSecondary}"/>
-                            <TextBlock x:Name="CashSalesText" Text="۰ تومان"
-                                       FontSize="18" FontWeight="Bold"
-                                       Foreground="{DynamicResource AppSuccess}"/>
-                        </StackPanel>
+
+                    <!-- فروش نقدی -->
+                    <Border Grid.Column="0"
+                            Background="{DynamicResource AppCardBackground}"
+                            BorderBrush="{DynamicResource AppBorder}" BorderThickness="1"
+                            CornerRadius="6" Padding="0">
+                        <Grid ColumnDefinitions="3,*">
+                            <Border Grid.Column="0" Background="{DynamicResource AppSuccess}" CornerRadius="0,6,6,0"/>
+                            <StackPanel Grid.Column="1" Margin="16,14" Spacing="6">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <PathIcon Data="{StaticResource IconArrowDownBold}" Width="18" Height="18"
+                                                           Foreground="{DynamicResource AppSuccess}"/>
+                                    <TextBlock Text="فروش نقدی" FontSize="12"
+                                               Foreground="{DynamicResource AppTextSecondary}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock x:Name="CashSalesText" Text="۰ تومان"
+                                           FontSize="20" FontWeight="Bold"
+                                           Foreground="{DynamicResource AppSuccess}"/>
+                            </StackPanel>
+                        </Grid>
                     </Border>
-                    <Border Grid.Column="2" Background="{DynamicResource AppCardBackground}" CornerRadius="12" Padding="18,16">
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="خرید نقدی" FontSize="13" Foreground="{DynamicResource AppTextSecondary}"/>
-                            <TextBlock x:Name="CashPurchasesText" Text="۰ تومان"
-                                       FontSize="18" FontWeight="Bold"
-                                       Foreground="{DynamicResource AppDanger}"/>
-                        </StackPanel>
+
+                    <!-- خرید نقدی -->
+                    <Border Grid.Column="2"
+                            Background="{DynamicResource AppCardBackground}"
+                            BorderBrush="{DynamicResource AppBorder}" BorderThickness="1"
+                            CornerRadius="6" Padding="0">
+                        <Grid ColumnDefinitions="3,*">
+                            <Border Grid.Column="0" Background="{DynamicResource AppDanger}" CornerRadius="0,6,6,0"/>
+                            <StackPanel Grid.Column="1" Margin="16,14" Spacing="6">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <PathIcon Data="{StaticResource IconArrowUpBold}" Width="18" Height="18"
+                                                           Foreground="{DynamicResource AppDanger}"/>
+                                    <TextBlock Text="خرید نقدی" FontSize="12"
+                                               Foreground="{DynamicResource AppTextSecondary}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock x:Name="CashPurchasesText" Text="۰ تومان"
+                                           FontSize="20" FontWeight="Bold"
+                                           Foreground="{DynamicResource AppDanger}"/>
+                            </StackPanel>
+                        </Grid>
                     </Border>
-                    <Border Grid.Column="4" Background="{DynamicResource AppCardBackground}" CornerRadius="12" Padding="18,16">
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="ورودی دفتر" FontSize="13" Foreground="{DynamicResource AppTextSecondary}"/>
-                            <TextBlock x:Name="LedgerInText" Text="۰ تومان"
-                                       FontSize="18" FontWeight="Bold"
-                                       Foreground="{DynamicResource AppSuccess}"/>
-                        </StackPanel>
+
+                    <!-- ورودی دفتر -->
+                    <Border Grid.Column="4"
+                            Background="{DynamicResource AppCardBackground}"
+                            BorderBrush="{DynamicResource AppBorder}" BorderThickness="1"
+                            CornerRadius="6" Padding="0">
+                        <Grid ColumnDefinitions="3,*">
+                            <Border Grid.Column="0" Background="{DynamicResource AppSuccess}" CornerRadius="0,6,6,0"/>
+                            <StackPanel Grid.Column="1" Margin="16,14" Spacing="6">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <PathIcon Data="{StaticResource IconArrowDownBold}" Width="18" Height="18"
+                                                           Foreground="{DynamicResource AppSuccess}"/>
+                                    <TextBlock Text="ورودی دفتر" FontSize="12"
+                                               Foreground="{DynamicResource AppTextSecondary}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock x:Name="LedgerInText" Text="۰ تومان"
+                                           FontSize="20" FontWeight="Bold"
+                                           Foreground="{DynamicResource AppSuccess}"/>
+                            </StackPanel>
+                        </Grid>
                     </Border>
-                    <Border Grid.Column="6" Background="{DynamicResource AppCardBackground}" CornerRadius="12" Padding="18,16">
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="خروجی دفتر" FontSize="13" Foreground="{DynamicResource AppTextSecondary}"/>
-                            <TextBlock x:Name="LedgerOutText" Text="۰ تومان"
-                                       FontSize="18" FontWeight="Bold"
-                                       Foreground="{DynamicResource AppDanger}"/>
-                        </StackPanel>
+
+                    <!-- خروجی دفتر -->
+                    <Border Grid.Column="6"
+                            Background="{DynamicResource AppCardBackground}"
+                            BorderBrush="{DynamicResource AppBorder}" BorderThickness="1"
+                            CornerRadius="6" Padding="0">
+                        <Grid ColumnDefinitions="3,*">
+                            <Border Grid.Column="0" Background="{DynamicResource AppDanger}" CornerRadius="0,6,6,0"/>
+                            <StackPanel Grid.Column="1" Margin="16,14" Spacing="6">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <PathIcon Data="{StaticResource IconArrowUpBold}" Width="18" Height="18"
+                                                           Foreground="{DynamicResource AppDanger}"/>
+                                    <TextBlock Text="خروجی دفتر" FontSize="12"
+                                               Foreground="{DynamicResource AppTextSecondary}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock x:Name="LedgerOutText" Text="۰ تومان"
+                                           FontSize="20" FontWeight="Bold"
+                                           Foreground="{DynamicResource AppDanger}"/>
+                            </StackPanel>
+                        </Grid>
                     </Border>
                 </Grid>
 
-                <Border Background="#ECFDF5" CornerRadius="12" Padding="24,20">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Grid.Column="0"
-                                   Text="💰 موجودی فعلی صندوق:"
-                                   FontSize="18" FontWeight="Bold"
-                                   Foreground="#059669"
-                                   VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1"
-                                   x:Name="CashboxBalanceText"
-                                   Text="۰ تومان"
-                                   FontSize="26" FontWeight="Bold"
-                                   Foreground="#059669"/>
+                <!-- ═══ موجودی فعلی صندوق — KPI کارت ═══ -->
+                <Border Background="{DynamicResource AppCardBackground}"
+                        BorderBrush="{DynamicResource AppBorder}" BorderThickness="1"
+                        CornerRadius="6" Padding="0">
+                    <Grid ColumnDefinitions="3,*">
+                        <Border Grid.Column="0" Background="{DynamicResource AppAccent}" CornerRadius="0,6,6,0"/>
+                        <Grid Grid.Column="1" Margin="16,14" ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8"
+                                        VerticalAlignment="Center">
+                                <PathIcon Data="{StaticResource IconCurrencyUsd}" Width="20" Height="20"
+                                                       Foreground="{DynamicResource AppAccent}"
+                                                       VerticalAlignment="Center"/>
+                                <TextBlock Text="موجودی فعلی صندوق:"
+                                           FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextSecondary}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Grid.Column="1"
+                                       x:Name="CashboxBalanceText"
+                                       Text="۰ تومان"
+                                       FontSize="24" FontWeight="Bold"
+                                       Foreground="{DynamicResource AppAccent}"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
                     </Grid>
                 </Border>
 
-                <Border Background="{DynamicResource AppCardBackground}" CornerRadius="12">
-                    <Grid RowDefinitions="Auto,Auto">
-                        <Border Grid.Row="0" Background="#FEF3C7" Padding="20,14" CornerRadius="12,12,0,0">
-                            <TextBlock Text="مانده‌های نسیه"
-                                       FontSize="15" FontWeight="Bold" Foreground="#D97706"/>
-                        </Border>
-                        <Grid Grid.Row="1" ColumnDefinitions="*,16,*" Margin="20">
-                            <Border Grid.Column="0" Background="#F0FDF4" CornerRadius="8" Padding="16,14">
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="📥 طلب از مشتری‌ها"
-                                               FontSize="13" Foreground="#059669"/>
+                <!-- ═══ مانده‌های نسیه ═══ -->
+                <StackPanel Spacing="10">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconScaleBalance}" Width="18" Height="18"
+                                               Foreground="{DynamicResource AppWarning}"/>
+                        <TextBlock Text="مانده‌های نسیه"
+                                   FontSize="14" FontWeight="Bold"
+                                   Foreground="{DynamicResource AppTextPrimary}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="*,16,*">
+                        <!-- طلب از مشتری‌ها -->
+                        <Border Grid.Column="0"
+                                Background="{DynamicResource AppCardBackground}"
+                                BorderBrush="{DynamicResource AppBorder}" BorderThickness="1"
+                                CornerRadius="6" Padding="0">
+                            <Grid ColumnDefinitions="3,*">
+                                <Border Grid.Column="0" Background="{DynamicResource AppSuccess}" CornerRadius="0,6,6,0"/>
+                                <StackPanel Grid.Column="1" Margin="16,14" Spacing="6">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource IconArrowDownBold}" Width="18" Height="18"
+                                                               Foreground="{DynamicResource AppSuccess}"/>
+                                        <TextBlock Text="طلب از مشتری‌ها" FontSize="12"
+                                                   Foreground="{DynamicResource AppTextSecondary}"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
                                     <TextBlock x:Name="ReceivablesText"
                                                Text="۰ تومان"
-                                               FontSize="18" FontWeight="Bold"
-                                               Foreground="#059669"/>
+                                               FontSize="20" FontWeight="Bold"
+                                               Foreground="{DynamicResource AppSuccess}"/>
                                 </StackPanel>
-                            </Border>
-                            <Border Grid.Column="2" Background="#FEF2F2" CornerRadius="8" Padding="16,14">
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="📤 بدهی به تأمین‌کننده‌ها"
-                                               FontSize="13" Foreground="#DC2626"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- بدهی به تأمین‌کننده‌ها -->
+                        <Border Grid.Column="2"
+                                Background="{DynamicResource AppCardBackground}"
+                                BorderBrush="{DynamicResource AppBorder}" BorderThickness="1"
+                                CornerRadius="6" Padding="0">
+                            <Grid ColumnDefinitions="3,*">
+                                <Border Grid.Column="0" Background="{DynamicResource AppDanger}" CornerRadius="0,6,6,0"/>
+                                <StackPanel Grid.Column="1" Margin="16,14" Spacing="6">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource IconArrowUpBold}" Width="18" Height="18"
+                                                               Foreground="{DynamicResource AppDanger}"/>
+                                        <TextBlock Text="بدهی به تأمین‌کننده‌ها" FontSize="12"
+                                                   Foreground="{DynamicResource AppTextSecondary}"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
                                     <TextBlock x:Name="PayablesText"
                                                Text="۰ تومان"
-                                               FontSize="18" FontWeight="Bold"
-                                               Foreground="#DC2626"/>
+                                               FontSize="20" FontWeight="Bold"
+                                               Foreground="{DynamicResource AppDanger}"/>
                                 </StackPanel>
-                            </Border>
-                        </Grid>
+                            </Grid>
+                        </Border>
                     </Grid>
-                </Border>
+                </StackPanel>
 
-                <Border Background="{DynamicResource AppCardBackground}" CornerRadius="12">
-                    <Grid RowDefinitions="Auto,Auto">
-                        <Border Grid.Row="0" Background="#EEF2FF" Padding="20,14" CornerRadius="12,12,0,0">
+                <!-- ═══ ثبت تراکنش مالی جدید ═══ -->
+                <Border Background="{DynamicResource AppCardBackground}"
+                        BorderBrush="{DynamicResource AppBorder}" BorderThickness="1"
+                        CornerRadius="6">
+                    <StackPanel Margin="20" Spacing="14">
+
+                        <!-- سرتیتر بخش — بدون پس‌زمینه -->
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconPlusCircle}" Width="18" Height="18"
+                                                   Foreground="{DynamicResource AppAccent}"/>
                             <TextBlock Text="ثبت تراکنش مالی جدید"
-                                       FontSize="15" FontWeight="Bold" Foreground="#4F46E5"/>
-                        </Border>
-                        <StackPanel Grid.Row="1" Margin="20" Spacing="14">
-
-                            <Grid ColumnDefinitions="180,16,*,16,220">
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="تاریخ" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource AppTextPrimary}" Margin="0,0,0,8"/>
-                                    <TextBox x:Name="DateTextBox"
-                                             Watermark="1405/07/05"
-                                             FontSize="15" Padding="14,12"/>
-                                </StackPanel>
-
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="نوع تراکنش" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource AppTextPrimary}" Margin="0,0,0,8"/>
-                                    <ComboBox x:Name="TypeComboBox"
-                                              SelectedIndex="0"
-                                              FontSize="15" Padding="14,12"
-                                              HorizontalAlignment="Stretch">
-                                        <ComboBoxItem>وام داده‌شده به شخص</ComboBoxItem>
-                                        <ComboBoxItem>وام گرفته‌شده</ComboBoxItem>
-                                        <ComboBoxItem>برداشت سود شخصی</ComboBoxItem>
-                                        <ComboBoxItem>تقسیم سود</ComboBoxItem>
-                                        <ComboBoxItem>سایر</ComboBoxItem>
-                                    </ComboBox>
-                                </StackPanel>
-
-                                <StackPanel Grid.Column="4">
-                                    <TextBlock Text="طرف‌حساب / شرح" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource AppTextPrimary}" Margin="0,0,0,8"/>
-                                    <TextBox x:Name="CounterpartyTextBox"
-                                             Watermark="مثال: علی رضایی"
-                                             FontSize="15" Padding="14,12"/>
-                                </StackPanel>
-                            </Grid>
-
-                            <Grid ColumnDefinitions="*,16,*">
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="مبلغ (تومان)" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource AppTextPrimary}" Margin="0,0,0,8"/>
-                                    <TextBox x:Name="AmountTextBox"
-                                             Watermark="مثال: 5000000"
-                                             FontSize="15" Padding="14,12"/>
-                                </StackPanel>
-
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="توضیحات" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource AppTextPrimary}" Margin="0,0,0,8"/>
-                                    <TextBox x:Name="NoteTextBox"
-                                             Watermark="اختیاری"
-                                             FontSize="15" Padding="14,12"/>
-                                </StackPanel>
-                            </Grid>
-
-                            <Button Content="ثبت تراکنش"
-                                    FontSize="15" FontWeight="Bold"
-                                    Background="#4F46E5" Foreground="White"
-                                    Padding="30,12"
-                                    HorizontalAlignment="Right"
-                                    Click="OnAddLedgerClick"/>
-
+                                       FontSize="14" FontWeight="Bold"
+                                       Foreground="{DynamicResource AppTextPrimary}"
+                                       VerticalAlignment="Center"/>
                         </StackPanel>
-                    </Grid>
-                </Border>
 
-                <Border Background="{DynamicResource AppCardBackground}" CornerRadius="12">
-                    <Grid RowDefinitions="Auto,Auto">
-                        <Border Grid.Row="0" Background="#F8FAFC" Padding="20,14" CornerRadius="12,12,0,0">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Text="دفتر تراکنش‌های مالی"
-                                           FontSize="15" FontWeight="Bold" Foreground="#334155"
-                                           VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="1" x:Name="LedgerCountText" Text=""
-                                           FontSize="13" Foreground="#94A3B8"/>
-                            </Grid>
-                        </Border>
+                        <Grid ColumnDefinitions="180,16,*,16,220">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="تاریخ" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}" Margin="0,0,0,8"/>
+                                <TextBox x:Name="DateTextBox"
+                                         Watermark="1405/07/05"
+                                         FontSize="15" Padding="14,12"/>
+                            </StackPanel>
 
-                        <Grid Grid.Row="1" Margin="20">
-                            <StackPanel>
-                                <Border Background="#F8FAFC" Padding="12,10" CornerRadius="6,6,0,0">
-                                    <Grid ColumnDefinitions="100,180,*,150,100,150">
-                                        <TextBlock Grid.Column="0" Text="تاریخ" FontWeight="Bold" FontSize="13"
-                                                   Foreground="#334155" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="1" Text="نوع" FontWeight="Bold" FontSize="13"
-                                                   Foreground="#334155"/>
-                                        <TextBlock Grid.Column="2" Text="طرف‌حساب" FontWeight="Bold" FontSize="13"
-                                                   Foreground="#334155"/>
-                                        <TextBlock Grid.Column="3" Text="مبلغ" FontWeight="Bold" FontSize="13"
-                                                   Foreground="#334155" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="4" Text="جهت" FontWeight="Bold" FontSize="13"
-                                                   Foreground="#334155" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="5" Text="توضیحات" FontWeight="Bold" FontSize="13"
-                                                   Foreground="#334155"/>
-                                    </Grid>
-                                </Border>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="نوع تراکنش" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}" Margin="0,0,0,8"/>
+                                <ComboBox x:Name="TypeComboBox"
+                                          SelectedIndex="0"
+                                          FontSize="15" Padding="14,12"
+                                          HorizontalAlignment="Stretch">
+                                    <ComboBoxItem>وام داده‌شده به شخص</ComboBoxItem>
+                                    <ComboBoxItem>وام گرفته‌شده</ComboBoxItem>
+                                    <ComboBoxItem>برداشت سود شخصی</ComboBoxItem>
+                                    <ComboBoxItem>تقسیم سود</ComboBoxItem>
+                                    <ComboBoxItem>سایر</ComboBoxItem>
+                                </ComboBox>
+                            </StackPanel>
 
-                                <Border BorderBrush="#E2E8F0" BorderThickness="1"
-                                        CornerRadius="0,0,6,6"
-                                        MinHeight="150"
-                                        MaxHeight="300">
-                                    <ScrollViewer>
-                                        <StackPanel x:Name="LedgerPanel" Spacing="0">
-                                            <TextBlock Text="هنوز تراکنشی ثبت نشده"
-                                                       Foreground="#94A3B8"
-                                                       FontSize="13"
-                                                       HorizontalAlignment="Center"
-                                                       Margin="0,40,0,40"/>
-                                        </StackPanel>
-                                    </ScrollViewer>
-                                </Border>
+                            <StackPanel Grid.Column="4">
+                                <TextBlock Text="طرف‌حساب / شرح" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}" Margin="0,0,0,8"/>
+                                <TextBox x:Name="CounterpartyTextBox"
+                                         Watermark="مثال: علی رضایی"
+                                         FontSize="15" Padding="14,12"/>
                             </StackPanel>
                         </Grid>
-                    </Grid>
+
+                        <Grid ColumnDefinitions="*,16,*">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="مبلغ (تومان)" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}" Margin="0,0,0,8"/>
+                                <TextBox x:Name="AmountTextBox"
+                                         Watermark="مثال: 5000000"
+                                         FontSize="15" Padding="14,12"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="توضیحات" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}" Margin="0,0,0,8"/>
+                                <TextBox x:Name="NoteTextBox"
+                                         Watermark="اختیاری"
+                                         FontSize="15" Padding="14,12"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Button FontSize="15" FontWeight="Bold"
+                                Background="{DynamicResource AppAccent}" Foreground="White"
+                                Padding="30,12"
+                                HorizontalAlignment="Right"
+                                Click="OnAddLedgerClick">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="{StaticResource IconContentSave}" Width="16" Height="16" Foreground="White"/>
+                                <TextBlock Text="ثبت تراکنش" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <!-- ═══ دفتر تراکنش‌های مالی ═══ -->
+                <Border Background="{DynamicResource AppCardBackground}"
+                        BorderBrush="{DynamicResource AppBorder}" BorderThickness="1"
+                        CornerRadius="6">
+                    <StackPanel Margin="20" Spacing="10">
+
+                        <!-- سرتیتر بخش — بدون پس‌زمینه -->
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="{StaticResource IconHistory}" Width="18" Height="18"
+                                                       Foreground="{DynamicResource AppAccent}"/>
+                                <TextBlock Text="دفتر تراکنش‌های مالی"
+                                           FontSize="14" FontWeight="Bold"
+                                           Foreground="{DynamicResource AppTextPrimary}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" x:Name="LedgerCountText" Text=""
+                                       FontSize="13" Foreground="{DynamicResource AppTextMuted}"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <StackPanel>
+                            <!-- سرستون‌های جدول -->
+                            <Border Background="#F1F5F9" Padding="12,10" CornerRadius="6,6,0,0">
+                                <Grid ColumnDefinitions="100,180,*,150,100,150">
+                                    <TextBlock Grid.Column="0" Text="تاریخ" FontWeight="Bold" FontSize="13"
+                                               Foreground="#0F172A" HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="نوع" FontWeight="Bold" FontSize="13"
+                                               Foreground="#0F172A"/>
+                                    <TextBlock Grid.Column="2" Text="طرف‌حساب" FontWeight="Bold" FontSize="13"
+                                               Foreground="#0F172A"/>
+                                    <TextBlock Grid.Column="3" Text="مبلغ" FontWeight="Bold" FontSize="13"
+                                               Foreground="#0F172A" HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="4" Text="جهت" FontWeight="Bold" FontSize="13"
+                                               Foreground="#0F172A" HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="5" Text="توضیحات" FontWeight="Bold" FontSize="13"
+                                               Foreground="#0F172A"/>
+                                </Grid>
+                            </Border>
+
+                            <Border BorderBrush="#F1F5F9" BorderThickness="1"
+                                    CornerRadius="0,0,6,6"
+                                    MinHeight="150"
+                                    MaxHeight="300">
+                                <ScrollViewer>
+                                    <StackPanel x:Name="LedgerPanel" Spacing="0">
+                                        <TextBlock Text="هنوز تراکنشی ثبت نشده"
+                                                   Foreground="#94A3B8"
+                                                   FontSize="13"
+                                                   HorizontalAlignment="Center"
+                                                   Margin="0,40,0,40"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
                 </Border>
 
             </StackPanel>
         </ScrollViewer>
 
-        <Border Grid.Row="2" Background="{DynamicResource AppCardBackground}" Padding="20,16"
+        <!-- ═══════════ نوار پایین ═══════════ -->
+        <Border Grid.Row="2" Background="{DynamicResource AppCardBackground}" Padding="20,14"
                 BorderBrush="{DynamicResource AppBorder}" BorderThickness="0,1,0,0">
             <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                 <TextBlock Grid.Column="0" x:Name="StatusText"
@@ -263,25 +397,35 @@
                            Foreground="{DynamicResource AppDanger}"
                            TextWrapping="Wrap"/>
                 <Button Grid.Column="1"
-                        Content="خروجی اکسل"
                         FontSize="15" FontWeight="SemiBold"
-                        Background="#10B981" Foreground="White"
+                        Background="{DynamicResource AppSuccess}" Foreground="White"
                         Padding="22,10" Margin="0,0,10,0"
-                        Click="OnExportExcelClick"/>
+                        Click="OnExportExcelClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconFileExcel}" Width="16" Height="16" Foreground="White"/>
+                        <TextBlock Text="خروجی اکسل" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
                 <Button Grid.Column="2"
-                        Content="بروزرسانی"
                         FontSize="15" FontWeight="SemiBold"
-                        Background="#F1F5F9" Foreground="#475569"
-                        BorderBrush="#CBD5E1" BorderThickness="1"
+                        Background="{DynamicResource AppTableRow}" Foreground="{DynamicResource AppTextPrimary}"
+                        BorderBrush="{DynamicResource AppBorder}" BorderThickness="1"
                         Padding="22,10" Margin="0,0,10,0"
-                        Click="OnRefreshClick"/>
+                        Click="OnRefreshClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
+                                               Foreground="{DynamicResource AppTextPrimary}"/>
+                        <TextBlock Text="بروزرسانی" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
                 <Button Grid.Column="3"
-                        Content="بستن"
                         FontSize="15"
-                        Background="#F1F5F9" Foreground="#475569"
-                        BorderBrush="#CBD5E1" BorderThickness="1"
+                        Background="{DynamicResource AppTableRow}" Foreground="{DynamicResource AppTextPrimary}"
+                        BorderBrush="{DynamicResource AppBorder}" BorderThickness="1"
                         Padding="25,10"
-                        Click="OnCloseClick"/>
+                        Click="OnCloseClick">
+                    <TextBlock Text="بستن"/>
+                </Button>
             </Grid>
         </Border>
 

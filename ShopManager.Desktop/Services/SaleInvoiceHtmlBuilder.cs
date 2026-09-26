@@ -109,48 +109,49 @@ public static class SaleInvoiceHtmlBuilder
         }
 
         sb.AppendLine("* { font-family: Vazirmatn, Tahoma, sans-serif; box-sizing: border-box; }");
-        sb.AppendLine($"body {{ margin: 0; padding: 5mm 2mm; background: white; color: #000; font-size: {fontSize}pt; }}");
+        sb.AppendLine($"body {{ margin: 0; padding: 10mm 6mm; background: white; color: #0F172A; font-size: {fontSize}pt; }}");
         sb.AppendLine($"@page {{ {pageCss} }}");
-        sb.AppendLine($".invoice {{ width: {containerWidth}; margin: 0 auto; }}");
+        sb.AppendLine($".invoice {{ max-width: {containerWidth}; margin: 0 auto; }}");
 
         // ─── هدر با لوگو ───
-        sb.AppendLine(".header { text-align: center; padding-bottom: 10px; border-bottom: 2px solid #333; margin-bottom: 12px; }");
-        sb.AppendLine($".header-logo {{ max-width: {logoMax}; max-height: {logoMax}; margin: 0 auto 8px auto; display: block; }}");
-        sb.AppendLine(".header h1 { margin: 0; font-size: 1.4em; font-weight: bold; }");
-        sb.AppendLine(".header .sub { font-size: 0.85em; color: #555; margin-top: 4px; }");
+        sb.AppendLine(".header { text-align: center; padding-bottom: 20px; border-bottom: 2px solid #0F172A; margin-bottom: 20px; }");
+        sb.AppendLine($".header-logo {{ max-width: {logoMax}; max-height: {logoMax}; margin: 0 auto 12px auto; display: block; }}");
+        sb.AppendLine(".header h1 { margin: 0; font-size: 1.5em; font-weight: bold; color: #0F172A; }");
+        sb.AppendLine(".header .sub { font-size: 0.85em; color: #64748B; margin-top: 4px; }");
 
         // ─── اطلاعات ───
-        sb.AppendLine(".info { margin-bottom: 12px; }");
-        sb.AppendLine(".info-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.95em; }");
-        sb.AppendLine(".info-label { font-weight: bold; color: #333; }");
-        sb.AppendLine(".info-value { color: #000; }");
+        sb.AppendLine(".info { margin-bottom: 20px; }");
+        sb.AppendLine(".info-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.95em; }");
+        sb.AppendLine(".info-label { color: #64748B; }");
+        sb.AppendLine(".info-value { color: #0F172A; font-weight: 600; }");
 
         // ─── جدول ───
-        sb.AppendLine("table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }");
-        sb.AppendLine("th { background: #f0f0f0; padding: 6px 4px; font-size: 0.9em; text-align: center; border: 1px solid #999; font-weight: bold; }");
-        sb.AppendLine("td { padding: 6px 4px; font-size: 0.9em; text-align: center; border: 1px solid #ccc; }");
-        sb.AppendLine("td.name { text-align: right; font-weight: 600; }");
-        sb.AppendLine("td.total { font-weight: bold; }");
+        sb.AppendLine("table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }");
+        sb.AppendLine("th { background: #F1F5F9; color: #0F172A; padding: 10px; font-size: 0.85em; font-weight: 600; text-align: center; border-bottom: 1px solid #E2E8F0; }");
+        sb.AppendLine("td { padding: 10px; font-size: 0.9em; text-align: center; border-bottom: 1px solid #F1F5F9; }");
+        sb.AppendLine("td.name { text-align: right; font-weight: 600; color: #0F172A; }");
+        sb.AppendLine("td.total { font-weight: bold; color: #047857; }");
 
         // ─── جمع کل ───
-        sb.AppendLine(".summary { background: #f8f8f8; padding: 10px 12px; margin-bottom: 12px; border: 2px solid #333; }");
-        sb.AppendLine(".summary-row { display: flex; justify-content: space-between; }");
-        sb.AppendLine(".summary-label { font-weight: bold; font-size: 1em; }");
-        sb.AppendLine(".summary-amount { font-weight: bold; font-size: 1.2em; }");
+        sb.AppendLine(".summary { background: #F1F5F9; padding: 16px 20px; margin-bottom: 20px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border-right: 4px solid #1E40AF; }");
+        sb.AppendLine(".summary-row { display: flex; justify-content: space-between; width: 100%; align-items: center; }");
+        sb.AppendLine(".summary-label { font-weight: 600; color: #0F172A; font-size: 1em; }");
+        sb.AppendLine(".summary-amount { font-weight: bold; color: #1E40AF; font-size: 1.2em; }");
 
         // ─── فوتر ───
-        sb.AppendLine(".footer { text-align: center; padding-top: 12px; border-top: 1px dashed #999; font-size: 0.9em; color: #333; margin-top: 12px; }");
+        sb.AppendLine(".footer { text-align: center; padding-top: 16px; border-top: 1px solid #E2E8F0; font-size: 0.9em; color: #64748B; margin-top: 20px; }");
 
-        // ─── سبک رسیدی ───
+        // ─── سبک رسید حرارتی ───
         if (isThermal)
         {
             sb.AppendLine(".invoice { padding: 0 3px; }");
-            sb.AppendLine("th { background: white; border: none; border-bottom: 1px dashed #333; padding: 4px 2px; }");
+            sb.AppendLine("th { background: white; color: #0F172A; border: none; border-bottom: 1px dashed #94A3B8; padding: 4px 2px; }");
             sb.AppendLine("td { border: none; padding: 4px 2px; }");
-            sb.AppendLine("table { border-top: 1px dashed #333; border-bottom: 1px dashed #333; }");
-            sb.AppendLine(".summary { background: white; border: none; border-top: 2px solid #333; border-bottom: 2px solid #333; padding: 8px 0; }");
-            sb.AppendLine(".header { border-bottom: 1px dashed #333; padding-bottom: 8px; }");
-            sb.AppendLine(".footer { border-top: 1px dashed #333; }");
+            sb.AppendLine("table { border-top: 1px dashed #94A3B8; border-bottom: 1px dashed #94A3B8; }");
+            sb.AppendLine(".summary { background: white; border: none; border-top: 2px solid #0F172A; border-bottom: 2px solid #0F172A; border-radius: 0; padding: 8px 0; }");
+            sb.AppendLine(".summary-amount { color: #0F172A; }");
+            sb.AppendLine(".header { border-bottom: 1px dashed #94A3B8; padding-bottom: 8px; }");
+            sb.AppendLine(".footer { border-top: 1px dashed #94A3B8; }");
         }
 
         sb.AppendLine("</style>");
@@ -173,16 +174,19 @@ public static class SaleInvoiceHtmlBuilder
             }
         }
 
-        sb.AppendLine($"<h1>{settings.StoreName}</h1>");
+        // escape نام فروشگاه برای جلوگیری از XSS
+        sb.AppendLine($"<h1>{HtmlEncoder.Encode(settings.StoreName)}</h1>");
 
         if (!string.IsNullOrWhiteSpace(settings.Phone))
         {
-            sb.AppendLine($"<div class='sub'>📞 {PersianNumber.ToPersianDigits(settings.Phone)}</div>");
+            // escape تلفن فروشگاه برای جلوگیری از XSS
+            sb.AppendLine($"<div class='sub'>{HtmlEncoder.Encode(PersianNumber.ToPersianDigits(settings.Phone))}</div>");
         }
 
         if (!string.IsNullOrWhiteSpace(settings.Address))
         {
-            sb.AppendLine($"<div class='sub'>{settings.Address}</div>");
+            // escape آدرس فروشگاه برای جلوگیری از XSS
+            sb.AppendLine($"<div class='sub'>{HtmlEncoder.Encode(settings.Address)}</div>");
         }
 
         sb.AppendLine("</div>");
@@ -190,26 +194,31 @@ public static class SaleInvoiceHtmlBuilder
         // ═══════════ اطلاعات فاکتور ═══════════
         sb.AppendLine("<div class='info'>");
 
-        sb.AppendLine($"<div class='info-row'><span class='info-label'>شماره فاکتور:</span><span class='info-value'>{PersianNumber.ToPersianDigits(invoiceNumber)}</span></div>");
-        sb.AppendLine($"<div class='info-row'><span class='info-label'>تاریخ:</span><span class='info-value'>{PersianNumber.ToPersianDigits(dateShamsi)}</span></div>");
+        // escape شماره فاکتور برای جلوگیری از XSS
+        sb.AppendLine($"<div class='info-row'><span class='info-label'>شماره فاکتور:</span><span class='info-value'>{HtmlEncoder.Encode(PersianNumber.ToPersianDigits(invoiceNumber))}</span></div>");
+        // escape تاریخ برای جلوگیری از XSS
+        sb.AppendLine($"<div class='info-row'><span class='info-label'>تاریخ:</span><span class='info-value'>{HtmlEncoder.Encode(PersianNumber.ToPersianDigits(dateShamsi))}</span></div>");
 
         if (!string.IsNullOrWhiteSpace(customerName) && customerName != "—")
         {
-            sb.AppendLine($"<div class='info-row'><span class='info-label'>مشتری:</span><span class='info-value'>{customerName}</span></div>");
+            // escape نام مشتری برای جلوگیری از XSS
+            sb.AppendLine($"<div class='info-row'><span class='info-label'>مشتری:</span><span class='info-value'>{HtmlEncoder.Encode(customerName)}</span></div>");
         }
 
         if (!string.IsNullOrWhiteSpace(customerPhone) && customerPhone != "—")
         {
-            sb.AppendLine($"<div class='info-row'><span class='info-label'>تلفن:</span><span class='info-value'>{PersianNumber.ToPersianDigits(customerPhone)}</span></div>");
+            // escape تلفن مشتری برای جلوگیری از XSS
+            sb.AppendLine($"<div class='info-row'><span class='info-label'>تلفن:</span><span class='info-value'>{HtmlEncoder.Encode(PersianNumber.ToPersianDigits(customerPhone))}</span></div>");
         }
 
         var payText = paymentStatus switch
         {
-            PaymentStatus.Cash => "💵 نقدی",
+            PaymentStatus.Cash => "نقدی",
             PaymentStatus.Card => string.IsNullOrWhiteSpace(cardTerminal)
-                ? "💳 کارتی"
-                : $"💳 کارتی ({cardTerminal})",
-            PaymentStatus.Credit => "📝 نسیه",
+                ? "کارتی"
+                // escape شماره کارت‌خوان برای جلوگیری از XSS
+                : $"کارتی ({HtmlEncoder.Encode(cardTerminal)})",
+            PaymentStatus.Credit => "نسیه",
             _ => "—"
         };
         sb.AppendLine($"<div class='info-row'><span class='info-label'>روش پرداخت:</span><span class='info-value'>{payText}</span></div>");
@@ -232,7 +241,8 @@ public static class SaleInvoiceHtmlBuilder
         {
             sb.AppendLine("<tr>");
             sb.AppendLine($"<td>{PersianNumber.ToPersian(rowNum)}</td>");
-            sb.AppendLine($"<td class='name'>{item.ItemName}</td>");
+            // escape نام کالا برای جلوگیری از XSS (نمایش متن خام، نه HTML)
+            sb.AppendLine($"<td class='name'>{HtmlEncoder.Encode(item.ItemName)}</td>");
             sb.AppendLine($"<td>{PersianNumber.ToPersian(item.Qty)}</td>");
             sb.AppendLine($"<td>{PersianNumber.ToPersian(item.UnitPrice)}</td>");
             sb.AppendLine($"<td class='total'>{PersianNumber.ToPersian(item.Total)}</td>");
@@ -255,7 +265,8 @@ public static class SaleInvoiceHtmlBuilder
         if (!string.IsNullOrWhiteSpace(settings.FooterText))
         {
             sb.AppendLine("<div class='footer'>");
-            sb.AppendLine(settings.FooterText);
+            // escape متن پاورقی برای جلوگیری از XSS
+            sb.AppendLine(HtmlEncoder.Encode(settings.FooterText));
             sb.AppendLine("</div>");
         }
 

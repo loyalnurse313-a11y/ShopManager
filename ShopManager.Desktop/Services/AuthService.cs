@@ -58,6 +58,26 @@ public static class AuthService
             user.LastLoginAt = DateTime.UtcNow;
             db.Users.Update(user);
 
+            // ─── ارتقای تدریجی هش رمز ───
+            if (PasswordHasher.NeedsUpgrade(user.PasswordHash))
+            {
+                try
+                {
+                    var newSalt = PasswordHasher.GenerateSalt();
+                    var newHash = PasswordHasher.HashPassword(password, newSalt);
+
+                    user.PasswordSalt = newSalt;
+                    user.PasswordHash = newHash;
+
+                    System.Diagnostics.Debug.WriteLine($">>> رمز کاربر {user.Username} به PBKDF2 ارتقا یافت");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($">>> خطا در ارتقای رمز: {ex.Message}");
+                    // خطا رو نادیده بگیر — ورود ادامه پیدا کنه
+                }
+            }
+
             var loginRecord = new LoginHistory
             {
                 UserId = user.Id,

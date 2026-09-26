@@ -7,104 +7,202 @@ using ShopManager.Desktop.Models;
 namespace ShopManager.Desktop.Services;
 
 /// <summary>
-/// سرویس اعمال تم روی کل برنامه
-/// ۱۲ رنگ آماده + تم روشن/تاریک
+/// سرویس تم برنامه (روشن/تیره) و رنگ اصلی (Accent).
+/// پیاده‌سازی کاملاً بومی روی FluentTheme — هیچ پکیج تم خارجی استفاده نشده است.
 /// </summary>
+/// <remarks>
+/// ═══ معماری ═══
+/// پالت رنگ روشن و تیره در <c>App.axaml</c> داخل <c>ResourceDictionary.ThemeDictionaries</c>
+/// تعریف شده است؛ بنابراین با تعیین <see cref="Application.RequestedThemeVariant"/>
+/// کل برنامه (پس‌زمینه، کارت‌ها، جدول‌ها، متن‌ها و حاشیه‌ها) به‌صورت خودکار رنگ‌آمیزی مجدد می‌شود.
+///
+/// این سرویس فقط سه مسئولیت دارد:
+/// ۱) تعیین تم پایه (Light/Dark)
+/// ۲) تنظیم فونت برنامه
+/// ۳) بازنویسی رنگ Accent
+///
+/// نکته‌ی مهم: رنگ Accent انتخابی کاربر است و باید روی «هر دو» تم اعمال شود، پس به‌صورت
+/// ورودی مستقیم در <see cref="Application.Resources"/> نوشته می‌شود؛ چون ورودی‌های مستقیم
+/// بر ThemeDictionaries اولویت دارند، این مقدار روی مقدار پیش‌فرض هر تم غالب می‌شود.
+/// </remarks>
 public static class ThemeService
 {
-    /// <summary>۱۲ رنگ آماده برای انتخاب کاربر</summary>
+    /// <summary>رنگ Accent پیش‌فرض در تم روشن (آبی نفتی)</summary>
+    public const string AccentLightHex = "#1E40AF";
+
+    /// <summary>رنگ Accent پیش‌فرض در تم تاریک (آبی روشن‌تر برای کنتراست روی زمینه‌ی تیره)</summary>
+    public const string AccentDarkHex = "#3B82F6";
+
+    /// <summary>تم فعلی تاریک است؟ — برای اعمال زنده‌ی Accent بدون خواندن مجدد تنظیمات</summary>
+    private static bool _isDark;
+
+    /// <summary>نام رنگ Accent انتخاب‌شده‌ی فعلی — هنگام تغییر تم برای بازمحاسبه‌ی سایه‌ها لازم است</summary>
+    private static string _accentName = "Blue";
+
+    /// <summary>آیا تم فعلی تاریک است؟</summary>
+    public static bool IsDark => _isDark;
+
+    /// <summary>
+    /// پالت رنگ‌های Accent قابل انتخاب در تب «ظاهر».
+    /// هر عضو یک سه‌گانه است: (نام کلید، نام نمایشی فارسی، کد رنگ hex)
+    /// </summary>
     public static readonly (string Name, string Display, string Hex)[] Palette = new[]
     {
-        ("Blue",     "آبی",       "#4F46E5"),
+        ("Blue",     "آبی",       "#1E40AF"),
         ("Sky",      "آبی آسمانی","#0EA5E9"),
         ("Cyan",     "فیروزه‌ای",  "#06B6D4"),
         ("Teal",     "سبز آبی",   "#14B8A6"),
-        ("Green",    "سبز",       "#10B981"),
+        ("Green",    "سبز",       "#047857"),
         ("Lime",     "سبز روشن",  "#84CC16"),
-        ("Yellow",   "زرد",       "#EAB308"),
+        ("Yellow",   "زرد",       "#B45309"),
         ("Orange",   "نارنجی",    "#F59E0B"),
-        ("Red",      "قرمز",      "#EF4444"),
+        ("Red",      "قرمز",      "#B91C1C"),
         ("Pink",     "صورتی",     "#EC4899"),
-        ("Purple",   "بنفش",      "#8B5CF6"),
+        ("Purple",   "بنفش",      "#7C3AED"),
         ("Slate",    "خاکستری",   "#64748B"),
     };
 
-    /// <summary>رنگ hex بر اساس نام</summary>
+    /// <summary>
+    /// کد رنگ hex مربوط به یک نام Accent را برمی‌گرداند.
+    /// </summary>
+    /// <param name="name">نام کلید رنگ؛ مثلاً Blue یا Purple</param>
+    /// <returns>کد رنگ به شکل #RRGGBB؛ اگر نام ناشناخته باشد رنگ پیش‌فرض روشن برگردانده می‌شود.</returns>
     public static string GetHex(string name)
     {
         foreach (var item in Palette)
         {
             if (item.Name == name) return item.Hex;
         }
-        return "#4F46E5";
+        return AccentLightHex;
     }
 
-    /// <summary>اعمال تنظیمات روی کل برنامه</summary>
+    /// <summary>
+    /// اعمال کامل تنظیمات ظاهری روی کل برنامه — در شروع برنامه فراخوانی می‌شود.
+    /// </summary>
+    /// <param name="prefs">تنظیمات ظاهری ذخیره‌شده‌ی کاربر (تم، فونت، رنگ Accent)</param>
     public static void Apply(AppPreferences prefs)
     {
         if (Application.Current == null) return;
 
-        var res = Application.Current.Resources;
+        _isDark = string.Equals(prefs.Theme, "Dark", StringComparison.OrdinalIgnoreCase);
+        _accentName = string.IsNullOrWhiteSpace(prefs.AccentColor) ? "Blue" : prefs.AccentColor;
 
-        // ─── تم ───
-        Application.Current.RequestedThemeVariant =
-            prefs.Theme == "Dark" ? ThemeVariant.Dark : ThemeVariant.Light;
+        // ─── تم پایه: پالت از ThemeDictionaries در App.axaml خوانده می‌شود ───
+        Application.Current.RequestedThemeVariant = _isDark ? ThemeVariant.Dark : ThemeVariant.Light;
 
         // ─── فونت ───
+        ApplyFont(prefs.FontFamily, prefs.FontSize);
+
+        // ─── رنگ اصلی ───
+        ApplyAccent(_accentName, _isDark);
+    }
+
+    /// <summary>
+    /// تغییر زنده‌ی تم برنامه (بدون ذخیره‌سازی) — برای پیش‌نمایش لحظه‌ای در تنظیمات.
+    /// </summary>
+    /// <param name="isDark">true برای تم تاریک، false برای تم روشن</param>
+    public static void SetTheme(bool isDark)
+    {
+        if (Application.Current == null) return;
+
+        _isDark = isDark;
+        Application.Current.RequestedThemeVariant = isDark ? ThemeVariant.Dark : ThemeVariant.Light;
+
+        // Accent به‌صورت ورودی مستقیم نوشته شده است، پس باید برای تم جدید بازمحاسبه شود
+        ApplyAccent(_accentName, isDark);
+    }
+
+    /// <summary>
+    /// تغییر زنده‌ی رنگ اصلی برنامه (بدون ذخیره‌سازی) — برای پیش‌نمایش لحظه‌ای در تنظیمات.
+    /// </summary>
+    /// <param name="colorName">نام کلید رنگ؛ مثلاً Blue</param>
+    public static void SetAccent(string colorName)
+    {
+        if (Application.Current == null) return;
+
+        _accentName = string.IsNullOrWhiteSpace(colorName) ? "Blue" : colorName;
+        ApplyAccent(_accentName, _isDark);
+    }
+
+    /// <summary>
+    /// تنظیم فونت و اندازه‌ی فونت کل برنامه.
+    /// </summary>
+    /// <param name="family">نام فونت اصلی</param>
+    /// <param name="size">اندازه‌ی فونت بر حسب پیکسل</param>
+    public static void ApplyFont(string family, double size)
+    {
+        if (Application.Current == null) return;
+
+        var res = Application.Current.Resources;
+        var safeFamily = string.IsNullOrWhiteSpace(family) ? "Vazirmatn" : family;
+        var safeSize = size <= 0 ? 14d : size;
+
+        res["AppFontFamily"] = new FontFamily($"{safeFamily}, IRANSans, Segoe UI");
+        res["AppFontSize"] = safeSize;
+    }
+
+    /// <summary>
+    /// اعمال رنگ اصلی (Accent) و سایه‌ی Hover آن روی کل برنامه.
+    /// </summary>
+    /// <param name="colorName">نام کلید رنگ انتخاب‌شده</param>
+    /// <param name="isDark">آیا تم فعلی تاریک است (در تم تاریک رنگ روشن‌تر می‌شود تا کنتراست حفظ شود)</param>
+    public static void ApplyAccent(string colorName, bool isDark)
+    {
+        if (Application.Current == null) return;
+
+        var baseColor = SafeParse(GetHex(colorName), AccentLightHex);
+
+        // در تم تاریک رنگ کمی روشن‌تر می‌شود تا روی پس‌زمینه‌ی تیره خوانا باشد
+        var accent = isDark ? AdjustBrightness(baseColor, 0.28) : baseColor;
+
+        // سایه‌ی Hover: در تم روشن تیره‌تر، در تم تاریک روشن‌تر
+        var hover = isDark ? AdjustBrightness(accent, 0.18) : AdjustBrightness(accent, -0.12);
+
+        var res = Application.Current.Resources;
+        res["AppAccent"] = new SolidColorBrush(accent);
+        res["AppAccentHover"] = new SolidColorBrush(hover);
+    }
+
+    /// <summary>
+    /// رنگ را روشن‌تر یا تیره‌تر می‌کند.
+    /// </summary>
+    /// <param name="color">رنگ پایه</param>
+    /// <param name="factor">مقدار بین ‎-1 و 1؛ مقدار مثبت روشن‌تر و مقدار منفی تیره‌تر می‌کند.</param>
+    /// <returns>رنگ تعدیل‌شده</returns>
+    private static Color AdjustBrightness(Color color, double factor)
+    {
+        if (factor >= 0)
+        {
+            // نزدیک شدن به سفید
+            return Color.FromRgb(
+                (byte)Math.Min(255, color.R + (255 - color.R) * factor),
+                (byte)Math.Min(255, color.G + (255 - color.G) * factor),
+                (byte)Math.Min(255, color.B + (255 - color.B) * factor));
+        }
+
+        // نزدیک شدن به مشکی
+        var scale = 1 + factor;
+        return Color.FromRgb(
+            (byte)Math.Max(0, color.R * scale),
+            (byte)Math.Max(0, color.G * scale),
+            (byte)Math.Max(0, color.B * scale));
+    }
+
+    /// <summary>
+    /// تبدیل ایمن یک کد رنگ رشته‌ای به <see cref="Color"/>.
+    /// </summary>
+    /// <param name="hex">کد رنگ مورد انتظار</param>
+    /// <param name="fallbackHex">کد رنگ جایگزین در صورت نامعتبر بودن ورودی</param>
+    /// <returns>رنگ پارس‌شده یا رنگ جایگزین</returns>
+    private static Color SafeParse(string hex, string fallbackHex)
+    {
         try
         {
-            res["AppFontFamily"] = new FontFamily($"{prefs.FontFamily}, IRANSans, Segoe UI");
+            return Color.Parse(hex);
         }
-        catch { }
-
-        res["AppFontSize"] = prefs.FontSize;
-
-        // ─── Accent ───
-        var accentHex = GetHex(prefs.AccentColor);
-        res["AppAccent"] = new SolidColorBrush(Color.Parse(accentHex));
-
-        // ─── رنگ‌های متناسب با تم ───
-        if (prefs.Theme == "Dark")
+        catch
         {
-            // ─── دارک مود واقعی ───
-            res["AppBackground"] = new SolidColorBrush(Color.Parse("#0F172A"));
-            res["AppCardBackground"] = new SolidColorBrush(Color.Parse("#1E293B"));
-            res["AppHeaderBackground"] = new SolidColorBrush(Color.Parse("#020617"));
-            res["AppMenuBackground"] = new SolidColorBrush(Color.Parse("#1E293B"));
-            res["AppMenuText"] = new SolidColorBrush(Color.Parse("#E2E8F0"));
-            res["AppTextPrimary"] = new SolidColorBrush(Color.Parse("#F1F5F9"));
-            res["AppTextSecondary"] = new SolidColorBrush(Color.Parse("#94A3B8"));
-            res["AppBorder"] = new SolidColorBrush(Color.Parse("#334155"));
-            res["AppButtonText"] = new SolidColorBrush(Color.Parse("#FFFFFF"));
-            res["AppTableHeader"] = new SolidColorBrush(Color.Parse("#1E293B"));
-            res["AppTableHeaderText"] = new SolidColorBrush(Color.Parse("#E2E8F0"));
-            res["AppTableRow"] = new SolidColorBrush(Color.Parse("#1E293B"));
-            res["AppTableAltRow"] = new SolidColorBrush(Color.Parse("#0F172A"));
-            res["AppTableText"] = new SolidColorBrush(Color.Parse("#F1F5F9"));
-            res["AppTableBorder"] = new SolidColorBrush(Color.Parse("#334155"));
+            return Color.Parse(fallbackHex);
         }
-        else
-        {
-            // ─── لایت مود ───
-            res["AppBackground"] = new SolidColorBrush(Color.Parse("#F1F5F9"));
-            res["AppCardBackground"] = new SolidColorBrush(Color.Parse("#FFFFFF"));
-            res["AppHeaderBackground"] = new SolidColorBrush(Color.Parse("#2C3E50"));
-            res["AppMenuBackground"] = new SolidColorBrush(Color.Parse("#34495E"));
-            res["AppMenuText"] = new SolidColorBrush(Color.Parse("#FFFFFF"));
-            res["AppTextPrimary"] = new SolidColorBrush(Color.Parse("#0F172A"));
-            res["AppTextSecondary"] = new SolidColorBrush(Color.Parse("#475569"));
-            res["AppBorder"] = new SolidColorBrush(Color.Parse("#E2E8F0"));
-            res["AppButtonText"] = new SolidColorBrush(Color.Parse("#FFFFFF"));
-            res["AppTableHeader"] = new SolidColorBrush(Color.Parse("#EEF2FF"));
-            res["AppTableHeaderText"] = new SolidColorBrush(Color.Parse("#4F46E5"));
-            res["AppTableRow"] = new SolidColorBrush(Color.Parse("#FFFFFF"));
-            res["AppTableAltRow"] = new SolidColorBrush(Color.Parse("#F8FAFC"));
-            res["AppTableText"] = new SolidColorBrush(Color.Parse("#0F172A"));
-            res["AppTableBorder"] = new SolidColorBrush(Color.Parse("#F1F5F9"));
-        }
-
-        // ─── رنگ‌های ثابت ───
-        res["AppSuccess"] = new SolidColorBrush(Color.Parse("#10B981"));
-        res["AppDanger"] = new SolidColorBrush(Color.Parse("#EF4444"));
     }
 }

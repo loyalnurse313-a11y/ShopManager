@@ -268,8 +268,9 @@ public partial class AddItemWindow : Window
         }
         catch (Exception ex)
         {
+            ErrorHandler.LogError(ex, "AddItem");
             StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
-            StatusText.Text = $"خطا: {ex.Message}";
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 

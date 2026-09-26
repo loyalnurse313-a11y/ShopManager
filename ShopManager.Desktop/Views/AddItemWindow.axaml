@@ -1,13 +1,18 @@
-﻿<Window xmlns="https://github.com/avaloniaui"
+﻿<!-- اصلاح ارتفاع دیالوگ افزودن/ویرایش کالا — جلوگیری از بیرون‌زدن پنجره از بالای مانیتور -->
+<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         x:Class="ShopManager.Desktop.Views.AddItemWindow"
         Title="کالا"
-        Width="680" Height="850"
-        MinWidth="600" MinHeight="750"
+        Width="680" Height="650"
+        MinWidth="600" MinHeight="500"
+        MaxHeight="700"
         WindowStartupLocation="CenterScreen"
+        CanResize="True"
+        SizeToContent="Manual"
+        ExtendClientAreaToDecorationsHint="False"
         FlowDirection="RightToLeft"
         FontFamily="{DynamicResource AppFontFamily}"
         Background="{DynamicResource AppBackground}">
@@ -31,15 +36,19 @@
 
                 <!-- ═══ کارت ۱: اطلاعات اصلی ═══ -->
                 <Border Background="{DynamicResource AppCardBackground}" 
-                        CornerRadius="12"
+                        CornerRadius="6"
                         BorderBrush="{DynamicResource AppBorder}"
                         BorderThickness="1"
                         Padding="20">
                     <StackPanel Spacing="14">
 
-                        <TextBlock Text="📋 اطلاعات اصلی"
-                                   FontSize="15" FontWeight="Bold"
-                                   Foreground="{DynamicResource AppAccent}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconInformationOutline}" Width="18" Height="18"
+                                      Foreground="{DynamicResource AppAccent}"/>
+                            <TextBlock Text="اطلاعات اصلی"
+                                       FontSize="15" FontWeight="Bold"
+                                       Foreground="{DynamicResource AppAccent}"/>
+                        </StackPanel>
 
                         <!-- کد + واحد -->
                         <Grid ColumnDefinitions="*,16,*">
@@ -96,15 +105,19 @@
 
                 <!-- ═══ کارت ۲: قیمت‌گذاری ═══ -->
                 <Border Background="{DynamicResource AppCardBackground}" 
-                        CornerRadius="12"
+                        CornerRadius="6"
                         BorderBrush="{DynamicResource AppBorder}"
                         BorderThickness="1"
                         Padding="20">
                     <StackPanel Spacing="14">
 
-                        <TextBlock Text="💰 قیمت‌گذاری"
-                                   FontSize="15" FontWeight="Bold"
-                                   Foreground="{DynamicResource AppAccent}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconCurrencyUsd}" Width="18" Height="18"
+                                      Foreground="{DynamicResource AppSuccess}"/>
+                            <TextBlock Text="قیمت‌گذاری"
+                                       FontSize="15" FontWeight="Bold"
+                                       Foreground="{DynamicResource AppSuccess}"/>
+                        </StackPanel>
 
                         <!-- قیمت خرید + درصد -->
                         <Grid ColumnDefinitions="*,16,*">
@@ -145,18 +158,24 @@
                         </StackPanel>
 
                         <!-- پیش‌نمایش -->
-                        <Border Background="#ECFDF5" CornerRadius="8" Padding="14,12">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0"
-                                           Text="قیمت فروش پیشنهادی:"
-                                           FontSize="13" 
-                                           Foreground="#059669"
-                                           VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="1"
-                                           x:Name="PreviewSalePriceText"
-                                           Text="—"
-                                           FontSize="16" FontWeight="Bold"
-                                           Foreground="#059669"/>
+                        <Border Background="{DynamicResource AppCardBackground}"
+                                BorderBrush="{DynamicResource AppBorder}"
+                                BorderThickness="1"
+                                CornerRadius="6">
+                            <Grid ColumnDefinitions="3,*">
+                                <Border Grid.Column="0" Background="{DynamicResource AppSuccess}" CornerRadius="0,6,6,0"/>
+                                <Grid Grid.Column="1" ColumnDefinitions="*,Auto" Margin="14,12">
+                                    <TextBlock Grid.Column="0"
+                                               Text="قیمت فروش پیشنهادی:"
+                                               FontSize="13" 
+                                               Foreground="{DynamicResource AppSuccess}"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1"
+                                               x:Name="PreviewSalePriceText"
+                                               Text="—"
+                                               FontSize="16" FontWeight="Bold"
+                                               Foreground="{DynamicResource AppSuccess}"/>
+                                </Grid>
                             </Grid>
                         </Border>
 
@@ -165,15 +184,19 @@
 
                 <!-- ═══ کارت ۳: حد هشدار موجودی ═══ -->
                 <Border Background="{DynamicResource AppCardBackground}" 
-                        CornerRadius="12"
+                        CornerRadius="6"
                         BorderBrush="{DynamicResource AppBorder}"
                         BorderThickness="1"
                         Padding="20">
                     <StackPanel Spacing="14">
 
-                        <TextBlock Text="⚠️ حد هشدار موجودی (اختیاری)"
-                                   FontSize="15" FontWeight="Bold"
-                                   Foreground="#D97706"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconAlertOutline}" Width="18" Height="18"
+                                      Foreground="{DynamicResource AppWarning}"/>
+                            <TextBlock Text="حد هشدار موجودی (اختیاری)"
+                                       FontSize="15" FontWeight="Bold"
+                                       Foreground="{DynamicResource AppWarning}"/>
+                        </StackPanel>
 
                         <TextBlock Text="اگه خالی بذاری، از درصدهای پیش‌فرض (۱۰٪ بحرانی / ۲۵٪ هشدار) استفاده می‌شه"
                                    FontSize="12"
@@ -201,11 +224,16 @@
                             </StackPanel>
                         </Grid>
 
-                        <Border Background="#FEF3C7" CornerRadius="8" Padding="12,10">
-                            <TextBlock Text="اگه حد ثابت بذاری، جای درصد رو می‌گیره"
-                                       FontSize="12"
-                                       Foreground="#D97706"
-                                       TextWrapping="Wrap"/>
+                        <Border Background="#FFF7ED" BorderBrush="#FED7AA" BorderThickness="1" CornerRadius="6">
+                            <Grid ColumnDefinitions="3,*">
+                                <Border Grid.Column="0" Background="{DynamicResource AppWarning}" CornerRadius="0,6,6,0"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="اگه حد ثابت بذاری، جای درصد رو می‌گیره"
+                                           FontSize="12"
+                                           Foreground="{DynamicResource AppWarning}"
+                                           TextWrapping="Wrap"
+                                           Margin="12,10"/>
+                            </Grid>
                         </Border>
 
                         <!-- حد هشدار ثابت -->
@@ -235,15 +263,19 @@
                 <!-- ═══ کارت ۴: موجودی اولیه (فقط برای کالای جدید) ═══ -->
                 <Border x:Name="InitialStockCard"
                         Background="{DynamicResource AppCardBackground}" 
-                        CornerRadius="12"
+                        CornerRadius="6"
                         BorderBrush="{DynamicResource AppBorder}"
                         BorderThickness="1"
                         Padding="20">
                     <StackPanel Spacing="14">
 
-                        <TextBlock Text="📦 موجودی اولیه (اختیاری)"
-                                   FontSize="15" FontWeight="Bold"
-                                   Foreground="{DynamicResource AppAccent}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconPackage}" Width="18" Height="18"
+                                      Foreground="{DynamicResource AppAccent}"/>
+                            <TextBlock Text="موجودی اولیه (اختیاری)"
+                                       FontSize="15" FontWeight="Bold"
+                                       Foreground="{DynamicResource AppAccent}"/>
+                        </StackPanel>
 
                         <Grid ColumnDefinitions="*,16,*">
                             <StackPanel Grid.Column="0" Spacing="8">
@@ -295,16 +327,20 @@
                         Foreground="{DynamicResource AppTextPrimary}"
                         BorderBrush="{DynamicResource AppBorder}"
                         BorderThickness="1"
-                        CornerRadius="8"
+                        CornerRadius="6"
                         Click="OnCancelClick"/>
 
                 <Button Grid.Column="2"
-                        Content="💾 ذخیره"
-                        FontSize="15" FontWeight="Bold" Padding="32,12"
-                        Background="{DynamicResource AppSuccess}"
+                        FontSize="15" FontWeight="Bold" Padding="28,12"
+                        Background="{DynamicResource AppAccent}"
                         Foreground="White"
-                        CornerRadius="8"
-                        Click="OnSaveClick"/>
+                        CornerRadius="6"
+                        Click="OnSaveClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconContentSave}" Width="18" Height="18" Foreground="White"/>
+                        <TextBlock Text="ذخیره" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
 
             </Grid>
         </Border>

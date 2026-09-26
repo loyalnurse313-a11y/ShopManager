@@ -6,10 +6,11 @@
         mc:Ignorable="d"
         x:Class="ShopManager.Desktop.Views.ItemsWindow"
         Title="مدیریت کالاها"
-        Width="1300" Height="720"
-        MinWidth="1100" MinHeight="600"
+        Width="1280" Height="800"
+        MinWidth="1000" MinHeight="650"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
+        ExtendClientAreaToDecorationsHint="False"
         FlowDirection="RightToLeft"
         FontFamily="{DynamicResource AppFontFamily}"
         Background="{DynamicResource AppBackground}">
@@ -19,11 +20,15 @@
         <!-- هدر -->
         <Border Grid.Row="0" 
                 Background="{DynamicResource AppHeaderBackground}" 
-                Padding="24,18">
-            <TextBlock Text="مدیریت کالاها"
-                       FontSize="20" FontWeight="Bold"
-                       Foreground="White"
-                       HorizontalAlignment="Center"/>
+                Padding="24,16">
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                <PathIcon Data="{StaticResource IconPackage}" Width="20" Height="20"
+                                       Foreground="White" VerticalAlignment="Center"/>
+                <TextBlock Text="مدیریت کالاها"
+                           FontSize="20" FontWeight="Bold"
+                           Foreground="White"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
         </Border>
 
         <!-- نوار ابزار -->
@@ -35,39 +40,60 @@
             <StackPanel Orientation="Horizontal" 
                         HorizontalAlignment="Right" 
                         Spacing="10">
-                <Button Content="➕ افزودن کالا"
-                        FontSize="14" FontWeight="Bold"
+                <Button FontSize="14" FontWeight="Bold"
                         Background="{DynamicResource AppAccent}" Foreground="White"
-                        Padding="18,10"
-                        CornerRadius="8"
-                        Click="OnAddClick"/>
-                <Button Content="✏️ ویرایش"
-                        FontSize="14" FontWeight="SemiBold"
-                        Background="#FEF3C7" Foreground="#D97706"
-                        Padding="18,10"
-                        CornerRadius="8"
-                        Click="OnEditClick"/>
-                <Button Content="🗑️ حذف"
-                        FontSize="14" FontWeight="SemiBold"
-                        Background="#FEF2F2" Foreground="#DC2626"
-                        Padding="18,10"
-                        CornerRadius="8"
-                        Click="OnDeleteClick"/>
-                <Button Content="📤 خروجی اکسل"
-                        FontSize="14" FontWeight="SemiBold"
+                        Padding="16,10"
+                        CornerRadius="6"
+                        Click="OnAddClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconPlus}" Width="16" Height="16" Foreground="White"/>
+                        <TextBlock Text="افزودن کالا" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button FontSize="14" FontWeight="SemiBold"
+                        Background="{DynamicResource AppWarning}" Foreground="White"
+                        Padding="16,10"
+                        CornerRadius="6"
+                        Click="OnEditClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconPencil}" Width="16" Height="16" Foreground="White"/>
+                        <TextBlock Text="ویرایش" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button FontSize="14" FontWeight="SemiBold"
+                        Background="{DynamicResource AppDanger}" Foreground="White"
+                        Padding="16,10"
+                        CornerRadius="6"
+                        Click="OnDeleteClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconDelete}" Width="16" Height="16" Foreground="White"/>
+                        <TextBlock Text="حذف" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button FontSize="14" FontWeight="SemiBold"
                         Background="{DynamicResource AppSuccess}" Foreground="White"
-                        Padding="18,10"
-                        CornerRadius="8"
-                        Click="OnExportExcelClick"/>
-                <Button Content="🔄 بروزرسانی"
-                        FontSize="14" FontWeight="SemiBold"
-                        Background="{DynamicResource AppBackground}" 
+                        Padding="16,10"
+                        CornerRadius="6"
+                        Click="OnExportExcelClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconFileExcel}" Width="16" Height="16" Foreground="White"/>
+                        <TextBlock Text="خروجی اکسل" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button FontSize="14" FontWeight="SemiBold"
+                        Background="{DynamicResource AppTableHeader}" 
                         Foreground="{DynamicResource AppTextPrimary}"
                         BorderBrush="{DynamicResource AppBorder}"
                         BorderThickness="1"
-                        Padding="18,10"
-                        CornerRadius="8"
-                        Click="OnRefreshClick"/>
+                        Padding="16,10"
+                        CornerRadius="6"
+                        Click="OnRefreshClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
+                                               Foreground="{DynamicResource AppTextPrimary}"/>
+                        <TextBlock Text="بروزرسانی" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </Border>
 
@@ -77,17 +103,23 @@
                 Padding="20,12"
                 BorderBrush="{DynamicResource AppBorder}"
                 BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="Auto,*">
+            <Grid ColumnDefinitions="Auto,Auto,*">
                 <TextBlock Grid.Column="0"
                            Text="جستجو:"
                            FontSize="14" FontWeight="SemiBold"
                            Foreground="{DynamicResource AppTextPrimary}"
                            VerticalAlignment="Center"
                            Margin="0,0,10,0"/>
-                <TextBox Grid.Column="1"
+                <PathIcon Grid.Column="1" Data="{StaticResource IconSearch}" Width="18" Height="18"
+                                       Foreground="{DynamicResource AppTextSecondary}"
+                                       VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBox Grid.Column="2"
                          x:Name="SearchBox"
                          Watermark="جستجو بر اساس کد یا نام کالا..."
+                         MinHeight="40"
                          FontSize="14" Padding="12,10"
+                         CornerRadius="6"
+                         BorderBrush="{DynamicResource AppBorder}"
                          TextChanged="OnSearchChanged"/>
             </Grid>
         </Border>
@@ -96,7 +128,7 @@
         <Border Grid.Row="3" 
                 Background="{DynamicResource AppCardBackground}" 
                 Margin="20" 
-                CornerRadius="12"
+                CornerRadius="6"
                 BorderBrush="{DynamicResource AppBorder}"
                 BorderThickness="1">
             <Grid RowDefinitions="Auto,*">
@@ -105,7 +137,7 @@
                 <Border Grid.Row="0" 
                         Background="{DynamicResource AppTableHeader}" 
                         Padding="15,14"
-                        CornerRadius="12,12,0,0">
+                        CornerRadius="6,6,0,0">
                     <Grid ColumnDefinitions="80,*,110,70,110,110,120,100,120,100">
                         <TextBlock Grid.Column="0" Text="کد" FontWeight="Bold" FontSize="13"
                                    Foreground="{DynamicResource AppTableHeaderText}"
@@ -206,9 +238,10 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 Spacing="15">
-                        <TextBlock Text="📦"
-                                   FontSize="60"
-                                   HorizontalAlignment="Center"/>
+                        <PathIcon Data="{StaticResource IconPackage}"
+                                               Width="60" Height="60"
+                                               Foreground="{DynamicResource AppTextMuted}"
+                                               HorizontalAlignment="Center"/>
                         <TextBlock x:Name="EmptyStateTitle"
                                    Text="هنوز کالایی ثبت نشده است"
                                    FontSize="18"
@@ -247,7 +280,7 @@
                         BorderBrush="{DynamicResource AppBorder}"
                         BorderThickness="1"
                         Padding="25,10"
-                        CornerRadius="8"
+                        CornerRadius="6"
                         Click="OnCloseClick"/>
             </Grid>
         </Border>

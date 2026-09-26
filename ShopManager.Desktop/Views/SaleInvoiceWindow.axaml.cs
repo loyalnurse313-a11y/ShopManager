@@ -90,7 +90,8 @@ public partial class SaleInvoiceWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"خطا: {ex.Message}";
+            ErrorHandler.LogError(ex, "SaleInvoice");
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 
@@ -313,7 +314,8 @@ public partial class SaleInvoiceWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"خطا در چاپ: {ex.Message}";
+            ErrorHandler.LogError(ex, "SaleInvoice");
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 

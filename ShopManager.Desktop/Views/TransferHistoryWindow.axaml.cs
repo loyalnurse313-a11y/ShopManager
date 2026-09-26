@@ -360,7 +360,7 @@ public partial class TransferHistoryWindow : Window
             sb.AppendLine(".total { background: #FEF3C7; font-weight: bold; padding: 12px; margin-top: 15px; text-align: center; font-size: 14px; color: #D97706; border-radius: 6px; }");
             sb.AppendLine("@media print { @page { size: A4; margin: 10mm; } body { margin: 0; } }");
             sb.AppendLine("</style></head><body>");
-            sb.AppendLine("<h1>فروشگاه ظروف یکبار مصرف خوی</h1>");
+            sb.AppendLine($"<h1>{HtmlEncoder.Encode(string.IsNullOrWhiteSpace(StoreSettingsService.Current.StoreName) ? "فروشگاه" : StoreSettingsService.Current.StoreName)}</h1>");
             sb.AppendLine("<h2>سابقه انتقال انبار به مغازه</h2>");
             sb.AppendLine($"<div class='range'>از: {PersianNumber.ToPersianDigits(FromDateBox.Text ?? "—")} — تا: {PersianNumber.ToPersianDigits(ToDateBox.Text ?? "—")}</div>");
             sb.AppendLine("<table><thead><tr>");

@@ -194,7 +194,8 @@ public partial class POSWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"خطا: {ex.Message}";
+            ErrorHandler.LogError(ex, "POS");
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 
@@ -466,14 +467,14 @@ public partial class POSWindow : Window
     {
         _activeTab = tab;
 
-        TabPopularBtn.Background = new SolidColorBrush(Color.Parse(tab == "popular" ? "#EEF2FF" : "#00000000"));
-        TabPopularBtn.Foreground = new SolidColorBrush(Color.Parse(tab == "popular" ? "#4F46E5" : "#94A3B8"));
+        TabPopularBtn.Background = new SolidColorBrush(Color.Parse(tab == "popular" ? "#1E40AF" : "#00000000"));
+        TabPopularBtn.Foreground = new SolidColorBrush(Color.Parse(tab == "popular" ? "#FFFFFF" : "#64748B"));
 
-        TabRecentBtn.Background = new SolidColorBrush(Color.Parse(tab == "recent" ? "#EEF2FF" : "#00000000"));
-        TabRecentBtn.Foreground = new SolidColorBrush(Color.Parse(tab == "recent" ? "#4F46E5" : "#94A3B8"));
+        TabRecentBtn.Background = new SolidColorBrush(Color.Parse(tab == "recent" ? "#1E40AF" : "#00000000"));
+        TabRecentBtn.Foreground = new SolidColorBrush(Color.Parse(tab == "recent" ? "#FFFFFF" : "#64748B"));
 
-        TabAllBtn.Background = new SolidColorBrush(Color.Parse(tab == "all" ? "#EEF2FF" : "#00000000"));
-        TabAllBtn.Foreground = new SolidColorBrush(Color.Parse(tab == "all" ? "#4F46E5" : "#94A3B8"));
+        TabAllBtn.Background = new SolidColorBrush(Color.Parse(tab == "all" ? "#1E40AF" : "#00000000"));
+        TabAllBtn.Foreground = new SolidColorBrush(Color.Parse(tab == "all" ? "#FFFFFF" : "#64748B"));
 
         LoadProductTiles(tab);
     }
@@ -1007,8 +1008,9 @@ public partial class POSWindow : Window
         }
         catch (Exception ex)
         {
+            ErrorHandler.LogError(ex, "POS");
             StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
-            StatusText.Text = $"خطا: {ex.Message}";
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 
@@ -1057,8 +1059,9 @@ public partial class POSWindow : Window
         }
         catch (Exception ex)
         {
+            ErrorHandler.LogError(ex, "POS");
             StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
-            StatusText.Text = $"خطا: {ex.Message}";
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 
@@ -1289,8 +1292,9 @@ public partial class POSWindow : Window
         }
         catch (Exception ex)
         {
+            ErrorHandler.LogError(ex, "POS");
             StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
-            StatusText.Text = $"خطا در چاپ خودکار: {ex.Message}";
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 
@@ -1400,7 +1404,7 @@ public partial class POSWindow : Window
             Content = "انصراف (Esc)",
             FontSize = 14,
             Height = 42,
-            Background = new SolidColorBrush(Color.Parse("#F1F5F9")),
+            Background = new SolidColorBrush(Color.Parse("#F5F7FA")),
             Foreground = new SolidColorBrush(Color.Parse("#475569")),
             BorderBrush = new SolidColorBrush(Color.Parse("#CBD5E1")),
             BorderThickness = new Thickness(1),

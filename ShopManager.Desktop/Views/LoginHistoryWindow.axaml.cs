@@ -410,7 +410,7 @@ public partial class LoginHistoryWindow : Window
             sb.AppendLine(".stats { background: #F3E8FF; padding: 12px; margin-top: 15px; text-align: center; font-size: 13px; color: #7C3AED; border-radius: 6px; }");
             sb.AppendLine("@media print { @page { size: A4; margin: 10mm; } body { margin: 0; } }");
             sb.AppendLine("</style></head><body>");
-            sb.AppendLine("<h1>فروشگاه ظروف یکبار مصرف خوی</h1>");
+            sb.AppendLine($"<h1>{HtmlEncoder.Encode(string.IsNullOrWhiteSpace(StoreSettingsService.Current.StoreName) ? "فروشگاه" : StoreSettingsService.Current.StoreName)}</h1>");
             sb.AppendLine("<h2>سابقه ورود و خروج کاربران</h2>");
             sb.AppendLine($"<div class='range'>از: {PersianNumber.ToPersianDigits(FromDateBox.Text ?? "—")} — تا: {PersianNumber.ToPersianDigits(ToDateBox.Text ?? "—")}</div>");
             sb.AppendLine("<table><thead><tr>");

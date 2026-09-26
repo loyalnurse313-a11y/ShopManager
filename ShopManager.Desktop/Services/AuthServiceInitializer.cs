@@ -43,7 +43,10 @@ public static class AuthServiceInitializer
                     CanUserManagement = true,
                     CanPrint = true,
                     CanExportExcel = true,
-                    CanViewFinance = true
+                    CanViewFinance = true,
+
+                    // ─── اجبار تغییر رمز پیش‌فرض admin در اولین ورود ───
+                    MustChangePassword = true
                 };
 
                 db.Users.Add(admin);

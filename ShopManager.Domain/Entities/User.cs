@@ -34,6 +34,10 @@ public class User
     /// </summary>
     public bool CanViewFinance { get; set; } = false;
 
+    // ═══ 🆕 امنیت ═══
+    /// <summary>آیا کاربر باید رمز رو تغییر بده؟ (برای امنیت)</summary>
+    public bool MustChangePassword { get; set; } = false;
+
     // ═══ متادیتا ═══
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }

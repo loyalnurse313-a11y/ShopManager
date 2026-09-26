@@ -6,10 +6,11 @@
         mc:Ignorable="d"
         x:Class="ShopManager.Desktop.Views.TransferHistoryWindow"
         Title="سابقه انتقال"
-        Width="1200" Height="720"
-        MinWidth="1000" MinHeight="600"
+        Width="1280" Height="800"
+        MinWidth="1000" MinHeight="650"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
+        ExtendClientAreaToDecorationsHint="False"
         FlowDirection="RightToLeft"
         FontFamily="{DynamicResource AppFontFamily}"
         Background="{DynamicResource AppBackground}">
@@ -19,11 +20,15 @@
         <!-- هدر -->
         <Border Grid.Row="0" 
                 Background="{DynamicResource AppHeaderBackground}" 
-                Padding="24,18">
-            <TextBlock Text="سابقه انتقال انبار به مغازه"
-                       FontSize="20" FontWeight="Bold"
-                       Foreground="White"
-                       HorizontalAlignment="Center"/>
+                Padding="24,16">
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                <PathIcon Data="{StaticResource IconTruck}" Width="20" Height="20"
+                          Foreground="White" VerticalAlignment="Center"/>
+                <TextBlock Text="سابقه انتقال انبار به مغازه"
+                           FontSize="20" FontWeight="Bold"
+                           Foreground="White"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
         </Border>
 
         <!-- فیلتر بازه تاریخ -->
@@ -51,24 +56,24 @@
                 </StackPanel>
 
                 <Button Content="امروز" FontSize="14" FontWeight="SemiBold"
-                        Background="#EEF2FF" Foreground="#4F46E5"
-                        Padding="16,10" Margin="0,24,0,0" CornerRadius="8"
+                        Background="{DynamicResource AppTableHeader}" Foreground="{DynamicResource AppTextPrimary}"
+                        Padding="16,10" Margin="0,24,0,0" CornerRadius="6"
                         Click="OnTodayClick"/>
                 <Button Content="این هفته" FontSize="14" FontWeight="SemiBold"
-                        Background="#EEF2FF" Foreground="#4F46E5"
-                        Padding="16,10" Margin="0,24,0,0" CornerRadius="8"
+                        Background="{DynamicResource AppTableHeader}" Foreground="{DynamicResource AppTextPrimary}"
+                        Padding="16,10" Margin="0,24,0,0" CornerRadius="6"
                         Click="OnWeekClick"/>
                 <Button Content="این ماه" FontSize="14" FontWeight="SemiBold"
-                        Background="#EEF2FF" Foreground="#4F46E5"
-                        Padding="16,10" Margin="0,24,0,0" CornerRadius="8"
+                        Background="{DynamicResource AppTableHeader}" Foreground="{DynamicResource AppTextPrimary}"
+                        Padding="16,10" Margin="0,24,0,0" CornerRadius="6"
                         Click="OnMonthClick"/>
                 <Button Content="همه سوابق" FontSize="14" FontWeight="SemiBold"
-                        Background="#FEF3C7" Foreground="#D97706"
-                        Padding="16,10" Margin="0,24,0,0" CornerRadius="8"
+                        Background="{DynamicResource AppTableHeader}" Foreground="{DynamicResource AppTextPrimary}"
+                        Padding="16,10" Margin="0,24,0,0" CornerRadius="6"
                         Click="OnAllClick"/>
                 <Button Content="اعمال فیلتر" FontSize="14" FontWeight="Bold"
                         Background="{DynamicResource AppAccent}" Foreground="White"
-                        Padding="20,10" Margin="0,24,0,0" CornerRadius="8"
+                        Padding="20,10" Margin="0,24,0,0" CornerRadius="6"
                         Click="OnApplyFilterClick"/>
             </StackPanel>
         </Border>
@@ -96,7 +101,7 @@
         <!-- جدول -->
         <Border Grid.Row="3" 
                 Background="{DynamicResource AppCardBackground}" 
-                Margin="20" CornerRadius="12"
+                Margin="20" CornerRadius="6"
                 BorderBrush="{DynamicResource AppBorder}"
                 BorderThickness="1">
             <Grid RowDefinitions="Auto,*">
@@ -104,7 +109,7 @@
                 <Border Grid.Row="0" 
                         Background="{DynamicResource AppTableHeader}" 
                         Padding="15,14"
-                        CornerRadius="12,12,0,0">
+                        CornerRadius="6,6,0,0">
                     <Grid ColumnDefinitions="110,80,*,80,100,*">
                         <TextBlock Grid.Column="0" Text="تاریخ" FontWeight="Bold" FontSize="13"
                                    Foreground="{DynamicResource AppTableHeaderText}"
@@ -169,7 +174,9 @@
                     <StackPanel x:Name="EmptyPanel"
                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                 Spacing="15" IsVisible="False">
-                        <TextBlock Text="🚚" FontSize="60" HorizontalAlignment="Center"/>
+                        <PathIcon Data="{StaticResource IconTruck}" Width="60" Height="60"
+                                  Foreground="{DynamicResource AppTextMuted}"
+                                  HorizontalAlignment="Center"/>
                         <TextBlock x:Name="EmptyTitle"
                                    Text="در این بازه انتقالی ثبت نشده"
                                    FontSize="18" FontWeight="Bold"
@@ -188,44 +195,56 @@
                 BorderThickness="0,1,0,0">
             <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="25">
-                    <StackPanel>
-                        <TextBlock Text="تعداد اقلام" FontSize="12" 
-                                   Foreground="{DynamicResource AppTextSecondary}"/>
-                        <TextBlock x:Name="TotalCountText" Text="۰"
-                                   FontSize="15" FontWeight="Bold"
-                                   Foreground="{DynamicResource AppTextPrimary}"/>
-                    </StackPanel>
-                    <StackPanel>
-                        <TextBlock Text="جمع تعداد" FontSize="12" 
-                                   Foreground="{DynamicResource AppTextSecondary}"/>
-                        <TextBlock x:Name="TotalQtyText" Text="۰"
-                                   FontSize="15" FontWeight="Bold"
-                                   Foreground="#4F46E5"/>
-                    </StackPanel>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
+                    <Border Background="{DynamicResource AppCardBackground}"
+                            BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="6">
+                        <Grid ColumnDefinitions="3,*">
+                            <Border Grid.Column="0" Background="{DynamicResource AppAccent}" CornerRadius="0,6,6,0"/>
+                            <StackPanel Grid.Column="1" Margin="12,8" Spacing="2">
+                                <TextBlock Text="تعداد اقلام" FontSize="12" 
+                                           Foreground="{DynamicResource AppTextMuted}"/>
+                                <TextBlock x:Name="TotalCountText" Text="۰"
+                                           FontSize="15" FontWeight="Bold"
+                                           Foreground="{DynamicResource AppTextPrimary}"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <Border Background="{DynamicResource AppCardBackground}"
+                            BorderBrush="{DynamicResource AppBorder}" BorderThickness="1" CornerRadius="6">
+                        <Grid ColumnDefinitions="3,*">
+                            <Border Grid.Column="0" Background="{DynamicResource AppAccent}" CornerRadius="0,6,6,0"/>
+                            <StackPanel Grid.Column="1" Margin="12,8" Spacing="2">
+                                <TextBlock Text="جمع تعداد" FontSize="12" 
+                                           Foreground="{DynamicResource AppTextMuted}"/>
+                                <TextBlock x:Name="TotalQtyText" Text="۰"
+                                           FontSize="15" FontWeight="Bold"
+                                           Foreground="{DynamicResource AppAccent}"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
                 </StackPanel>
 
                 <Button Grid.Column="1"
                         Content="خروجی اکسل"
                         FontSize="14" FontWeight="SemiBold"
                         Background="{DynamicResource AppSuccess}" Foreground="White"
-                        Padding="18,10" Margin="0,0,10,0" CornerRadius="8"
+                        Padding="18,10" Margin="0,0,10,0" CornerRadius="6"
                         Click="OnExportExcelClick"/>
 
                 <Button Grid.Column="2"
                         Content="چاپ"
                         FontSize="14" FontWeight="SemiBold"
-                        Background="#8B5CF6" Foreground="White"
-                        Padding="18,10" Margin="0,0,10,0" CornerRadius="8"
+                        Background="{DynamicResource AppAccent}" Foreground="White"
+                        Padding="18,10" Margin="0,0,10,0" CornerRadius="6"
                         Click="OnPrintClick"/>
 
                 <Button Grid.Column="3"
                         Content="بروزرسانی"
                         FontSize="14" FontWeight="SemiBold"
-                        Background="{DynamicResource AppBackground}" 
+                        Background="{DynamicResource AppTableHeader}" 
                         Foreground="{DynamicResource AppTextPrimary}"
                         BorderBrush="{DynamicResource AppBorder}" BorderThickness="1"
-                        Padding="18,10" Margin="0,0,10,0" CornerRadius="8"
+                        Padding="18,10" Margin="0,0,10,0" CornerRadius="6"
                         Click="OnRefreshClick"/>
 
                 <Button Grid.Column="4"
@@ -234,7 +253,7 @@
                         Background="{DynamicResource AppBackground}"
                         Foreground="{DynamicResource AppTextPrimary}"
                         BorderBrush="{DynamicResource AppBorder}" BorderThickness="1"
-                        Padding="22,10" CornerRadius="8"
+                        Padding="22,10" CornerRadius="6"
                         Click="OnCloseClick"/>
             </Grid>
         </Border>

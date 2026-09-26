@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Linq;
+using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Media.Transformation;
 using Avalonia.Threading;
 using ShopManager.Desktop.Services;
 using ShopManager.Domain.Helpers;
@@ -17,16 +20,22 @@ public partial class LoginWindow : Window
     private DispatcherTimer? _lockTimer;
     private int _lockSecondsRemaining = 0;
 
+    // Animation transform for the login panel slide-in (the logo uses XAML transitions)
+    private readonly TranslateTransform _loginPanelTranslate = new() { X = 0, Y = 20 };
+
     public LoginWindow()
     {
         InitializeComponent();
 
         VersionText.Text = "نسخه ۱.۰.7";
 
-        Loaded += (s, e) =>
-        {
-            UsernameTextBox.Focus();
-        };
+        // Initial logo transform; the XAML transition animates it to scale(1)/rotate(0)
+        SplashLogoBorder.RenderTransform = TransformOperations.Parse("scale(0.3) rotate(-180deg)");
+        LoginPanel.RenderTransform = _loginPanelTranslate;
+
+        // ─── شروع توالی انیمیشن اسپلش هنگام بارگذاری پنجره ───
+        // فوکوس روی نام کاربری در پایان توالی اسپلش انجام می‌شود (نه اینجا)
+        Loaded += async (s, e) => await RunSplashSequenceAsync();
 
         try
         {
@@ -40,6 +49,78 @@ public partial class LoginWindow : Window
         catch { }
     }
 
+    /// <summary>
+    /// توالی انیمیشن اسپلش: بزرگ‌شدن لوگو، ظاهر شدن عنوان/زیرعنوان/نوار پیشرفت،
+    /// سپس محو شدن اسپلش و نمایش فرم ورود.
+    /// </summary>
+    private async Task RunSplashSequenceAsync()
+    {
+        try
+        {
+            // Step 1: logo — the XAML transition animates from scale(0.3)/rotate(-180) to scale(1)/rotate(0)
+            SplashLogoBorder.Opacity = 1;
+            SplashLogoBorder.RenderTransform = TransformOperations.Parse("scale(1) rotate(0deg)");
+            await Task.Delay(500); // matches the 0.5s transition duration
+
+            // گام ۲: عنوان
+            SplashTitleText.Opacity = 1;
+            await AnimateAsync(400, (p) => { SplashTitleText.Opacity = p; });
+
+            // گام ۳: زیرعنوان
+            SplashSubtitleText.Opacity = 1;
+            await AnimateAsync(400, (p) => { SplashSubtitleText.Opacity = p; });
+
+            // گام ۴: متن لودینگ
+            SplashLoadingText.Opacity = 1;
+            await AnimateAsync(300, (p) => { SplashLoadingText.Opacity = p; });
+
+            // گام ۵: پر شدن نوار پیشرفت
+            await AnimateAsync(1500, (p) => { SplashProgressBar.Width = 200 * p; });
+
+            // گام ۶: محو شدن اسپلش و نمایش فرم ورود
+            await AnimateAsync(400, (p) => { SplashPanel.Opacity = 1 - p; });
+            SplashPanel.IsVisible = false;
+            LoginPanel.IsVisible = true;
+
+            // گام ۷: نمایش فرم ورود (محو + سرخوردن از پایین)
+            await AnimateAsync(500, (p) =>
+            {
+                LoginPanel.Opacity = p;
+                _loginPanelTranslate.Y = 20 - (20 * p);
+            });
+
+            UsernameTextBox.Focus();
+        }
+        catch (Exception ex)
+        {
+            // Never let the splash animation block startup
+            ErrorHandler.LogError(ex, "RunSplashSequenceAsync");
+            SplashPanel.IsVisible = false;
+            LoginPanel.IsVisible = true;
+            LoginPanel.Opacity = 1;
+            _loginPanelTranslate.Y = 0;
+        }
+    }
+
+    /// <summary>
+    /// انیمیشن سبک مبتنی بر Task.Delay (بدون استفاده از Avalonia.Animation).
+    /// </summary>
+    /// <param name="durationMs">مدت کل انیمیشن به میلی‌ثانیه</param>
+    /// <param name="onFrame">کال‌بک هر فریم که مقدار پیشرفت نرم‌شده (۰ تا ۱) را دریافت می‌کند</param>
+    private async Task AnimateAsync(int durationMs, Action<double> onFrame)
+    {
+        const int frameTime = 16;
+        int totalFrames = Math.Max(1, durationMs / frameTime);
+        for (int i = 1; i <= totalFrames; i++)
+        {
+            double progress = (double)i / totalFrames;
+            // نرم‌سازی cubic ease-out برای حرکت طبیعی‌تر
+            double eased = 1 - Math.Pow(1 - progress, 3);
+            onFrame(eased);
+            await Task.Delay(frameTime);
+        }
+    }
+
     private void OnPasswordKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter)
@@ -48,7 +129,7 @@ public partial class LoginWindow : Window
         }
     }
 
-    private void OnLoginClick(object? sender, RoutedEventArgs e)
+    private async void OnLoginClick(object? sender, RoutedEventArgs e)
     {
         if (_isLocked)
         {
@@ -80,9 +161,42 @@ public partial class LoginWindow : Window
             _failedAttempts = 0;
             ShowMessage(message, isError: false);
 
+            // ─── چک تغییر رمز ضروری ───
+            var currentUser = AuthService.CurrentUser;
+            bool forceChangePassword = false;
+
+            if (currentUser != null)
+            {
+                // حالت ۱: پرچم از دیتابیس true باشد
+                if (currentUser.MustChangePassword)
+                {
+                    forceChangePassword = true;
+                }
+                // حالت ۲: کاربر admin با رمز پیش‌فرض admin (برای adminهای قدیمی)
+                else if (username.Trim().ToLower() == "admin"
+                         && password == "admin")
+                {
+                    forceChangePassword = true;
+                }
+            }
+
+            if (forceChangePassword && currentUser != null)
+            {
+                var changeWindow = new ChangePasswordWindow(currentUser);
+                var result = await changeWindow.ShowDialog<bool>(this);
+
+                if (!result)
+                {
+                    // کاربر انصراف داد — بستن برنامه
+                    AuthService.Logout("انصراف از تغییر رمز");
+                    Environment.Exit(0);
+                    return;
+                }
+            }
+
+            // باز کردن پنجره اصلی
             var mainWindow = new MainWindow();
             mainWindow.Show();
-
             Close();
         }
         else
@@ -101,21 +215,15 @@ public partial class LoginWindow : Window
         }
     }
 
+    /// <summary>
+    /// نمایش پیام به کاربر — فقط متن رنگی، بدون پس‌زمینه.
+    /// </summary>
     private void ShowMessage(string message, bool isError)
     {
         MessageBorder.IsVisible = true;
+        MessageBorder.Background = Brushes.Transparent;
         MessageText.Text = message;
-
-        if (isError)
-        {
-            MessageBorder.Background = new SolidColorBrush(Color.Parse("#FEF2F2"));
-            MessageText.Foreground = new SolidColorBrush(Color.Parse("#DC2626"));
-        }
-        else
-        {
-            MessageBorder.Background = new SolidColorBrush(Color.Parse("#ECFDF5"));
-            MessageText.Foreground = new SolidColorBrush(Color.Parse("#059669"));
-        }
+        MessageText.Foreground = new SolidColorBrush(Color.Parse(isError ? "#DC2626" : "#059669"));
     }
 
     private void StartLock(int seconds)

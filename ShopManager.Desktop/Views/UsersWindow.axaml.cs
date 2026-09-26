@@ -67,7 +67,8 @@ public partial class UsersWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"خطا: {ex.Message}";
+            ErrorHandler.LogError(ex, "Users");
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 
@@ -160,8 +161,9 @@ public partial class UsersWindow : Window
         }
         catch (Exception ex)
         {
+            ErrorHandler.LogError(ex, "Users");
             StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
-            StatusText.Text = $"خطا: {ex.Message}";
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 
@@ -185,8 +187,9 @@ public partial class UsersWindow : Window
         }
         catch (Exception ex)
         {
+            ErrorHandler.LogError(ex, "Users");
             StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
-            StatusText.Text = $"خطا: {ex.Message}";
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 
@@ -310,7 +313,8 @@ public partial class UsersWindow : Window
             }
             catch (Exception ex)
             {
-                statusText.Text = $"خطا: {ex.Message}";
+                ErrorHandler.LogError(ex, "Users");
+                statusText.Text = ErrorHandler.GetUserMessage(ex);
             }
         };
 
@@ -380,8 +384,9 @@ public partial class UsersWindow : Window
         }
         catch (Exception ex)
         {
+            ErrorHandler.LogError(ex, "Users");
             StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
-            StatusText.Text = $"خطا: {ex.Message}";
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 

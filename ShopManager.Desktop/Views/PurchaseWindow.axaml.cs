@@ -205,8 +205,9 @@ public partial class PurchaseWindow : Window
         }
         catch (Exception ex)
         {
+            ErrorHandler.LogError(ex, "Purchase");
             StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
-            StatusText.Text = $"خطا: {ex.Message}";
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 
@@ -349,10 +350,11 @@ public partial class PurchaseWindow : Window
         }
         catch (Exception ex)
         {
+            ErrorHandler.LogError(ex, "Purchase");
             TodayPurchasesPanel.Children.Clear();
             TodayPurchasesPanel.Children.Add(new TextBlock
             {
-                Text = $"خطا: {ex.Message}",
+                Text = ErrorHandler.GetUserMessage(ex),
                 Foreground = new SolidColorBrush(Color.Parse("#EF4444")),
                 FontSize = 13
             });

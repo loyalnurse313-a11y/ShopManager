@@ -14,17 +14,8 @@ namespace ShopManager.Desktop.Services;
 /// </summary>
 public static class BackupService
 {
-    /// <summary>پوشه محل ذخیره بکاپ‌ها</summary>
-    public static string BackupFolder
-    {
-        get
-        {
-            var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            var folder = Path.Combine(documents, "ShopManager-Backups");
-            Directory.CreateDirectory(folder);
-            return folder;
-        }
-    }
+    /// <summary>پوشه محل ذخیره بکاپ‌ها — کنار دیتابیس، روی درایو G</summary>
+    public static string BackupFolder => DatabaseService.BackupFolder;
 
     /// <summary>مسیر فایل دیتابیس اصلی</summary>
     public static string DatabasePath => DatabaseService.DatabasePath;

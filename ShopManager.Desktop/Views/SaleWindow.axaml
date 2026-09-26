@@ -5,10 +5,11 @@
         mc:Ignorable="d"
         x:Class="ShopManager.Desktop.Views.SaleWindow"
         Title="فروش روزانه"
-        Width="950" Height="900"
-        MinWidth="850" MinHeight="700"
+        Width="1280" Height="800"
+        MinWidth="1000" MinHeight="650"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
+        ExtendClientAreaToDecorationsHint="False"
         FlowDirection="RightToLeft"
         FontFamily="Vazirmatn,IRANSans,Segoe UI"
         Background="#F1F5F9">

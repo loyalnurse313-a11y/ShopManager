@@ -246,8 +246,9 @@ public partial class TransferWindow : Window
         }
         catch (Exception ex)
         {
+            ErrorHandler.LogError(ex, "Transfer");
             StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
-            StatusText.Text = $"خطا: {ex.Message}";
+            StatusText.Text = ErrorHandler.GetUserMessage(ex);
         }
     }
 
@@ -379,10 +380,11 @@ public partial class TransferWindow : Window
         }
         catch (Exception ex)
         {
+            ErrorHandler.LogError(ex, "Transfer");
             TodayTransfersPanel.Children.Clear();
             TodayTransfersPanel.Children.Add(new TextBlock
             {
-                Text = $"خطا: {ex.Message}",
+                Text = ErrorHandler.GetUserMessage(ex),
                 Foreground = new SolidColorBrush(Color.Parse("#EF4444")),
                 FontSize = 13
             });
