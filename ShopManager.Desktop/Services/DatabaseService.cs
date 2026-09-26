@@ -122,6 +122,14 @@ public static class DatabaseService
             EnsureColumnAdoNet(conn, log, "Users", "MustChangePassword", "INTEGER NOT NULL DEFAULT 0");
             EnsureColumnAdoNet(conn, log, "Sales", "CardTerminal", "TEXT");
 
+            // ─── فاز ۲: ایندکس یکتای ترکیبی روی (InvoiceNumber, ItemId) ───
+            EnsureUniqueIndexAdoNet(
+                conn,
+                log,
+                "IX_Sales_InvoiceNumber_ItemId",
+                "Sales",
+                "InvoiceNumber, ItemId");
+
             conn.Close();
         }
         catch (Exception ex)
@@ -173,6 +181,50 @@ public static class DatabaseService
         catch (Exception ex)
         {
             log.AppendLine($"    ✗ {table}.{column} FAILED: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// فاز ۲: چک و ایجاد ایندکس یکتا در سطح دیتابیس
+    /// </summary>
+    private static void EnsureUniqueIndexAdoNet(
+        SqliteConnection conn,
+        System.Text.StringBuilder log,
+        string indexName,
+        string table,
+        string columns)
+    {
+        try
+        {
+            // ─── چک کن ایندکس وجود داره ───
+            bool exists = false;
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT name FROM sqlite_master WHERE type='index' AND name=@name;";
+                cmd.Parameters.AddWithValue("@name", indexName);
+                using var reader = cmd.ExecuteReader();
+                exists = reader.Read();
+            }
+
+            if (exists)
+            {
+                log.AppendLine($"    ✓ INDEX {indexName} — exists");
+                return;
+            }
+
+            // ─── ایجاد ایندکس یکتا ───
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = $"CREATE UNIQUE INDEX IF NOT EXISTS {indexName} ON {table}({columns});";
+                cmd.ExecuteNonQuery();
+            }
+
+            log.AppendLine($"    + INDEX {indexName} — CREATED");
+        }
+        catch (Exception ex)
+        {
+            log.AppendLine($"    ✗ INDEX {indexName} FAILED: {ex.Message}");
         }
     }
 
