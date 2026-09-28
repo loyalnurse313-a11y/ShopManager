@@ -313,23 +313,82 @@ public partial class SettingsWindow : Window
         await dialog.ShowDialog(this);
     }
 
-    private async Task<bool> ShowConfirmDialog(string title, string message)
+        private async Task<bool> ShowConfirmDialog(string title, string message)
     {
-        var dialog = new Window { Title = title, Width = 460, Height = 260, WindowStartupLocation = WindowStartupLocation.CenterOwner, FlowDirection = FlowDirection.RightToLeft, FontFamily = new FontFamily("Vazirmatn,IRANSans,Segoe UI"), Background = new SolidColorBrush(Color.Parse("#F1F5F9")), CanResize = false };
-        var panel = new StackPanel { Margin = new Thickness(24), Spacing = 16 };
-        panel.Children.Add(new TextBlock { Text = "⚠️ " + title, FontSize = 16, FontWeight = FontWeight.Bold, Foreground = new SolidColorBrush(Color.Parse("#DC2626")) });
-        panel.Children.Add(new TextBlock { Text = message, FontSize = 13, Foreground = new SolidColorBrush(Color.Parse("#334155")), TextWrapping = TextWrapping.Wrap });
-        var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 10 };
-        bool result = false;
-        var yesBtn = new Button { Content = "بله", FontSize = 14, FontWeight = FontWeight.Bold, Background = new SolidColorBrush(Color.Parse("#DC2626")), Foreground = new SolidColorBrush(Color.Parse("#FFFFFF")), Padding = new Thickness(26, 10), CornerRadius = new CornerRadius(8) };
-        yesBtn.Click += (s, e) => { result = true; dialog.Close(); };
-        var noBtn = new Button { Content = "انصراف", FontSize = 14, Background = new SolidColorBrush(Color.Parse("#F1F5F9")), Foreground = new SolidColorBrush(Color.Parse("#475569")), BorderBrush = new SolidColorBrush(Color.Parse("#CBD5E1")), BorderThickness = new Thickness(1), Padding = new Thickness(26, 10), CornerRadius = new CornerRadius(8) };
-        noBtn.Click += (s, e) => dialog.Close();
-        btnPanel.Children.Add(yesBtn); btnPanel.Children.Add(noBtn); panel.Children.Add(btnPanel);
+        var dialog = new Window
+        {
+            Title = title,
+            Width = 460,
+            Height = 260,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            FlowDirection = FlowDirection.RightToLeft,
+            FontFamily = new FontFamily("Vazirmatn,IRANSans,Segoe UI"),
+            Background = new SolidColorBrush(Color.Parse("#F1F5F9")),
+            CanResize = false
+        };
+
+        var panel = new StackPanel
+        {
+            Margin = new Thickness(24),
+            Spacing = 16
+        };
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "⚠️ " + title,
+            FontSize = 16,
+            FontWeight = FontWeight.Bold,
+            Foreground = new SolidColorBrush(Color.Parse("#DC2626"))
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = message,
+            FontSize = 13,
+            Foreground = new SolidColorBrush(Color.Parse("#334155")),
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        var btnPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Spacing = 10
+        };
+
+        var yesBtn = new Button
+        {
+            Content = "بله",
+            FontSize = 14,
+            FontWeight = FontWeight.Bold,
+            Background = new SolidColorBrush(Color.Parse("#DC2626")),
+            Foreground = new SolidColorBrush(Color.Parse("#FFFFFF")),
+            Padding = new Thickness(26, 10),
+            CornerRadius = new CornerRadius(8)
+        };
+        yesBtn.Click += (s, e) => dialog.Close(true);   // ✅ اصلاح — قبلاً Close() بدون آرگومان بود
+
+        var noBtn = new Button
+        {
+            Content = "انصراف",
+            FontSize = 14,
+            Background = new SolidColorBrush(Color.Parse("#F1F5F9")),
+            Foreground = new SolidColorBrush(Color.Parse("#475569")),
+            BorderBrush = new SolidColorBrush(Color.Parse("#CBD5E1")),
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(26, 10),
+            CornerRadius = new CornerRadius(8)
+        };
+        noBtn.Click += (s, e) => dialog.Close(false);   // ✅ اصلاح
+
+        btnPanel.Children.Add(yesBtn);
+        btnPanel.Children.Add(noBtn);
+        panel.Children.Add(btnPanel);
+
         dialog.Content = panel;
+
         return await dialog.ShowDialog<bool>(this);
     }
-
     // ═══ تب ظاهر ═══
     private void LoadAppearanceTab()
     {

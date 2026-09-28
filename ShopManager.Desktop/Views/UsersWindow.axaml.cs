@@ -233,7 +233,7 @@ public partial class UsersWindow : Window
             PasswordChar = '●',
             FontSize = 14,
             Padding = new Avalonia.Thickness(12, 10),
-            Watermark = "حداقل ۴ کاراکتر"
+            PlaceholderText = "حداقل ۴ کاراکتر"
         };
         panel.Children.Add(newPassBox);
 

@@ -317,7 +317,7 @@ public partial class PurchaseHistoryWindow : Window
             sb.AppendLine("</style></head><body>");
             sb.AppendLine($"<h1>{HtmlEncoder.Encode(string.IsNullOrWhiteSpace(StoreSettingsService.Current.StoreName) ? "فروشگاه" : StoreSettingsService.Current.StoreName)}</h1>");
             sb.AppendLine("<h2>سابقه خرید از تأمین‌کننده</h2>");
-            sb.AppendLine($"<div class='range'>از تاریخ: {PersianNumber.ToPersianDigits(FromDateBox.Text ?? "—")} — تا تاریخ: {PersianNumber.ToPersianDigits(ToDateBox.Text ?? "—")}</div>");
+            sb.AppendLine($"<div class='range'>از تاریخ: {HtmlEncoder.Encode(PersianNumber.ToPersianDigits(FromDateBox.Text ?? "—"))} — تا تاریخ: {HtmlEncoder.Encode(PersianNumber.ToPersianDigits(ToDateBox.Text ?? "—"))}</div>");
             sb.AppendLine("<table><thead><tr>");
             sb.AppendLine("<th>#</th>");
             sb.AppendLine("<th>تاریخ</th>");
@@ -339,10 +339,10 @@ public partial class PurchaseHistoryWindow : Window
 
                 sb.AppendLine("<tr>");
                 sb.AppendLine($"<td>{PersianNumber.ToPersian(idx)}</td>");
-                sb.AppendLine($"<td>{PersianNumber.ToPersianDigits(p.DateShamsi)}</td>");
+                sb.AppendLine($"<td>{HtmlEncoder.Encode(PersianNumber.ToPersianDigits(p.DateShamsi))}</td>");
                 sb.AppendLine($"<td>{PersianNumber.ToPersian(item?.ItemCode ?? 0)}</td>");
-                sb.AppendLine($"<td style='text-align:right; font-weight:600;'>{item?.Name ?? "—"}</td>");
-                sb.AppendLine($"<td>{item?.Unit ?? "—"}</td>");
+                sb.AppendLine($"<td style='text-align:right; font-weight:600;'>{HtmlEncoder.Encode(item?.Name ?? "—")}</td>");
+                sb.AppendLine($"<td>{HtmlEncoder.Encode(item?.Unit ?? "—")}</td>");
                 sb.AppendLine($"<td>{PersianNumber.ToPersian(p.Qty)}</td>");
                 sb.AppendLine($"<td>{PersianNumber.ToPersian(p.UnitCost)}</td>");
                 sb.AppendLine($"<td style='color:#059669;font-weight:bold;'>{PersianNumber.ToPersian(p.TotalCost)}</td>");

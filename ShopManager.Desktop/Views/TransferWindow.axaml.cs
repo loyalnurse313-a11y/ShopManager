@@ -165,6 +165,12 @@ public partial class TransferWindow : Window
             var itemCode = GetSelectedItemCode();
 
             // اعتبارسنجی
+            // گارد طول سمت منطق: MaxLength فقط UI را محدود می‌کند (منبع حقیقت = اینجا)
+            if (note is { Length: > 500 })
+            {
+                StatusText.Text = "توضیحات حداکثر ۵۰۰ کاراکتر";
+                return;
+            }
             if (string.IsNullOrWhiteSpace(dateText))
             {
                 StatusText.Text = "تاریخ را وارد کنید";

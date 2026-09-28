@@ -115,7 +115,7 @@
                                        VerticalAlignment="Center" Margin="0,0,8,0"/>
                 <TextBox Grid.Column="2"
                          x:Name="SearchBox"
-                         Watermark="جستجو بر اساس کد یا نام کالا..."
+                         PlaceholderText="جستجو بر اساس کد یا نام کالا..."
                          MinHeight="40"
                          FontSize="14" Padding="12,10"
                          CornerRadius="6"

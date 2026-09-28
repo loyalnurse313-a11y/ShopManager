@@ -1,0 +1,152 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="ShopManager.Desktop.Views.FirstRunSetupWindow"
+        Title="راه‌اندازی اولیه"
+        Width="520" Height="620"
+        MinWidth="480" MinHeight="520"
+        MaxHeight="700"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False"
+        SizeToContent="Manual"
+        ExtendClientAreaToDecorationsHint="False"
+        FlowDirection="RightToLeft"
+        FontFamily="{DynamicResource AppFontFamily}"
+        Background="{DynamicResource AppBackground}">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- ─── هدر — سبک Solid Modern (Resource در تم روشن = #0F172A) ─── -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource AppHeaderBackground}"
+                Padding="24,18">
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                <PathIcon Data="{StaticResource IconShieldAccount}"
+                          Width="22" Height="22"
+                          Foreground="White"
+                          VerticalAlignment="Center"/>
+                <TextBlock Text="راه‌اندازی اولیه — ساخت حساب مدیر"
+                           FontSize="20" FontWeight="Bold"
+                           Foreground="White"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ─── بدنه ─── -->
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Margin="20" Spacing="16">
+
+                <Border Background="{DynamicResource AppCardBackground}"
+                        CornerRadius="6"
+                        BorderBrush="{DynamicResource AppBorder}"
+                        BorderThickness="1"
+                        Padding="24">
+                    <StackPanel Spacing="16">
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconAccountPlus}"
+                                      Width="18" Height="18"
+                                      Foreground="{DynamicResource AppAccent}"
+                                      VerticalAlignment="Center"/>
+                            <TextBlock Text="ایجاد حساب مدیر"
+                                       FontSize="16" FontWeight="Bold"
+                                       Foreground="{DynamicResource AppAccent}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <TextBlock Text="این اولین اجرای برنامه است. لطفاً حساب مدیر را بسازید."
+                                   FontSize="13"
+                                   Foreground="{DynamicResource AppTextSecondary}"
+                                   TextWrapping="Wrap"/>
+
+                        <!-- ─── نام کامل ─── -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="نام کامل" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource AppTextPrimary}"/>
+                            <TextBox x:Name="FullNameTextBox"
+                                     MaxLength="200"
+                                     PlaceholderText="مثال: علی رضایی"
+                                     FontSize="14" Padding="12,10"/>
+                        </StackPanel>
+
+                        <!-- ─── نام کاربری ─── -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="نام کاربری" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource AppTextPrimary}"/>
+                            <TextBox x:Name="UsernameTextBox"
+                                     MaxLength="50"
+                                     PlaceholderText="مثال: ali"
+                                     FontSize="14" Padding="12,10"/>
+                            <TextBlock Text="حرف، عدد، نقطه، خط تیره و زیرخط — بدون فاصله"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource AppTextMuted}"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <!-- ─── رمز عبور ─── -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="رمز عبور" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource AppTextPrimary}"/>
+                            <TextBox x:Name="PasswordTextBox"
+                                     MaxLength="64"
+                                     PasswordChar="●"
+                                     PlaceholderText="حداقل ۸ کاراکتر"
+                                     FontSize="14" Padding="12,10"/>
+                            <TextBlock Text="حداقل ۸ کاراکتر، شامل حرف و عدد"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource AppTextMuted}"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <!-- ─── تکرار رمز ─── -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="تکرار رمز عبور" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource AppTextPrimary}"/>
+                            <TextBox x:Name="ConfirmPasswordTextBox"
+                                     MaxLength="64"
+                                     PasswordChar="●"
+                                     FontSize="14" Padding="12,10"/>
+                        </StackPanel>
+
+                        <!-- ─── نوار خطا (بدون MessageBox) ─── -->
+                        <Border x:Name="MessageBorder"
+                                IsVisible="False"
+                                Background="#FEF2F2"
+                                BorderBrush="#FECACA"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="12,10">
+                            <TextBlock x:Name="MessageText"
+                                       Foreground="#DC2626"
+                                       FontSize="13"
+                                       TextWrapping="Wrap"/>
+                        </Border>
+
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ─── فوتر — بدون دکمه‌ی انصراف (کاربر باید حساب بسازد) ─── -->
+        <Border Grid.Row="2"
+                Background="{DynamicResource AppCardBackground}"
+                BorderBrush="{DynamicResource AppBorder}"
+                BorderThickness="0,1,0,0"
+                Padding="20,14">
+            <Button x:Name="SaveButton"
+                    Content="ساخت حساب و شروع"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    FontSize="15" FontWeight="Bold"
+                    Background="{DynamicResource AppSuccess}"
+                    Foreground="White"
+                    Padding="20,12"
+                    CornerRadius="6"
+                    Click="OnSaveClick"/>
+        </Border>
+
+    </Grid>
+</Window>

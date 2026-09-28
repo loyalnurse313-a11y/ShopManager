@@ -43,7 +43,7 @@
                                Foreground="{DynamicResource AppTextSecondary}" Margin="0,0,0,6"/>
                     <TextBox x:Name="FromDateBox"
                              Width="140"
-                             Watermark="1405/01/01"
+                             PlaceholderText="1405/01/01"
                              FontSize="14" Padding="12,10"/>
                 </StackPanel>
 
@@ -53,7 +53,7 @@
                                Foreground="{DynamicResource AppTextSecondary}" Margin="0,0,0,6"/>
                     <TextBox x:Name="ToDateBox"
                              Width="140"
-                             Watermark="1405/12/29"
+                             PlaceholderText="1405/12/29"
                              FontSize="14" Padding="12,10"/>
                 </StackPanel>
 
@@ -142,7 +142,7 @@
                 </StackPanel>
                 <TextBox Grid.Column="1"
                          x:Name="SearchBox"
-                         Watermark="جستجو بر اساس کد یا نام کالا..."
+                         PlaceholderText="جستجو بر اساس کد یا نام کالا..."
                          FontSize="14" Padding="12,10"
                          TextChanged="OnSearchChanged"/>
             </Grid>

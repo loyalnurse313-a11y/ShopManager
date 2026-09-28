@@ -14,10 +14,13 @@ namespace ShopManager.Desktop.Views;
 
 public partial class AddItemWindow : Window
 {
-    private Item? _editingItem;
+       private Item? _editingItem;
 
-    /// <summary>سازنده — اگه itemData null باشه یعنی افزودن جدید</summary>
-    public AddItemWindow(Item? itemData = null)
+    /// <summary>سازنده‌ی پیش‌فرض — برای بارگذاری XAML از طریق runtime loader</summary>
+    public AddItemWindow() : this(null) { }
+
+    /// <summary>سازنده‌ی اصلی — اگه itemData null باشه یعنی افزودن جدید</summary>
+    public AddItemWindow(Item? itemData)
     {
         InitializeComponent();
 
@@ -127,6 +130,17 @@ public partial class AddItemWindow : Window
             var openingShopText = PersianNumber.ToEnglishDigits(OpeningShopQtyTextBox.Text ?? "0").Trim();
 
             // ─── اعتبارسنجی ───
+            // گارد طول سمت منطق: MaxLength فقط UI را محدود می‌کند (منبع حقیقت = اینجا)
+            if (nameText.Length > 200)
+            {
+                StatusText.Text = "نام کالا حداکثر ۲۰۰ کاراکتر";
+                return;
+            }
+            if (categoryText is { Length: > 100 })
+            {
+                StatusText.Text = "دسته‌بندی حداکثر ۱۰۰ کاراکتر";
+                return;
+            }
             if (string.IsNullOrWhiteSpace(codeText))
             {
                 StatusText.Text = "کد کالا را وارد کنید";

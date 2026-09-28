@@ -67,7 +67,7 @@
                     </StackPanel>
                     <TextBox x:Name="FromDateBox" 
                              Width="140"
-                             Watermark="1405/01/01"
+                             PlaceholderText="1405/01/01"
                              FontSize="14" Padding="12,10"/>
                 </StackPanel>
 
@@ -81,7 +81,7 @@
                     </StackPanel>
                     <TextBox x:Name="ToDateBox" 
                              Width="140"
-                             Watermark="1405/12/29"
+                             PlaceholderText="1405/12/29"
                              FontSize="14" Padding="12,10"/>
                 </StackPanel>
 
@@ -146,7 +146,7 @@
                            Margin="0,0,10,0"/>
                 <TextBox Grid.Column="1"
                          x:Name="SearchBox"
-                         Watermark="نام کاربری یا نام کامل..."
+                         PlaceholderText="نام کاربری یا نام کامل..."
                          FontSize="14" Padding="12,10"
                          TextChanged="OnSearchChanged"/>
             </Grid>

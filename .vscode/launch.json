@@ -1,0 +1,16 @@
+﻿{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug ShopManager.Desktop",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/ShopManager.Desktop/bin/Debug/net10.0/ShopManager.Desktop.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/ShopManager.Desktop",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    }
+  ]
+}

@@ -97,7 +97,7 @@
                                Margin="0,0,10,0"/>
                     <TextBox Grid.Column="1"
                              x:Name="SearchBox"
-                             Watermark="نام کاربری یا نام کامل..."
+                             PlaceholderText="نام کاربری یا نام کامل..."
                              FontSize="14" 
                              Padding="12,10"
                              TextChanged="OnSearchChanged"/>

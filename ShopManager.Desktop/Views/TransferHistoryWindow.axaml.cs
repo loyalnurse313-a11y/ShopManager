@@ -362,7 +362,7 @@ public partial class TransferHistoryWindow : Window
             sb.AppendLine("</style></head><body>");
             sb.AppendLine($"<h1>{HtmlEncoder.Encode(string.IsNullOrWhiteSpace(StoreSettingsService.Current.StoreName) ? "فروشگاه" : StoreSettingsService.Current.StoreName)}</h1>");
             sb.AppendLine("<h2>سابقه انتقال انبار به مغازه</h2>");
-            sb.AppendLine($"<div class='range'>از: {PersianNumber.ToPersianDigits(FromDateBox.Text ?? "—")} — تا: {PersianNumber.ToPersianDigits(ToDateBox.Text ?? "—")}</div>");
+            sb.AppendLine($"<div class='range'>از: {HtmlEncoder.Encode(PersianNumber.ToPersianDigits(FromDateBox.Text ?? "—"))} — تا: {HtmlEncoder.Encode(PersianNumber.ToPersianDigits(ToDateBox.Text ?? "—"))}</div>");
             sb.AppendLine("<table><thead><tr>");
             sb.AppendLine("<th>#</th><th>تاریخ</th><th>کد</th><th>نام کالا</th><th>واحد</th><th>تعداد</th><th>توضیحات</th>");
             sb.AppendLine("</tr></thead><tbody>");
@@ -375,12 +375,12 @@ public partial class TransferHistoryWindow : Window
 
                 sb.AppendLine("<tr>");
                 sb.AppendLine($"<td>{PersianNumber.ToPersian(idx)}</td>");
-                sb.AppendLine($"<td>{r.DateShamsi}</td>");
+                sb.AppendLine($"<td>{HtmlEncoder.Encode(r.DateShamsi)}</td>");
                 sb.AppendLine($"<td>{r.ItemCode}</td>");
-                sb.AppendLine($"<td style='text-align:right;font-weight:600;'>{r.ItemName}</td>");
-                sb.AppendLine($"<td>{r.Unit}</td>");
+                sb.AppendLine($"<td style='text-align:right;font-weight:600;'>{HtmlEncoder.Encode(r.ItemName)}</td>");
+                sb.AppendLine($"<td>{HtmlEncoder.Encode(r.Unit)}</td>");
                 sb.AppendLine($"<td style='font-weight:bold;color:#4F46E5;'>{r.Qty}</td>");
-                sb.AppendLine($"<td style='font-size:11px;color:#94A3B8;'>{r.Note}</td>");
+                sb.AppendLine($"<td style='font-size:11px;color:#94A3B8;'>{HtmlEncoder.Encode(r.Note)}</td>");
                 sb.AppendLine("</tr>");
                 idx++;
             }

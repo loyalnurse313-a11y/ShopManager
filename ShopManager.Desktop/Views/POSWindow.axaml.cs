@@ -1491,7 +1491,7 @@ public partial class POSWindow : Window
         return result;
     }
 
-    private async System.Threading.Tasks.Task<decimal> ShowAmountInputDialog(string title, string label, string watermark)
+    private async System.Threading.Tasks.Task<decimal> ShowAmountInputDialog(string title, string label, string PlaceholderText)
     {
         var dialog = new Window
         {
@@ -1523,7 +1523,7 @@ public partial class POSWindow : Window
         {
             FontSize = 18,
             Padding = new Thickness(14, 12),
-            Watermark = watermark
+            PlaceholderText = PlaceholderText
         };
         panel.Children.Add(inputBox);
 

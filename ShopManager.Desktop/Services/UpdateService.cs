@@ -11,7 +11,7 @@ namespace ShopManager.Desktop.Services;
 public class UpdateService
 {
     /// <summary>استفاده از GitHub (true) یا وب سرور (false)</summary>
-    private const bool UseGithub = true;
+    private static readonly bool UseGithub = true;
 
     /// <summary>آدرس ریپو GitHub</summary>
     private const string RepoUrl = "https://github.com/loyalnurse313-a11y/ShopManager";
@@ -31,7 +31,7 @@ public class UpdateService
             try
             {
                 var mgr = CreateUpdateManager();
-                return mgr.CurrentVersion.ToString();
+                return mgr.CurrentVersion?.ToString() ?? "—";
             }
             catch
             {
@@ -109,21 +109,17 @@ public class UpdateService
         if (_manager == null || LastUpdateInfo == null)
             return;
 
+        // بکاپ قبل از آپدیت (اجباری)
         try
         {
-            try
-            {
-                BackupService.CreateForcedBackup();
-                System.Diagnostics.Debug.WriteLine(">>> بکاپ قبل از آپدیت گرفته شد");
-            }
-            catch { }
+            BackupService.CreateForcedBackup();
+            System.Diagnostics.Debug.WriteLine(">>> بکاپ قبل از آپدیت گرفته شد");
+        }
+        catch { }
 
-            _manager.ApplyUpdatesAndRestart(LastUpdateInfo);
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($">>> خطا در اعمال آپدیت: {ex.Message}");
-        }
+        // Velopack.ApplyUpdatesAndRestart دارای [DoesNotReturn] است — هرگز برنمی‌گردد،
+        // بنابراین try-catch بیرونی غیرقابل دسترس بود و حذف شد.
+        _manager.ApplyUpdatesAndRestart(LastUpdateInfo);
     }
 
     // ═══════════════════════════════════════════

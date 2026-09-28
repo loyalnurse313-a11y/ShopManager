@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -36,17 +35,6 @@ public partial class LoginWindow : Window
         // ─── شروع توالی انیمیشن اسپلش هنگام بارگذاری پنجره ───
         // فوکوس روی نام کاربری در پایان توالی اسپلش انجام می‌شود (نه اینجا)
         Loaded += async (s, e) => await RunSplashSequenceAsync();
-
-        try
-        {
-            using var db = DatabaseService.CreateContext();
-            var adminExists = db.Users.Any(u => u.Username == "admin");
-            if (adminExists)
-            {
-                UsernameTextBox.Text = "admin";
-            }
-        }
-        catch { }
     }
 
     /// <summary>
@@ -161,24 +149,12 @@ public partial class LoginWindow : Window
             _failedAttempts = 0;
             ShowMessage(message, isError: false);
 
-            // ─── چک تغییر رمز ضروری ───
+            // ─── چک تغییر رمز ضروری (فقط از پرچم دیتابیس) ───
             var currentUser = AuthService.CurrentUser;
-            bool forceChangePassword = false;
+            bool forceChangePassword = currentUser?.MustChangePassword == true;
 
-            if (currentUser != null)
-            {
-                // حالت ۱: پرچم از دیتابیس true باشد
-                if (currentUser.MustChangePassword)
-                {
-                    forceChangePassword = true;
-                }
-                // حالت ۲: کاربر admin با رمز پیش‌فرض admin (برای adminهای قدیمی)
-                else if (username.Trim().ToLower() == "admin"
-                         && password == "admin")
-                {
-                    forceChangePassword = true;
-                }
-            }
+            // حالت «admin با رمز پیش‌فرض» توسط AuthServiceInitializer.CheckLegacyAdminPassword()
+            // در استارتاپ تشخیص داده و پرچمش روشن می‌شود — نیازی به مقایسه‌ی رمز خام اینجا نیست
 
             if (forceChangePassword && currentUser != null)
             {
@@ -189,7 +165,18 @@ public partial class LoginWindow : Window
                 {
                     // کاربر انصراف داد — بستن برنامه
                     AuthService.Logout("انصراف از تغییر رمز");
-                    Environment.Exit(0);
+
+                    // Shutdown() باعث اجرای ShutdownRequested در App.axaml.cs می‌شود
+                    // (بکاپ نهایی) — برخلاف Environment.Exit که آن را دور می‌زند
+                    if (Application.Current?.ApplicationLifetime
+                        is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+                    {
+                        desktop.Shutdown();
+                    }
+                    else
+                    {
+                        Environment.Exit(0);
+                    }
                     return;
                 }
             }

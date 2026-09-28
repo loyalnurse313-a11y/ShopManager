@@ -42,7 +42,7 @@
                             <TextBlock Text="*" FontSize="14" FontWeight="Bold" Foreground="#EF4444"/>
                         </StackPanel>
                         <TextBox x:Name="DateTextBox" 
-                                 Watermark="مثال: 1405/07/05"
+                                 PlaceholderText="مثال: 1405/07/05"
                                  FontSize="15" Padding="14,12"/>
                     </StackPanel>
 
@@ -55,7 +55,7 @@
                                 <TextBlock Text="*" FontSize="14" FontWeight="Bold" Foreground="#EF4444"/>
                             </StackPanel>
                             <AutoCompleteBox x:Name="ItemSearchBox"
-                                             Watermark="کد یا نام کالا..."
+                                             PlaceholderText="کد یا نام کالا..."
                                              FontSize="15" Padding="14,12"
                                              FilterMode="Contains"
                                              MinimumPrefixLength="1"
@@ -109,7 +109,7 @@
                             <TextBlock Text="*" FontSize="14" FontWeight="Bold" Foreground="#EF4444"/>
                         </StackPanel>
                         <TextBox x:Name="QtyTextBox" 
-                                 Watermark="مثال: 50"
+                                 PlaceholderText="مثال: 50"
                                  FontSize="15" Padding="14,12"
                                  TextChanged="OnQtyChanged"/>
                     </StackPanel>
@@ -152,7 +152,8 @@
                                    FontSize="14" FontWeight="SemiBold" Foreground="#334155"
                                    Margin="0,0,0,8"/>
                         <TextBox x:Name="NoteTextBox" 
-                                 Watermark="مثال: شارژ هفتگی مغازه"
+                                 MaxLength="500"
+                                 PlaceholderText="مثال: شارژ هفتگی مغازه"
                                  FontSize="15" Padding="14,12"/>
                     </StackPanel>
 

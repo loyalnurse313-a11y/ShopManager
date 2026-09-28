@@ -412,7 +412,7 @@ public partial class LoginHistoryWindow : Window
             sb.AppendLine("</style></head><body>");
             sb.AppendLine($"<h1>{HtmlEncoder.Encode(string.IsNullOrWhiteSpace(StoreSettingsService.Current.StoreName) ? "فروشگاه" : StoreSettingsService.Current.StoreName)}</h1>");
             sb.AppendLine("<h2>سابقه ورود و خروج کاربران</h2>");
-            sb.AppendLine($"<div class='range'>از: {PersianNumber.ToPersianDigits(FromDateBox.Text ?? "—")} — تا: {PersianNumber.ToPersianDigits(ToDateBox.Text ?? "—")}</div>");
+            sb.AppendLine($"<div class='range'>از: {HtmlEncoder.Encode(PersianNumber.ToPersianDigits(FromDateBox.Text ?? "—"))} — تا: {HtmlEncoder.Encode(PersianNumber.ToPersianDigits(ToDateBox.Text ?? "—"))}</div>");
             sb.AppendLine("<table><thead><tr>");
             sb.AppendLine("<th>#</th><th>نام کاربری</th><th>نام کامل</th><th>زمان ورود</th><th>زمان خروج</th><th>مدت</th><th>وضعیت</th>");
             sb.AppendLine("</tr></thead><tbody>");
@@ -422,8 +422,8 @@ public partial class LoginHistoryWindow : Window
             {
                 sb.AppendLine("<tr>");
                 sb.AppendLine($"<td>{PersianNumber.ToPersian(idx)}</td>");
-                sb.AppendLine($"<td style='font-weight:600;color:#4F46E5;'>{r.Username}</td>");
-                sb.AppendLine($"<td>{r.FullName}</td>");
+                sb.AppendLine($"<td style='font-weight:600;color:#4F46E5;'>{HtmlEncoder.Encode(r.Username)}</td>");
+                sb.AppendLine($"<td>{HtmlEncoder.Encode(r.FullName)}</td>");
                 sb.AppendLine($"<td>{r.LoginAt}</td>");
                 sb.AppendLine($"<td>{r.LogoutAt}</td>");
                 sb.AppendLine($"<td style='font-weight:600;'>{r.Duration}</td>");

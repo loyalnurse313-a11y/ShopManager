@@ -267,7 +267,7 @@
                                 <TextBlock Text="تاریخ" FontSize="14" FontWeight="SemiBold"
                                            Foreground="{DynamicResource AppTextPrimary}" Margin="0,0,0,8"/>
                                 <TextBox x:Name="DateTextBox"
-                                         Watermark="1405/07/05"
+                                         PlaceholderText="1405/07/05"
                                          FontSize="15" Padding="14,12"/>
                             </StackPanel>
 
@@ -290,7 +290,7 @@
                                 <TextBlock Text="طرف‌حساب / شرح" FontSize="14" FontWeight="SemiBold"
                                            Foreground="{DynamicResource AppTextPrimary}" Margin="0,0,0,8"/>
                                 <TextBox x:Name="CounterpartyTextBox"
-                                         Watermark="مثال: علی رضایی"
+                                         PlaceholderText="مثال: علی رضایی"
                                          FontSize="15" Padding="14,12"/>
                             </StackPanel>
                         </Grid>
@@ -300,7 +300,7 @@
                                 <TextBlock Text="مبلغ (تومان)" FontSize="14" FontWeight="SemiBold"
                                            Foreground="{DynamicResource AppTextPrimary}" Margin="0,0,0,8"/>
                                 <TextBox x:Name="AmountTextBox"
-                                         Watermark="مثال: 5000000"
+                                         PlaceholderText="مثال: 5000000"
                                          FontSize="15" Padding="14,12"/>
                             </StackPanel>
 
@@ -308,7 +308,7 @@
                                 <TextBlock Text="توضیحات" FontSize="14" FontWeight="SemiBold"
                                            Foreground="{DynamicResource AppTextPrimary}" Margin="0,0,0,8"/>
                                 <TextBox x:Name="NoteTextBox"
-                                         Watermark="اختیاری"
+                                         PlaceholderText="اختیاری"
                                          FontSize="15" Padding="14,12"/>
                             </StackPanel>
                         </Grid>

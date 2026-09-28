@@ -1,0 +1,19 @@
+﻿{
+  "dotnet.defaultSolution": "ShopManager.slnx",
+  "dotnet.server.useOmnisharp": false,
+  "omnisharp.enableRoslynAnalyzers": true,
+  "files.exclude": {
+    "**/bin": true,
+    "**/obj": true,
+    "**/.vs": true
+  },
+  "editor.formatOnSave": true,
+  "files.encoding": "utf8bom",
+  "[csharp]": {
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true
+  },
+  "[xml]": {
+    "editor.tabSize": 4
+  }
+}

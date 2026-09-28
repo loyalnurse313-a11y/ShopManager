@@ -149,7 +149,7 @@
                                            VerticalAlignment="Center"/>
                             </StackPanel>
                             <TextBox x:Name="CustomerNameBox"
-                                     Watermark="مثال: علی رضایی"
+                                     PlaceholderText="مثال: علی رضایی"
                                      FontSize="14"
                                      Padding="12,8"
                                      Background="White"
@@ -173,7 +173,7 @@
                                            VerticalAlignment="Center"/>
                             </StackPanel>
                             <TextBox x:Name="CustomerPhoneBox"
-                                     Watermark="مثال: 09123456789"
+                                     PlaceholderText="مثال: 09123456789"
                                      FontSize="14"
                                      Padding="12,8"
                                      Background="White"
@@ -374,7 +374,7 @@
                         </StackPanel>
 
                         <TextBox x:Name="BarcodeSearchBox"
-                                 Watermark="بارکد رو اسکن کن یا نام کالا رو تایپ کن..."
+                                 PlaceholderText="بارکد رو اسکن کن یا نام کالا رو تایپ کن..."
                                  FontSize="18"
                                  Padding="16,14"
                                  Background="#1E293B"

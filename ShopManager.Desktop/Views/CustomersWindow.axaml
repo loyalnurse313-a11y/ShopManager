@@ -48,7 +48,7 @@
                 </StackPanel>
                 <TextBox Grid.Column="1"
                          x:Name="SearchBox"
-                         Watermark="جستجو بر اساس نام یا شماره تماس..."
+                         PlaceholderText="جستجو بر اساس نام یا شماره تماس..."
                          FontSize="14" Padding="14,10"
                          TextChanged="OnSearchChanged"/>
             </Grid>

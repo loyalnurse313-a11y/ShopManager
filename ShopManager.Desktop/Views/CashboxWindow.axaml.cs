@@ -244,7 +244,7 @@ public partial class CashboxWindow : Window
             FontSize = 15,
             Padding = new Thickness(14, 12),
             Text = "0",
-            Watermark = "مثال: 500000000"
+            PlaceholderText = "مثال: 500000000"
         };
 
         try

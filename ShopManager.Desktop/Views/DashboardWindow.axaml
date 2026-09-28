@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui"
+﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -516,13 +516,13 @@
                                 <TextBlock Text="از تاریخ" FontSize="13" FontWeight="SemiBold"
                                            Foreground="{DynamicResource AppTextPrimary}" Margin="0,0,0,6"/>
                                 <TextBox x:Name="FromDateBox" Width="140"
-                                         Watermark="1405/01/01" FontSize="14" Padding="12,10"/>
+                                         PlaceholderText="1405/01/01" FontSize="14" Padding="12,10"/>
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="تا تاریخ" FontSize="13" FontWeight="SemiBold"
                                            Foreground="{DynamicResource AppTextPrimary}" Margin="0,0,0,6"/>
                                 <TextBox x:Name="ToDateBox" Width="140"
-                                         Watermark="1405/12/29" FontSize="14" Padding="12,10"/>
+                                         PlaceholderText="1405/12/29" FontSize="14" Padding="12,10"/>
                             </StackPanel>
                             <Button Content="امروز" FontSize="14" FontWeight="SemiBold"
                                     Background="{DynamicResource AppTableHeader}"

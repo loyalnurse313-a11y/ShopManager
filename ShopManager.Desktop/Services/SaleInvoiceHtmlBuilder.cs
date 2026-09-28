@@ -159,10 +159,8 @@ public static class SaleInvoiceHtmlBuilder
         sb.AppendLine("<body>");
         sb.AppendLine("<div class='invoice'>");
 
-        // ═══════════ هدر با لوگو ═══════════
+                // ═══════════ هدر با لوگو ═══════════
         sb.AppendLine("<div class='header'>");
-
-        var logoShown = false;
 
         if (showLogo)
         {
@@ -170,10 +168,8 @@ public static class SaleInvoiceHtmlBuilder
             if (logoData != null)
             {
                 sb.AppendLine($"<img src='{logoData}' class='header-logo' alt='لوگو' />");
-                logoShown = true;
             }
         }
-
         // escape نام فروشگاه برای جلوگیری از XSS
         sb.AppendLine($"<h1>{HtmlEncoder.Encode(settings.StoreName)}</h1>");
 

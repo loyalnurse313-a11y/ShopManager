@@ -1,4 +1,4 @@
-<!-- اصلاح ارتفاع دیالوگ افزودن/ویرایش کاربر — جلوگیری از بیرون‌زدن پنجره از بالای مانیتور -->
+﻿<!-- اصلاح ارتفاع دیالوگ افزودن/ویرایش کاربر — جلوگیری از بیرون‌زدن پنجره از بالای مانیتور -->
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -57,7 +57,8 @@
                                 <TextBlock Text="نام کاربری" FontSize="13" FontWeight="SemiBold"
                                            Foreground="{DynamicResource AppTextPrimary}"/>
                                 <TextBox x:Name="UsernameTextBox"
-                                         Watermark="مثال: ali"
+                                         MaxLength="50"
+                                         PlaceholderText="مثال: ali"
                                          FontSize="14"
                                          Padding="12,10"/>
                             </StackPanel>
@@ -66,7 +67,8 @@
                                 <TextBlock Text="نام کامل" FontSize="13" FontWeight="SemiBold"
                                            Foreground="{DynamicResource AppTextPrimary}"/>
                                 <TextBox x:Name="FullNameTextBox"
-                                         Watermark="مثال: علی رضایی"
+                                         MaxLength="200"
+                                         PlaceholderText="مثال: علی رضایی"
                                          FontSize="14"
                                          Padding="12,10"/>
                             </StackPanel>
@@ -78,7 +80,7 @@
                                            Foreground="{DynamicResource AppTextPrimary}"/>
                                 <TextBox x:Name="PasswordTextBox"
                                          PasswordChar="●"
-                                         Watermark="حداقل ۴ کاراکتر"
+                                         PlaceholderText="حداقل ۴ کاراکتر"
                                          FontSize="14"
                                          Padding="12,10"/>
                             </StackPanel>

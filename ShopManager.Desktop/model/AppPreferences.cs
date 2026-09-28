@@ -19,7 +19,4 @@ public class AppPreferences
 
     /// <summary>آخرین پایانه POS استفاده‌شده</summary>
     public string LastPOSTerminal { get; set; } = "";
-
-    /// <summary>کلید API دیپ‌سیک برای دستیار هوشمند</summary>
-    public string DeepSeekApiKey { get; set; } = "";
 }

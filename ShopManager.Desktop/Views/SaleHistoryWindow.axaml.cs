@@ -317,7 +317,7 @@ public partial class SaleHistoryWindow : Window
             sb.AppendLine("</style></head><body>");
             sb.AppendLine($"<h1>{HtmlEncoder.Encode(string.IsNullOrWhiteSpace(StoreSettingsService.Current.StoreName) ? "فروشگاه" : StoreSettingsService.Current.StoreName)}</h1>");
             sb.AppendLine("<h2>سابقه فروش روزانه</h2>");
-            sb.AppendLine($"<p style='text-align:center; font-size: 12px;'>از: {FromDateBox.Text} — تا: {ToDateBox.Text}</p>");
+            sb.AppendLine($"<p style='text-align:center; font-size: 12px;'>از: {HtmlEncoder.Encode(FromDateBox.Text ?? "")} — تا: {HtmlEncoder.Encode(ToDateBox.Text ?? "")}</p>");
             sb.AppendLine("<table><thead><tr>");
             sb.AppendLine("<th>#</th><th>تاریخ</th><th>فاکتور</th><th>نام کالا</th><th>تعداد</th><th>قیمت</th><th>درآمد</th><th>سود</th><th>پرداخت</th>");
             sb.AppendLine("</tr></thead><tbody>");
@@ -343,13 +343,13 @@ public partial class SaleHistoryWindow : Window
                 sb.AppendLine("<tr>");
                 sb.AppendLine($"<td>{PersianNumber.ToPersian(idx)}</td>");
                 sb.AppendLine($"<td>{PersianNumber.ToPersianDigits(s.DateShamsi)}</td>");
-                sb.AppendLine($"<td>{PersianNumber.ToPersianDigits(s.InvoiceNumber ?? "—")}</td>");
-                sb.AppendLine($"<td style='text-align:right;'>{item?.Name ?? "—"}</td>");
+                sb.AppendLine($"<td>{HtmlEncoder.Encode(PersianNumber.ToPersianDigits(s.InvoiceNumber ?? "—"))}</td>");
+                sb.AppendLine($"<td style='text-align:right;'>{HtmlEncoder.Encode(item?.Name ?? "—")}</td>");
                 sb.AppendLine($"<td>{PersianNumber.ToPersian(s.Qty)}</td>");
                 sb.AppendLine($"<td>{PersianNumber.ToPersian(s.SaleUnitPrice)}</td>");
                 sb.AppendLine($"<td style='color:#059669;font-weight:bold;'>{PersianNumber.ToPersian(s.Revenue)}</td>");
                 sb.AppendLine($"<td style='color:#10B981;font-weight:bold;'>{PersianNumber.ToPersian(s.Profit)}</td>");
-                sb.AppendLine($"<td>{payType}</td>");
+                sb.AppendLine($"<td>{HtmlEncoder.Encode(payType)}</td>");
                 sb.AppendLine("</tr>");
                 idx++;
             }

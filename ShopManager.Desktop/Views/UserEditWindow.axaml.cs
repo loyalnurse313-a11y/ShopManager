@@ -13,12 +13,15 @@ namespace ShopManager.Desktop.Views;
 
 public partial class UserEditWindow : Window
 {
-    private User? _editingUser;
+       private User? _editingUser;
 
+    /// <summary>سازنده‌ی پیش‌فرض — برای بارگذاری XAML از طریق runtime loader</summary>
+    public UserEditWindow() : this(null) { }
+
+    /// <summary>سازنده‌ی اصلی — برای افزودن (null) یا ویرایش کاربر</summary>
     public UserEditWindow(User? userData)
     {
         InitializeComponent();
-
         _editingUser = userData;
 
         if (_editingUser == null)
@@ -66,6 +69,17 @@ public partial class UserEditWindow : Window
             var role = RoleComboBox.SelectedIndex == 0 ? UserRole.Admin : UserRole.User;
             var isActive = IsActiveCheckBox.IsChecked == true;
 
+            // گارد طول سمت منطق: MaxLength فقط UI را محدود می‌کند (منبع حقیقت = اینجا)
+            if (username.Length > 50)
+            {
+                StatusText.Text = "نام کاربری حداکثر ۵۰ کاراکتر";
+                return;
+            }
+            if (fullName.Length > 200)
+            {
+                StatusText.Text = "نام کامل حداکثر ۲۰۰ کاراکتر";
+                return;
+            }
             if (string.IsNullOrWhiteSpace(username) || username.Length < 3)
             {
                 StatusText.Text = "نام کاربری باید حداقل ۳ کاراکتر باشد";

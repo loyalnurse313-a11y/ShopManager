@@ -59,7 +59,8 @@
                                     <TextBlock Text="*" FontSize="13" FontWeight="Bold" Foreground="#EF4444"/>
                                 </StackPanel>
                                 <TextBox x:Name="ItemCodeTextBox"
-                                         Watermark="مثال: 1001"
+                                         MaxLength="10"
+                                         PlaceholderText="مثال: 1001"
                                          FontSize="14" Padding="12,10"/>
                             </StackPanel>
 
@@ -87,7 +88,8 @@
                                 <TextBlock Text="*" FontSize="13" FontWeight="Bold" Foreground="#EF4444"/>
                             </StackPanel>
                             <TextBox x:Name="NameTextBox"
-                                     Watermark="مثال: لیوان یکبار مصرف ۲۰۰cc"
+                                     MaxLength="200"
+                                     PlaceholderText="مثال: لیوان یکبار مصرف ۲۰۰cc"
                                      FontSize="14" Padding="12,10"/>
                         </StackPanel>
 
@@ -96,7 +98,8 @@
                             <TextBlock Text="دسته‌بندی (اختیاری)" FontSize="13" FontWeight="SemiBold"
                                        Foreground="{DynamicResource AppTextPrimary}"/>
                             <TextBox x:Name="CategoryTextBox"
-                                     Watermark="مثال: یکبارمصرف، لبنیاتی، بسته‌بندی"
+                                     MaxLength="100"
+                                     PlaceholderText="مثال: یکبارمصرف، لبنیاتی، بسته‌بندی"
                                      FontSize="14" Padding="12,10"/>
                         </StackPanel>
 
@@ -126,7 +129,7 @@
                                            FontSize="13" FontWeight="SemiBold"
                                            Foreground="{DynamicResource AppTextPrimary}"/>
                                 <TextBox x:Name="PurchasePriceTextBox"
-                                         Watermark="اختیاری — از خرید بعدی خودکار میاد"
+                                         PlaceholderText="اختیاری — از خرید بعدی خودکار میاد"
                                          FontSize="14" Padding="12,10"
                                          TextChanged="OnPriceChanged"/>
                             </StackPanel>
@@ -153,7 +156,7 @@
                                            Foreground="{DynamicResource AppTextSecondary}"/>
                             </StackPanel>
                             <TextBox x:Name="SalePriceTextBox"
-                                     Watermark="اگه خالی بذاری، خودکار محاسبه می‌شه"
+                                     PlaceholderText="اگه خالی بذاری، خودکار محاسبه می‌شه"
                                      FontSize="14" Padding="12,10"/>
                         </StackPanel>
 
@@ -243,7 +246,7 @@
                                            FontSize="13" FontWeight="SemiBold"
                                            Foreground="{DynamicResource AppTextPrimary}"/>
                                 <TextBox x:Name="CriticalFixedTextBox"
-                                         Watermark="مثال: 20"
+                                         PlaceholderText="مثال: 20"
                                          FontSize="14" Padding="12,10"/>
                             </StackPanel>
 
@@ -252,7 +255,7 @@
                                            FontSize="13" FontWeight="SemiBold"
                                            Foreground="{DynamicResource AppTextPrimary}"/>
                                 <TextBox x:Name="WarningFixedTextBox"
-                                         Watermark="مثال: 50"
+                                         PlaceholderText="مثال: 50"
                                          FontSize="14" Padding="12,10"/>
                             </StackPanel>
                         </Grid>

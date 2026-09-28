@@ -14,9 +14,12 @@ namespace ShopManager.Desktop.Views;
 /// </summary>
 public partial class ChangePasswordWindow : Window
 {
-    private User? _user;
+       private User? _user;
 
-    /// <summary>سازنده پنجره تغییر رمز</summary>
+    /// <summary>سازنده‌ی پیش‌فرض — برای بارگذاری XAML از طریق runtime loader</summary>
+    public ChangePasswordWindow() : this(null!) { }
+
+    /// <summary>سازنده‌ی اصلی — با کاربر اجباری برای تغییر رمز</summary>
     public ChangePasswordWindow(User user)
     {
         InitializeComponent();

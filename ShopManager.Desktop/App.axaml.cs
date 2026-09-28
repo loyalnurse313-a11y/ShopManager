@@ -43,23 +43,24 @@ public partial class App : Application
             }
 
             // ─── راه‌اندازی اولیه سیستم کاربران ───
+            bool hasUsers = false;
             try
             {
-                bool adminCreated = AuthServiceInitializer.EnsureDefaultAdmin();
+                // مهاجرت کاربران v1.0.7 (رمز پیش‌فرض admin) → اجبار تغییر رمز
+                AuthServiceInitializer.CheckLegacyAdminPassword();
 
-                if (adminCreated)
-                {
-                    System.Diagnostics.Debug.WriteLine(
-                        ">>> Default admin created: admin / admin");
-                }
+                hasUsers = AuthServiceInitializer.HasAnyUser();
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($">>> Auth init error: {ex.Message}");
+                hasUsers = true;  // fallback ایمن → LoginWindow
             }
 
-            // ─── باز کردن LoginWindow ───
-            desktop.MainWindow = new LoginWindow();
+            // ─── انتخاب پنجره‌ی شروع ───
+            desktop.MainWindow = hasUsers
+                ? new LoginWindow()
+                : new FirstRunSetupWindow();
 
             // ─── بکاپ نهایی وقتی برنامه بسته می‌شه ───
             desktop.ShutdownRequested += (s, e) =>

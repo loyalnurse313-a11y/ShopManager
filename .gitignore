@@ -22,3 +22,8 @@ Thumbs.db
 # Logs
 *.log
 error-log.txt
+
+# Backups (محلی — نباید در Git باشند)
+ShopManager.Desktop_BACKUP_*/
+ShopManager_Backup_*/
+ShopManager_Backup_*/*

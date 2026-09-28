@@ -94,21 +94,21 @@
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="نام فروشگاه" Classes="fieldLabel" Foreground="{DynamicResource AppTextPrimary}"/>
-                                <TextBox x:Name="StoreNameBox" Watermark="مثال: فروشگاه" FontSize="14" Padding="12,10"/>
+                                <TextBox x:Name="StoreNameBox" PlaceholderText="مثال: فروشگاه" FontSize="14" Padding="12,10"/>
                             </StackPanel>
                             <Grid ColumnDefinitions="*,16,*">
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Text="شماره تماس" Classes="fieldLabel" Foreground="{DynamicResource AppTextPrimary}"/>
-                                    <TextBox x:Name="StorePhoneBox" Watermark="مثال: 044-34567890" FontSize="14" Padding="12,10"/>
+                                    <TextBox x:Name="StorePhoneBox" PlaceholderText="مثال: 044-34567890" FontSize="14" Padding="12,10"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="آدرس (اختیاری)" Classes="fieldLabel" Foreground="{DynamicResource AppTextPrimary}"/>
-                                    <TextBox x:Name="StoreAddressBox" Watermark="مثال: آدرس فروشگاه" FontSize="14" Padding="12,10"/>
+                                    <TextBox x:Name="StoreAddressBox" PlaceholderText="مثال: آدرس فروشگاه" FontSize="14" Padding="12,10"/>
                                 </StackPanel>
                             </Grid>
                             <StackPanel>
                                 <TextBlock Text="متن پایین فاکتور" Classes="fieldLabel" Foreground="{DynamicResource AppTextPrimary}"/>
-                                <TextBox x:Name="FooterTextBox" Watermark="مثال: از خرید شما سپاسگزاریم" FontSize="14" Padding="12,10"/>
+                                <TextBox x:Name="FooterTextBox" PlaceholderText="مثال: از خرید شما سپاسگزاریم" FontSize="14" Padding="12,10"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -154,11 +154,11 @@
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="سرمایه اولیه صندوق (تومان)" Classes="fieldLabel" Foreground="{DynamicResource AppTextPrimary}"/>
-                                <TextBox x:Name="InitialCapitalBox" Watermark="مثال: 500000000" FontSize="14" Padding="12,10"/>
+                                <TextBox x:Name="InitialCapitalBox" PlaceholderText="مثال: 500000000" FontSize="14" Padding="12,10"/>
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="درصد سود پیش‌فرض (%)" Classes="fieldLabel" Foreground="{DynamicResource AppTextPrimary}"/>
-                                <TextBox x:Name="DefaultMarkupBox" Watermark="مثال: 30" FontSize="14" Padding="12,10"/>
+                                <TextBox x:Name="DefaultMarkupBox" PlaceholderText="مثال: 30" FontSize="14" Padding="12,10"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -168,7 +168,7 @@
                                 <PathIcon Data="{StaticResource IconCreditCard}" Width="18" Height="18" Foreground="{DynamicResource AppAccent}" VerticalAlignment="Center"/>
                                 <TextBlock Text="پایانه‌های POS بانکی" Classes="sectionTitle" Foreground="{DynamicResource AppAccent}" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <TextBox x:Name="POSTerminalsBox" AcceptsReturn="True" Height="150" FontSize="14" Padding="12,10" TextWrapping="Wrap" Watermark="هر خط یه پایانه:&#x0a;بانک ملی - صندوق ۱&#x0a;پاسارگاد - صندوق ۲"/>
+                            <TextBox x:Name="POSTerminalsBox" AcceptsReturn="True" Height="150" FontSize="14" Padding="12,10" TextWrapping="Wrap" PlaceholderText="هر خط یه پایانه:&#x0a;بانک ملی - صندوق ۱&#x0a;پاسارگاد - صندوق ۲"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
