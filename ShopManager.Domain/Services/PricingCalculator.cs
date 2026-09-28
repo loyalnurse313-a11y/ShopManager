@@ -42,8 +42,8 @@ public static class PricingCalculator
         Item item,
         IEnumerable<Purchase> purchases)
     {
-        // اگه کاربر دستی قیمت فروش رو تنظیم کرده، همون ملاکه
-        if (item.SalePrice.HasValue)
+        // اگه کاربر دستی قیمت فروش رو تنظیم کرده (و مقدارش > 0)، همون ملاکه
+        if (item.SalePrice.HasValue && item.SalePrice.Value > 0)
             return item.SalePrice.Value;
 
         var purchasePrice = GetLatestPurchasePrice(item, purchases);
@@ -51,7 +51,7 @@ public static class PricingCalculator
             return 0;
 
         var salePrice = purchasePrice * (1 + item.MarkupPct / 100m);
-        return decimal.Round(salePrice, 0);   // گرد کردن به تومان
+        return decimal.Round(salePrice, 0, MidpointRounding.AwayFromZero);   // گرد کردن به تومان
     }
 
     /// <summary>
@@ -59,6 +59,6 @@ public static class PricingCalculator
     /// </summary>
     public static bool IsPriceOverridden(Item item)
     {
-        return item.SalePrice.HasValue;
+        return item.SalePrice.HasValue && item.SalePrice.Value > 0;
     }
 }
