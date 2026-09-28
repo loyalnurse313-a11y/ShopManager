@@ -340,4 +340,16 @@ text
 
 ---
 
+## ۹. Future Backlog
+
+### Reversal Sign Contradiction
+
+- `Purchase.cs` comment: "برای برگشت، منفی"
+- `StockCalculator.cs:23,29,48,53` formula: assumes positive
+- Risk: two-negatives bug if Reversal implemented with negative Qty
+- Decision needed before implementing Reversal feature
+- Refs: Phase 1 Audit (N1), Phase 1 Step 3 (test evidence)
+
+---
+
 **پایان سند. نقطه شروع: Phase 1 — Business Correctness Audit.**

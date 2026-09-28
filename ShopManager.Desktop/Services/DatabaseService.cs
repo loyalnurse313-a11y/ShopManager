@@ -121,6 +121,7 @@ public static class DatabaseService
             // ─── ستون اجبار تغییر رمز در اولین ورود (پرامپت ۱.۳) ───
             EnsureColumnAdoNet(conn, log, "Users", "MustChangePassword", "INTEGER NOT NULL DEFAULT 0");
             EnsureColumnAdoNet(conn, log, "Sales", "CardTerminal", "TEXT");
+            EnsureColumnAdoNet(conn, log, "Sales", "DiscountAmount", "TEXT NOT NULL DEFAULT '0'");
 
             // ─── فاز ۲: ایندکس یکتای ترکیبی روی (InvoiceNumber, ItemId) ───
             EnsureUniqueIndexAdoNet(

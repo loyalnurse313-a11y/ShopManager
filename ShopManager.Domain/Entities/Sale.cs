@@ -44,6 +44,9 @@ public class Sale
     /// <summary>سود = Revenue - Cost</summary>
     public decimal Profit { get; set; }
 
+    /// <summary>سهم تخفیف تخصیص‌یافته به این قلم فروش</summary>
+    public decimal DiscountAmount { get; set; }
+
     public PaymentStatus PaymentStatus { get; set; }
 
     /// <summary>

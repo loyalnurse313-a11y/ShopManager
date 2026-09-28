@@ -90,6 +90,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Revenue).HasPrecision(18, 4);
             entity.Property(e => e.Cost).HasPrecision(18, 4);
             entity.Property(e => e.Profit).HasPrecision(18, 4);
+            entity.Property(e => e.DiscountAmount).HasPrecision(18, 4);
 
             entity.Property(e => e.DateShamsi).IsRequired().HasMaxLength(10);
             entity.Property(e => e.InvoiceNumber).HasMaxLength(20);
