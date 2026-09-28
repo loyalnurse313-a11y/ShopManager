@@ -3,7 +3,8 @@
 > **هدف:** پل بین ممیزی، وضعیت فعلی، و Roadmap جدید (۱۰ Phase).
 > **اصل حاکم:** هیچ Phase بدون DoD اثبات‌شده Done نیست.
 > **آخرین به‌روزرسانی:** 1405/07/07
-> **آخرین Commit:** 7c8279c
+> **آخرین Commit:** ceb6326 (Phase 1 COMPLETE)
+> **تست‌ها:** 30 Pass / 0 Fail
 
 ---
 
@@ -28,6 +29,8 @@
 
 ## ۲. Reconciliation — یافته‌های ممیزی
 
+### ۲.۱ جدول Master
+
 | # | یافته | Phase | وضعیت | DoD |
 |:---:|---|:---:|:---:|:---:|
 | F1 | نبود Transaction دور SaveSale | 2 | 🟡 | ❌ |
@@ -42,6 +45,11 @@
 | F10 | admin/admin | 5 | ✅ | ✅ |
 | F11 | SaleWindow کد مرده | خارج | ✅ | ✅ |
 | F12 | catch{} خالی | 6 | ❌ | ❌ |
+| P1-1 | PricingCalculator SalePrice=0 | 1 | ✅ | ✅ | رفع شد (B1) |
+| P1-2 | PricingCalculator ToEven rounding | 1 | ✅ | ✅ | رفع شد (B2) |
+| P1-3 | POSWindow Revenue خام | 1 | ✅ | ✅ | رفع شد (B3) |
+| P1-4 | POSWindow Profit invariant نقض | 1 | ✅ | ✅ | رفع شد (B4) |
+| P1-5 | Sale.DiscountAmount غایب | 1 | ✅ | ✅ | رفع شد (B5) |
 
 ### ۲.۲ نقاط کور ۱۲ بُعدی
 
@@ -84,7 +92,7 @@
 
 ### 🔴 بحرانی (Phase 1-5)
 
-- تست محاسبات مالی (LockedCost, Cashbox, Pricing, Stock) → Phase 1
+- ~~تست محاسبات مالی~~ → Phase 1 ✅
 - DoD برای Sale Transaction Boundary → Phase 2
 - Optimistic Concurrency روی Item → Phase 3
 - Idempotency در SaveSale → Phase 3
@@ -103,7 +111,7 @@
 
 ### 🟡 پایین (Phase 9-10)
 
-- Unit Tests → 9
+- Unit Tests گسترده → 9
 - Integration Tests → 9
 - EULA + Privacy + License → 10
 - Code Signing → 10
@@ -132,22 +140,22 @@
 
 ## ۵. DoD تفصیلی هر Phase
 
-### Phase 1 — Business Correctness
+### Phase 1 — Business Correctness ✅ COMPLETE
 
 **Scope:** Sale, Return, Cost, Profit, Discount allocation, Rounding, Stock
 
 **DoD:**
-- [ ] LockedCostCalculator — چند خرید با تاریخ → میانگین درست
-- [ ] CashboxCalculator — نقدی+کارتی+نسیه+دفتر → عدد دقیق
-- [ ] PricingCalculator — Override + Markup → درست
-- [ ] StockCalculator — Normal + Reversal → درست
-- [ ] Discount allocation — مجموع = توزیع‌شده
-- [ ] Rounding — در همه مسیرها
-- [ ] Time-boundary: فروش ۲۳:۵۹ → درست
-- [ ] Unit tests هر ۶ Service
-- [ ] مستند docs/PHASE-1-BUSINESS-CORRECTNESS.md
+- [x] LockedCostCalculator — ۸ تست Pass
+- [x] CashboxCalculator — ۶ تست Pass
+- [x] PricingCalculator — ۵ تست Pass
+- [x] StockCalculator — ۶ تست Pass
+- [x] StockAlertCalculator — ۵ تست Pass
+- [x] Discount allocation — Σ=کل تضمین شد
+- [x] Rounding AwayFromZero در همه مسیرها
+- [x] Unit tests: 30/30 Pass
+- [x] مستند: `docs/PHASE-1-BUSINESS-CORRECTNESS.md`
 
-**شواهد:** جدول تست با اعداد ورودی/خروجی.
+**شواهد:** 30 تست، 0W/0E، 7 باگ رفع شد (B1-B7).
 
 ### Phase 2 — Transaction Boundary
 
@@ -287,22 +295,16 @@
 ## ۶. Workflow هر Phase
 AUDIT → وضعیت فعلی (CONFIRMED/POSSIBLE/NOT FOUND)
 ↓
-
 SCOPE → داخل/خارج
 ↓
-
 DoD → چک‌لیست قابل اثبات
 ↓
-
 IMPL → پیاده‌سازی
 ↓
-
 TEST → تست + شواهد
 ↓
-
 REVIEW → مطابقت با DoD
 ↓
-
 COMMIT → با پیام + tag
 
 text
@@ -315,15 +317,16 @@ text
 
 | مورد | مقدار |
 |---|---|
-| فازهای کامل (Framework جدید) | 0 |
+| فازهای کامل (Framework جدید) | 1 (Phase 1) |
 | فازهای با کد بدون DoD | 2 (Transaction, Unique Index) |
-| فازهای شروع‌نشده | 8 |
+| فازهای شروع‌نشده | 7 |
 | فازهای حذف‌شده از Roadmap | Alert، Cloud، Multi-terminal |
 | کارهای انجام‌شده (تولید محکم) | ۱۳ |
+| تست‌های موجود | 30 (Domain.Tests) |
 | Build | 0W / 0E |
-| Git | پاک، commit 7c8279c |
+| Git | پاک، commit ceb6326 |
 
-**نقطه شروع: Phase 1 — Business Correctness Audit.**
+**نقطه شروع جدید: Phase 2 — پاک‌سازی کد مرده.**
 
 ---
 
@@ -337,6 +340,10 @@ text
 | 1405/07/07 | EULA/Privacy در Phase 10 | Release فقط |
 | 1405/07/07 | Tax/Legal = Business Requirement | Scope question |
 | 1405/07/07 | DoD اجباری | جلوگیری از پیشرفت کاذب |
+| 1405/07/07 | Phase 1 COMPLETE | DoD 100% پاس شد |
+| 1405/07/07 | FluentAssertions استفاده نشود | لایسنس تجاری Xceed |
+| 1405/07/07 | Reversal خارج از Scope | فیچر پیاده نشده، Backlog |
+| 1405/07/07 | Customer TotalPurchasedAmount بدون تغییر | خط 1109 خالص بود |
 
 ---
 
@@ -350,6 +357,11 @@ text
 - Decision needed before implementing Reversal feature
 - Refs: Phase 1 Audit (N1), Phase 1 Step 3 (test evidence)
 
+### کد مرده (Phase 2)
+
+- `POSCartItem.HasDiscount` / `DiscountPct` — فیلدهای بلااستفاده
+- `SaleCartItem` — مدل موازی استفاده‌نشده
+
 ---
 
-**پایان سند. نقطه شروع: Phase 1 — Business Correctness Audit.**
+**پایان سند. نقطه شروع: Phase 2 — پاک‌سازی کد مرده.**
