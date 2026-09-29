@@ -1,19 +1,29 @@
-﻿{
+{
   "dotnet.defaultSolution": "ShopManager.slnx",
   "dotnet.server.useOmnisharp": false,
   "omnisharp.enableRoslynAnalyzers": true,
   "files.exclude": {
     "**/bin": true,
     "**/obj": true,
-    "**/.vs": true
+    "**/.vs": true,
+    "**/.git": true,
+    "**/node_modules": true
   },
-  "editor.formatOnSave": true,
   "files.encoding": "utf8bom",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "editor.formatOnSave": true,
   "[csharp]": {
+    "editor.defaultFormatter": "ms-dotnettools.csharp",
     "editor.tabSize": 4,
     "editor.insertSpaces": true
   },
   "[xml]": {
     "editor.tabSize": 4
-  }
+  },
+  "git.autofetch": true,
+  "git.enableSmartCommit": true,
+  "git.confirmSync": false,
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.cwd": "${workspaceFolder}"
 }
