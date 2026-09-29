@@ -157,6 +157,12 @@
 
 **شواهد:** 30 تست، 0W/0E، 7 باگ رفع شد (B1-B7).
 
+### Pre-Phase — Cleanup
+
+Cleanup یک Pre-Phase است، نه Phase شماره‌دار. حذف S1 (`POSCartItem.HasDiscount`)، S2 (`POSCartItem.DiscountPct`) و S3 (`SaleCartItem`) با شواهد build/test و بازبینی PASS تأیید و کامل شده است.
+
+شواهد: [docs/PRE-PHASE-2-CLEANUP.md](PRE-PHASE-2-CLEANUP.md)
+
 ### Phase 2 — Transaction Boundary
 
 **Scope:** Sale, Payment, Inventory, Cashbox, Cost/Profit, Rollback
@@ -326,7 +332,7 @@ text
 | Build | 0W / 0E |
 | Git | پاک، commit ceb6326 |
 
-**نقطه شروع جدید: Phase 2 — پاک‌سازی کد مرده.**
+**نقطه شروع جدید: Phase 2 — Transaction Boundary؛ Cleanup در Pre-Phase تکمیل و تأیید شده است. Phase 2 کامل نشده است.**
 
 ---
 
@@ -334,6 +340,7 @@ text
 
 | تاریخ | تصمیم | دلیل |
 |---|---|---|
+| 1405/07/08 | تفکیک Cleanup به Pre-Phase (نه Phase شماره‌دار) | جلوگیری از تداخل شماره‌گذاری با Transaction Boundary |
 | 1405/07/07 | Framework جدید (۱۲ بُعد + Audit + Reconciliation + Roadmap) | جلوگیری از Scope Creep |
 | 1405/07/07 | Alert System حذف | معماری زود است |
 | 1405/07/07 | Logging در Phase 6 (نه 2.5) | Transaction خودش تست‌پذیر |
@@ -357,11 +364,13 @@ text
 - Decision needed before implementing Reversal feature
 - Refs: Phase 1 Audit (N1), Phase 1 Step 3 (test evidence)
 
-### کد مرده (Phase 2)
+### کد مرده (Pre-Phase — Cleanup)
 
-- `POSCartItem.HasDiscount` / `DiscountPct` — فیلدهای بلااستفاده
-- `SaleCartItem` — مدل موازی استفاده‌نشده
+- [x] S1 / S2: `POSCartItem.HasDiscount` / `DiscountPct` — حذف تأییدشده
+- [x] S3: `SaleCartItem` — حذف تأییدشده
+
+شواهد: [docs/PRE-PHASE-2-CLEANUP.md](PRE-PHASE-2-CLEANUP.md)
 
 ---
 
-**پایان سند. نقطه شروع: Phase 2 — پاک‌سازی کد مرده.**
+**پایان سند. نقطه شروع: Phase 2 — Transaction Boundary (هنوز کامل نشده است).**

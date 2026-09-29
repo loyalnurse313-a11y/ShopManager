@@ -78,9 +78,9 @@
 
 | ID | یافته | Phase | وضعیت |
 |---|---|---|---|
-| S1 | POSCartItem.HasDiscount | 2 | ❌ |
-| S2 | POSCartItem.DiscountPct | 2 | ❌ |
-| S3 | SaleCartItem مدل موازی | 2 | ❌ |
+| S1 | POSCartItem.HasDiscount | Pre-Phase | ✅ |
+| S2 | POSCartItem.DiscountPct | Pre-Phase | ✅ |
+| S3 | SaleCartItem مدل موازی | Pre-Phase | ✅ |
 | S4 | Negative-stock guard | 3 | ❌ |
 | S5 | Optimistic Concurrency Token | 3 | ❌ |
 | S6 | StockAlert Warning در Fixed-only | 7 | ❌ |
@@ -94,13 +94,19 @@
 ### Phase 1 ✅ COMPLETE
 - [B1-B7] رفع شده
 
-### Phase 2 — پاک‌سازی
-- [S1] POSCartItem.HasDiscount
-- [S2] POSCartItem.DiscountPct
-- [S3] SaleCartItem
+### Pre-Phase — Cleanup
+- [x] [S1] POSCartItem.HasDiscount
+- [x] [S2] POSCartItem.DiscountPct
+- [x] [S3] SaleCartItem
+
+شواهد: [PRE-PHASE-2-CLEANUP.md](PRE-PHASE-2-CLEANUP.md)
+
+### Phase 2 — Transaction Boundary
+- [AR-1] نبود Transaction دور SaveSale — 🟡
+- [D8] Sale Transaction Boundary — 🟡
 
 ### Phase 3 — Concurrency
-- [AR-5] Unique Index (کد هست)
+- [AR-5] Unique Index — Verification Pending
 - [AR-7] Race موجودی
 - [S4] Negative-stock guard
 - [S5] Optimistic Concurrency Token

@@ -20,6 +20,4 @@ public class POSCartItem
     public string PriceDisplay => Domain.Helpers.PersianNumber.ToToman(SaleUnitPrice);
     public string RevenueDisplay => Domain.Helpers.PersianNumber.ToToman(Revenue);
 
-    public bool HasDiscount { get; set; }
-    public decimal DiscountPct { get; set; }
 }
