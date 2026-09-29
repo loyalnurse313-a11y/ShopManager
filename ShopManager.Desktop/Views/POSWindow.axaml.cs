@@ -1077,217 +1077,98 @@ public partial class POSWindow : Window
         var paymentType = await ShowPaymentDialog();
         if (paymentType == null) return;
 
-        try
-        {
-            SaveSale(paymentType.Value);
-        }
-        catch (Exception ex)
-        {
-            ErrorHandler.LogError(ex, "POS");
-            StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
-            StatusText.Text = ErrorHandler.GetUserMessage(ex);
-        }
+        SaveSale(paymentType.Value);
     }
 
     private void SaveSale(PaymentStatus paymentStatus)
     {
-        using var db = DatabaseService.CreateContext();
-
-        // ═══════════════════════════════════════════════════════════
-        //  فاز ۱ — تمام نوشتنها داخل یک تراکنش واحد
-        // ═══════════════════════════════════════════════════════════
-        using var tx = db.Database.BeginTransaction();
-
         try
         {
-            var today = DateTime.Today;
-
-            // ── ۱. مشتری (بدون SaveChanges، فقط track) ──
-            Customer? saleCustomer = null;
-            var customerName = CustomerNameBox.Text?.Trim() ?? "";
-            var customerPhone = PersianNumber.ToEnglishDigits(CustomerPhoneBox.Text ?? "").Trim();
-
-            if (!string.IsNullOrWhiteSpace(customerPhone))
-            {
-                var totalCartRevenue = _cart.Sum(c => c.Revenue) - _discountAmount;
-                var existingCustomer = db.Customers.FirstOrDefault(c => c.Phone == customerPhone);
-
-                if (existingCustomer != null)
-                {
-                    if (!string.IsNullOrWhiteSpace(customerName))
-                        existingCustomer.Name = customerName;
-
-                    existingCustomer.LastPurchaseAt = DateTime.UtcNow;
-                    existingCustomer.TotalPurchasedAmount += totalCartRevenue;
-                    existingCustomer.PurchaseCount += 1;
-
-                    saleCustomer = existingCustomer;
-                }
-                else if (!string.IsNullOrWhiteSpace(customerName))
-                {
-                    var newCustomer = new Customer
-                    {
-                        Name = customerName,
-                        Phone = customerPhone,
-                        FirstPurchaseAt = DateTime.UtcNow,
-                        LastPurchaseAt = DateTime.UtcNow,
-                        TotalPurchasedAmount = totalCartRevenue,
-                        PurchaseCount = 1
-                    };
-                    db.Customers.Add(newCustomer);
-                    saleCustomer = newCustomer;
-                }
-            }
-
-            // ── ۲. بررسی موجودی — authoritative، داخل تراکنش ──
-            var cartItemIds = _cart.Select(c => c.ItemId).Distinct().ToList();
-
-            var transfers = db.Transfers
-                .Where(t => cartItemIds.Contains(t.ItemId))
-                .ToList();
-
-            var sales = db.Sales
-                .Where(s => cartItemIds.Contains(s.ItemId))
-                .ToList();
-
-            foreach (var cartItem in _cart)
-            {
-                var item = db.Items.FirstOrDefault(i => i.Id == cartItem.ItemId);
-                if (item == null)
-                    throw new InvalidOperationException(
-                        $"کالا با شناسه {cartItem.ItemId} پیدا نشد");
-
-                var shopStock = StockCalculator.GetShopStock(item, transfers, sales);
-                if (shopStock < cartItem.Qty)
-                    throw new InvalidOperationException(
-                        $"موجودی {item.Name} کافی نیست (موجودی: {PersianNumber.ToPersian(shopStock)})");
-            }
-
-            // ── ۳. ثبت اقلام فروش (خالص‌سازی تخفیف + rounding AwayFromZero) ──
-            decimal totalCartRev = _cart.Sum(c => c.Revenue);
-            decimal accumulatedDiscount = 0;
-            var cartList = _cart.ToList();
-
-            for (int i = 0; i < cartList.Count; i++)
-            {
-                var cartItem = cartList[i];
-                var revenueRaw = cartItem.Revenue;
-                var costRaw = cartItem.Qty * cartItem.LockedCost;
-
-                // ── سهم تخفیف این قلم ──
-                decimal discountShare = 0;
-                if (_discountAmount > 0 && totalCartRev > 0)
-                {
-                    if (i == cartList.Count - 1)
-                    {
-                        discountShare = _discountAmount - accumulatedDiscount;
-                    }
-                    else
-                    {
-                        discountShare = decimal.Round(
-                            (revenueRaw / totalCartRev) * _discountAmount,
-                            0, MidpointRounding.AwayFromZero);
-                        accumulatedDiscount += discountShare;
-                    }
-                }
-
-                // R2: اول round discountShare، بعد revenueNet
-                discountShare = decimal.Round(discountShare, 0, MidpointRounding.AwayFromZero);
-                var revenueNet = decimal.Round(revenueRaw - discountShare, 0, MidpointRounding.AwayFromZero);
-                var cost = decimal.Round(costRaw, 0, MidpointRounding.AwayFromZero);
-                var profit = revenueNet - cost;
-
-                var sale = new Sale
-                {
-                    ItemId = cartItem.ItemId,
-                    InvoiceNumber = _currentInvoiceNumber,
-                    Customer = saleCustomer,
-                    DateShamsi = JalaliDate.TodayShamsi(),
-                    DateGregorian = today,
-                    Qty = cartItem.Qty,
-                    SaleUnitPrice = cartItem.SaleUnitPrice,
-                    LockedUnitCost = cartItem.LockedCost,
-                    Revenue = revenueNet,
-                    DiscountAmount = discountShare,
-                    Cost = cost,
-                    Profit = profit,
-                    PaymentStatus = paymentStatus,
-                    CardTerminal = paymentStatus == PaymentStatus.Card
-                                   && !string.IsNullOrWhiteSpace(_activePOSTerminal)
-                        ? _activePOSTerminal
-                        : null,
-                    EntryType = EntryType.Normal,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                db.Sales.Add(sale);
-            }
-
-            // ── ۴. کامیت اتمی ──
-            db.SaveChanges();
-            tx.Commit();
+            using var db = DatabaseService.CreateContext();
+            SalePersistenceService.Save(
+                db,
+                _cart.Select(c => new SaleLine(c.ItemId, c.Qty, c.SaleUnitPrice, c.LockedCost)).ToList(),
+                _currentInvoiceNumber,
+                CustomerNameBox.Text ?? "",
+                CustomerPhoneBox.Text ?? "",
+                _discountAmount,
+                paymentStatus,
+                _activePOSTerminal);
         }
-        catch
+        catch (Exception ex)
         {
-            tx.Rollback();
-            throw;
+            ErrorHandler.LogError(ex, "POS persistence/commit");
+            StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
+            StatusText.Text = "تأیید ثبت فروش ناموفق بود — " + ErrorHandler.GetUserMessage(ex);
+            return;
         }
 
-        // ═══════════════════════════════════════════════════════════
-        //  بعد از این خط، دادهها برای همیشه در دیتابیس هستند
-        // ═══════════════════════════════════════════════════════════
-
-        var savedInvoice = _currentInvoiceNumber;
-        var totalRevenueFinal = _cart.Sum(c => c.Revenue) - _discountAmount;
-
-        var payTypeText = paymentStatus switch
+        // The sale has committed and DataChanged has already been published.
+        try
         {
-            PaymentStatus.Cash => "نقدی",
-            PaymentStatus.Card => string.IsNullOrWhiteSpace(_activePOSTerminal)
-                ? "کارتی"
-                : $"کارتی ({_activePOSTerminal})",
-            PaymentStatus.Credit => "نسیه",
-            _ => "—"
-        };
+            var savedInvoice = _currentInvoiceNumber;
+            var totalRevenueFinal = _cart.Sum(c => c.Revenue) - _discountAmount;
 
-        // پاک کردن سبد
-        _cart.Clear();
-        _discountAmount = 0;
-        _selectedCustomerId = null;
-        CustomerNameBox.Text = "";
-        CustomerPhoneBox.Text = "";
+            var payTypeText = paymentStatus switch
+            {
+                PaymentStatus.Cash => "نقدی",
+                PaymentStatus.Card => string.IsNullOrWhiteSpace(_activePOSTerminal)
+                    ? "کارتی"
+                    : $"کارتی ({_activePOSTerminal})",
+                PaymentStatus.Credit => "نسیه",
+                _ => "—"
+            };
 
-        GenerateInvoiceNumber();
-        RefreshCart();
-        LoadProductTiles(_activeTab);
+            // پاک کردن سبد
+            _cart.Clear();
+            _discountAmount = 0;
+            _selectedCustomerId = null;
+            CustomerNameBox.Text = "";
+            CustomerPhoneBox.Text = "";
 
-        // مدیریت چاپ
-        var settings = StoreSettingsService.Current;
+            GenerateInvoiceNumber();
+            RefreshCart();
+            LoadProductTiles(_activeTab);
 
-        if (settings.AutoPrintAfterSale)
-        {
-            PrintInvoiceDirectly(savedInvoice, settings);
+            // مدیریت چاپ
+            var settings = StoreSettingsService.Current;
 
-            StatusText.Foreground = new SolidColorBrush(Color.Parse("#10B981"));
-            StatusText.Text = $"✓ فروش {payTypeText} — {PersianNumber.ToToman(totalRevenueFinal)} — " +
-                              $"فاکتور {PersianNumber.ToPersianDigits(savedInvoice)} — در حال چاپ خودکار...";
-        }
-        else
-        {
-            try
+            if (settings.AutoPrintAfterSale)
+            {
+                PrintInvoiceDirectly(savedInvoice, settings);
+
+                StatusText.Foreground = new SolidColorBrush(Color.Parse("#10B981"));
+                StatusText.Text = $"✓ فروش {payTypeText} — {PersianNumber.ToToman(totalRevenueFinal)} — " +
+                                  $"فاکتور {PersianNumber.ToPersianDigits(savedInvoice)} — در حال چاپ خودکار...";
+            }
+            else
             {
                 var invoiceWindow = new SaleInvoiceWindow();
                 invoiceWindow.LoadInvoice(savedInvoice);
                 invoiceWindow.Show();
+
+                StatusText.Foreground = new SolidColorBrush(Color.Parse("#10B981"));
+                StatusText.Text = $"✓ فروش {payTypeText} ثبت شد — {PersianNumber.ToToman(totalRevenueFinal)} — " +
+                                  $"فاکتور {PersianNumber.ToPersianDigits(savedInvoice)}";
             }
-            catch { }
 
-            StatusText.Foreground = new SolidColorBrush(Color.Parse("#10B981"));
-            StatusText.Text = $"✓ فروش {payTypeText} ثبت شد — {PersianNumber.ToToman(totalRevenueFinal)} — " +
-                              $"فاکتور {PersianNumber.ToPersianDigits(savedInvoice)}";
+            Dispatcher.UIThread.Post(() =>
+            {
+                try { BarcodeSearchBox.Focus(); }
+                catch (Exception ex) { ReportPostCommitFailure(ex); }
+            }, DispatcherPriority.Background);
         }
+        catch (Exception ex)
+        {
+            ReportPostCommitFailure(ex);
+        }
+    }
 
-        Dispatcher.UIThread.Post(() => BarcodeSearchBox.Focus(), DispatcherPriority.Background);
+    private void ReportPostCommitFailure(Exception ex)
+    {
+        ErrorHandler.LogError(ex, "POS post-commit UI/printing");
+        StatusText.Foreground = new SolidColorBrush(Color.Parse("#D97706"));
+        StatusText.Text = "فروش ثبت شد؛ نمایش/چاپ با خطا مواجه شد.";
     }
 
     /// <summary>
@@ -1295,85 +1176,76 @@ public partial class POSWindow : Window
     /// </summary>
     private void PrintInvoiceDirectly(string invoiceNumber, StoreSettings settings)
     {
-        try
+        using var db = DatabaseService.CreateContext();
+
+        var sales = db.Sales
+            .Where(s => s.InvoiceNumber == invoiceNumber && s.EntryType == EntryType.Normal)
+            .OrderBy(s => s.Id)
+            .ToList();
+
+        if (sales.Count == 0) return;
+
+        var itemsDict = db.Items.ToDictionary(i => i.Id);
+
+        var dateShamsi = sales.First().DateShamsi;
+        var paymentStatus = sales.First().PaymentStatus;
+        var cardTerminal = sales.First().CardTerminal;
+
+        var customerName = "—";
+        var customerPhone = "—";
+
+        var customerId = sales.First().CustomerId;
+        if (customerId.HasValue)
         {
-            using var db = DatabaseService.CreateContext();
-
-            var sales = db.Sales
-                .Where(s => s.InvoiceNumber == invoiceNumber && s.EntryType == EntryType.Normal)
-                .OrderBy(s => s.Id)
-                .ToList();
-
-            if (sales.Count == 0) return;
-
-            var itemsDict = db.Items.ToDictionary(i => i.Id);
-
-            var dateShamsi = sales.First().DateShamsi;
-            var paymentStatus = sales.First().PaymentStatus;
-            var cardTerminal = sales.First().CardTerminal;
-
-            var customerName = "—";
-            var customerPhone = "—";
-
-            var customerId = sales.First().CustomerId;
-            if (customerId.HasValue)
+            var customer = db.Customers.FirstOrDefault(c => c.Id == customerId.Value);
+            if (customer != null)
             {
-                var customer = db.Customers.FirstOrDefault(c => c.Id == customerId.Value);
-                if (customer != null)
-                {
-                    customerName = customer.Name;
-                    customerPhone = customer.Phone;
-                }
+                customerName = customer.Name;
+                customerPhone = customer.Phone;
             }
-
-            var items = sales.Select(s =>
-            {
-                var item = itemsDict.GetValueOrDefault(s.ItemId);
-                return new InvoiceItemData
-                {
-                    ItemName = item?.Name ?? "—",
-                    Unit = item?.Unit ?? "—",
-                    Qty = s.Qty,
-                    UnitPrice = s.SaleUnitPrice,
-                    Total = s.Revenue
-                };
-            }).ToList();
-
-            var totalAmount = items.Sum(i => i.Total);
-
-            var html = SaleInvoiceHtmlBuilder.BuildInvoiceHtml(
-                settings,
-                settings.PaperSize,
-                settings.ShowLogoOnInvoice,
-                invoiceNumber,
-                dateShamsi,
-                customerName,
-                customerPhone,
-                paymentStatus == PaymentStatus.Cash,
-                cardTerminal,
-                paymentStatus,
-                items,
-                totalAmount,
-                autoPrint: true);   // ⭐ چاپ خودکار فعال
-
-            var tempPath = Path.Combine(
-                Path.GetTempPath(),
-                $"invoice-auto-{invoiceNumber}-{DateTime.Now:HHmmss}.html");
-
-            File.WriteAllText(tempPath, html, Encoding.UTF8);
-
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = tempPath,
-                UseShellExecute = true
-            });
         }
-        catch (Exception ex)
+
+        var items = sales.Select(s =>
         {
-            ErrorHandler.LogError(ex, "POS");
-            StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
-            StatusText.Text = ErrorHandler.GetUserMessage(ex);
-        }
+            var item = itemsDict.GetValueOrDefault(s.ItemId);
+            return new InvoiceItemData
+            {
+                ItemName = item?.Name ?? "—",
+                Unit = item?.Unit ?? "—",
+                Qty = s.Qty,
+                UnitPrice = s.SaleUnitPrice,
+                Total = s.Revenue
+            };
+        }).ToList();
+
+        var totalAmount = items.Sum(i => i.Total);
+
+        var html = SaleInvoiceHtmlBuilder.BuildInvoiceHtml(
+            settings,
+            settings.PaperSize,
+            settings.ShowLogoOnInvoice,
+            invoiceNumber,
+            dateShamsi,
+            customerName,
+            customerPhone,
+            paymentStatus == PaymentStatus.Cash,
+            cardTerminal,
+            paymentStatus,
+            items,
+            totalAmount,
+            autoPrint: true);   // ⭐ چاپ خودکار فعال
+
+        var tempPath = Path.Combine(
+            Path.GetTempPath(),
+            $"invoice-auto-{invoiceNumber}-{DateTime.Now:HHmmss}.html");
+
+        File.WriteAllText(tempPath, html, Encoding.UTF8);
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = tempPath,
+            UseShellExecute = true
+        });
     }
 
     // ═══════════════════════════════════════════

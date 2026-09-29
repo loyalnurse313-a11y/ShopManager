@@ -84,12 +84,21 @@ public static class DatabaseService
         }
         catch { }
 
-        context.SavedChanges += (sender, args) =>
-        {
-            try { DataChanged?.Invoke(); } catch { }
-        };
+        context.SavedChanges += OnSavedChanges;
 
         return context;
+    }
+
+    internal static void OnSavedChanges(object? sender, SavedChangesEventArgs args)
+    {
+        // An explicit transaction must publish only after its owner commits it.
+        if (sender is AppDbContext context && context.Database.CurrentTransaction == null)
+            NotifyDataChanged();
+    }
+
+    internal static void NotifyDataChanged()
+    {
+        try { DataChanged?.Invoke(); } catch { }
     }
 
     /// <summary>
