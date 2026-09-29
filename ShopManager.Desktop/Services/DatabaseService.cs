@@ -96,9 +96,18 @@ public static class DatabaseService
             NotifyDataChanged();
     }
 
-    internal static void NotifyDataChanged()
+    internal static Exception? NotifyDataChanged()
     {
-        try { DataChanged?.Invoke(); } catch { }
+        try
+        {
+            DataChanged?.Invoke();
+            return null;
+        }
+        catch (Exception ex)
+        {
+            // Ordinary callers retain their non-throwing behavior; sale completion reports this.
+            return ex;
+        }
     }
 
     /// <summary>

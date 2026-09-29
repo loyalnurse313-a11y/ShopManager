@@ -2,6 +2,8 @@ using System.Data.Common;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Storage;
+using ShopManager.Desktop.Views;
 using ShopManager.Desktop.Services;
 using ShopManager.Domain.Entities;
 using ShopManager.Domain.Enums;
@@ -37,8 +39,7 @@ public sealed class SalePersistenceTests
         var transaction = new TransactionProbe();
         using var notification = new NotificationProbe(database, transaction);
         var started = DateTime.UtcNow;
-        using (var writer = database.Open(transaction))
-            Save(writer, existingCustomer, payment);
+        Assert.Empty(Save(() => database.Open(transaction), existingCustomer, payment));
         var finished = DateTime.UtcNow;
 
         // All assertions use a new context after the writer has been disposed.
@@ -103,22 +104,20 @@ public sealed class SalePersistenceTests
         var command = new FailAfterSaleInsert();
         var transaction = new TransactionProbe { FailCommit = failCommit };
         using var notification = new NotificationProbe(database, transaction);
-        using (var writer = database.Open(failCommit ? [transaction] : [transaction, command]))
+        var error = Record.Exception(() => Save(() => database.Open(failCommit ? [transaction] : [transaction, command]), existingCustomer));
+        Assert.NotNull(error);
+        if (failCommit)
         {
-            var error = Record.Exception(() => Save(writer, existingCustomer));
-            Assert.NotNull(error);
-            if (failCommit)
-            {
-                Assert.Same(transaction.CommitError, error);
-                Assert.Equal(2, transaction.SaleRowsAtCommit);
-            }
-            else
-            {
-                Assert.Same(command.Error, Assert.IsType<DbUpdateException>(error).InnerException);
-                Assert.Equal(1, command.SaleRowsBeforeFailure);
-                Assert.Equal(0, transaction.CommitAttempts);
-            }
+            Assert.Same(transaction.CommitError, error);
+            Assert.Equal(2, transaction.SaleRowsAtCommit);
         }
+        else
+        {
+            Assert.Same(command.Error, Assert.IsType<DbUpdateException>(error).InnerException);
+            Assert.Equal(1, command.SaleRowsBeforeFailure);
+            Assert.Equal(0, transaction.CommitAttempts);
+        }
+
 
         Assert.Equal(1, transaction.Started);
         Assert.Equal(1, transaction.Rollbacks);
@@ -137,22 +136,20 @@ public sealed class SalePersistenceTests
         var command = new FailAfterSaleInsert();
         var transaction = new TransactionProbe { FailCommit = failCommit, FailRollback = true };
         using var notification = new NotificationProbe(database, transaction);
-        using (var writer = database.Open(failCommit ? [transaction] : [transaction, command]))
+        var error = Record.Exception(() => Save(() => database.Open(failCommit ? [transaction] : [transaction, command]), existingCustomer: true));
+        Assert.NotNull(error);
+        if (failCommit)
         {
-            var error = Record.Exception(() => Save(writer, existingCustomer: true));
-            Assert.NotNull(error);
-            if (failCommit)
-            {
-                Assert.Same(transaction.CommitError, error);
-                Assert.Equal(2, transaction.SaleRowsAtCommit);
-            }
-            else
-            {
-                Assert.Same(command.Error, Assert.IsType<DbUpdateException>(error).InnerException);
-                Assert.Equal(1, command.SaleRowsBeforeFailure);
-            }
-            Assert.Same(transaction.RollbackError, error.Data["RollbackException"]);
+            Assert.Same(transaction.CommitError, error);
+            Assert.Equal(2, transaction.SaleRowsAtCommit);
         }
+        else
+        {
+            Assert.Same(command.Error, Assert.IsType<DbUpdateException>(error).InnerException);
+            Assert.Equal(1, command.SaleRowsBeforeFailure);
+        }
+        Assert.Same(transaction.RollbackError, error.Data["RollbackException"]);
+
 
         Assert.Equal(1, transaction.Rollbacks);
         Assert.Equal(0, transaction.Committed);
@@ -168,12 +165,9 @@ public sealed class SalePersistenceTests
         var before = database.ReadState();
         var transaction = new TransactionProbe();
         using var notification = new NotificationProbe(database, transaction);
-        using (var writer = database.Open(transaction))
-        {
-            Assert.Throws<InvalidOperationException>(() => SalePersistenceService.Save(
-                writer, [new SaleLine(1, 100m, 101m, 40.5m)], Invoice,
-                "Changed name", "111", 10m, PaymentStatus.Cash, ""));
-        }
+        Assert.Throws<InvalidOperationException>(() => SalePersistenceService.Save(
+            () => database.Open(transaction), [new SaleLine(1, 100m, 101m, 40.5m)], Invoice,
+            "Changed name", "111", 10m, PaymentStatus.Cash, ""));
         Assert.Equal(0, transaction.CommitAttempts);
         Assert.Equal(1, transaction.Rollbacks);
         Assert.Equal(0, notification.Count);
@@ -184,8 +178,8 @@ public sealed class SalePersistenceTests
     public void SaleWithoutCustomer_PreservesOptionalCustomerAndCardTerminalBehavior()
     {
         using var database = new TestDatabase();
-        using (var writer = database.Open())
-            SalePersistenceService.Save(writer, Lines, Invoice, "", "", 0m, PaymentStatus.Card, " ");
+        Assert.Empty(SalePersistenceService.Save(
+            () => database.Open(), Lines, Invoice, "", "", 0m, PaymentStatus.Card, " "));
         using var reader = database.Open();
         Assert.Single(reader.Customers);
         var sales = reader.Sales.Where(s => s.InvoiceNumber == Invoice).OrderBy(s => s.ItemId).ToList();
@@ -229,8 +223,8 @@ public sealed class SalePersistenceTests
         DatabaseService.DataChanged += Subscriber;
         try
         {
-            using (var writer = database.Open())
-                Save(writer, existingCustomer: false);
+            var errors = Save(() => database.Open(), existingCustomer: false);
+            Assert.Equal("Subscriber failed after commit", Assert.Single(errors).Message);
             using var reader = database.Open();
             Assert.Equal(2, reader.Sales.Count(s => s.InvoiceNumber == Invoice));
             Assert.Equal(2, reader.Customers.Count());
@@ -242,8 +236,218 @@ public sealed class SalePersistenceTests
         }
     }
 
-    private static void Save(AppDbContext db, bool existingCustomer, PaymentStatus payment = PaymentStatus.Cash)
-        => SalePersistenceService.Save(db, Lines, Invoice, " Updated customer ",
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void WindowBoundary_PersistenceOrCommitFailure_SkipsAllPostCommitWork(bool failCommit)
+    {
+        using var database = new TestDatabase();
+        var before = database.ReadState();
+        var transaction = new TransactionProbe { FailCommit = failCommit };
+        var command = new FailAfterSaleInsert();
+        using var notification = new NotificationProbe(database, transaction);
+        var persistenceErrors = new List<Exception>();
+        var postCommitErrors = new List<Exception>();
+        var postCommitCalls = 0;
+
+        POSWindow.ExecuteSale(
+            () => Save(() => database.Open(failCommit ? [transaction] : [transaction, command]), false),
+            () => postCommitCalls++, persistenceErrors.Add, postCommitErrors.Add);
+
+        var primary = Assert.Single(persistenceErrors);
+        if (failCommit)
+        {
+            Assert.Same(transaction.CommitError, primary);
+            Assert.Equal(2, transaction.SaleRowsAtCommit);
+        }
+        else
+        {
+            Assert.Same(command.Error, Assert.IsType<DbUpdateException>(primary).InnerException);
+            Assert.Equal(1, command.SaleRowsBeforeFailure);
+        }
+        Assert.Equal(0, postCommitCalls);
+        Assert.Empty(postCommitErrors);
+        Assert.Equal(0, notification.Count);
+        AssertStateEqual(before, database.ReadState());
+    }
+
+    [Fact]
+    public void WindowBoundary_PostCommitUiFailure_ReportsCommittedSaleAndKeepsData()
+    {
+        using var database = new TestDatabase();
+        var transaction = new TransactionProbe();
+        using var notification = new NotificationProbe(database, transaction);
+        var persistenceErrors = new List<Exception>();
+        var postCommitErrors = new List<Exception>();
+        var uiError = new InvalidOperationException("Injected refresh/printing failure");
+        var postCommitCalls = 0;
+        DatabaseState? stateAtUi = null;
+        var notifiedAtUi = 0;
+
+        POSWindow.ExecuteSale(
+            () => Save(() => database.Open(transaction), false),
+            () =>
+            {
+                postCommitCalls++;
+                notifiedAtUi = notification.Count;
+                stateAtUi = database.ReadState();
+                throw uiError;
+            }, persistenceErrors.Add, postCommitErrors.Add);
+
+        Assert.Empty(persistenceErrors);
+        Assert.Same(uiError, Assert.Single(postCommitErrors));
+        Assert.Equal(1, postCommitCalls);
+        Assert.Equal(1, transaction.Committed);
+        Assert.Equal(0, transaction.Rollbacks);
+        Assert.Equal(1, notifiedAtUi);
+        Assert.NotNull(stateAtUi);
+        AssertStateEqual(stateAtUi, database.ReadState());
+        using var reader = database.Open();
+        Assert.Equal(2, reader.Sales.Count(s => s.InvoiceNumber == Invoice));
+        Assert.Equal(2, reader.Customers.Count());
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void WindowBoundary_CleanupFailuresAfterCommit_AreReportedAfterUiSuccess(
+        bool failTransactionDispose, bool failContextDispose)
+    {
+        using var database = new TestDatabase();
+        var transaction = new TransactionProbe();
+        using var notification = new NotificationProbe(database, transaction);
+        var persistenceErrors = new List<Exception>();
+        var postCommitErrors = new List<Exception>();
+        var order = new List<string>();
+        DisposeFailureContext? writer = null;
+
+        POSWindow.ExecuteSale(
+            () => Save(() => writer = database.OpenWithCleanupFailures(
+                failTransactionDispose, failContextDispose, transaction), false),
+            () => order.Add("UI success"), persistenceErrors.Add,
+            error => { postCommitErrors.Add(error); order.Add("Post-commit error"); });
+
+        Assert.Empty(persistenceErrors);
+        Assert.Equal((failTransactionDispose ? 1 : 0) + (failContextDispose ? 1 : 0), postCommitErrors.Count);
+        Assert.Equal("UI success", order[0]);
+        Assert.All(order.Skip(1), value => Assert.Equal("Post-commit error", value));
+        Assert.NotNull(writer);
+        Assert.Equal(1, writer.DisposeCalls);
+        if (failTransactionDispose)
+            Assert.Contains(postCommitErrors, e => e.Message == "TransactionDisposeException"
+                && e.InnerException?.Message == "Injected transaction disposal failure");
+        if (failContextDispose)
+            Assert.Same(writer.DisposeError,
+                Assert.Single(postCommitErrors, e => e.Message == "ContextDisposeException").InnerException);
+        Assert.Equal(1, transaction.Started);
+        Assert.Equal(1, transaction.Committed);
+        Assert.Equal(0, transaction.Rollbacks);
+        Assert.Equal(1, notification.Count);
+        Assert.Null(notification.ReadError);
+        using var reader = database.Open();
+        Assert.Equal(2, reader.Sales.Count(s => s.InvoiceNumber == Invoice));
+        Assert.Equal(2, reader.Customers.Count());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RollbackAndCleanupFailures_PreservePrimaryAndReachOperationalLogger(bool failCommit)
+    {
+        using var database = new TestDatabase();
+        var before = database.ReadState();
+        var transaction = new TransactionProbe { FailCommit = failCommit, FailRollback = true };
+        var command = new FailAfterSaleInsert();
+        using var notification = new NotificationProbe(database, transaction);
+        DisposeFailureContext? writer = null;
+        var primary = Record.Exception(() => Save(() => writer = database.OpenWithCleanupFailures(
+            true, true, failCommit ? [transaction] : [transaction, command]), true));
+
+        Assert.NotNull(primary);
+        if (failCommit)
+            Assert.Same(transaction.CommitError, primary);
+        else
+            Assert.Same(command.Error, Assert.IsType<DbUpdateException>(primary).InnerException);
+        Assert.NotNull(writer);
+        Assert.Same(transaction.RollbackError, primary.Data["RollbackException"]);
+        Assert.Same(writer.DisposeError, primary.Data["ContextDisposeException"]);
+        Assert.Equal("Injected transaction disposal failure",
+            Assert.IsType<InvalidOperationException>(primary.Data["TransactionDisposeException"]).Message);
+        var logged = new List<(Exception Error, string Context)>();
+        // Production supplies ErrorHandler.LogError to this exact method; record every log call here.
+        POSWindow.LogPersistenceFailure(primary, (error, context) => logged.Add((error, context)));
+        Assert.Equal(4, logged.Count);
+        Assert.Same(primary, logged[0].Error);
+        Assert.Equal("POS persistence/commit", logged[0].Context);
+        Assert.Same(transaction.RollbackError, logged[1].Error);
+        Assert.Equal("POS secondary RollbackException", logged[1].Context);
+        Assert.Same(primary.Data["TransactionDisposeException"], logged[2].Error);
+        Assert.Same(writer.DisposeError, logged[3].Error);
+        Assert.Equal(0, notification.Count);
+        AssertStateEqual(before, database.ReadState());
+    }
+
+    [Fact]
+    public void WindowBoundary_NotificationFailure_IsReportedAfterPostCommitWork()
+    {
+        using var database = new TestDatabase();
+        var notificationError = new InvalidOperationException("Injected notification failure");
+        var order = new List<string>();
+        var persistenceErrors = new List<Exception>();
+        var postCommitErrors = new List<Exception>();
+        void Subscriber() { order.Add("Notification"); throw notificationError; }
+        DatabaseService.DataChanged += Subscriber;
+        try
+        {
+            POSWindow.ExecuteSale(() => Save(() => database.Open(), false),
+                () => order.Add("UI success"), persistenceErrors.Add,
+                error => { postCommitErrors.Add(error); order.Add("Post-commit error"); });
+            Assert.Empty(persistenceErrors);
+            Assert.Same(notificationError, Assert.Single(postCommitErrors));
+            Assert.Equal(new[] { "Notification", "UI success", "Post-commit error" }, order);
+            using var reader = database.Open();
+            Assert.Equal(2, reader.Sales.Count(s => s.InvoiceNumber == Invoice));
+        }
+        finally { DatabaseService.DataChanged -= Subscriber; }
+    }
+
+    [Fact]
+    public void LastLineDiscount_UsesRemainderInsteadOfIndependentlyRoundedShare()
+    {
+        using var database = new TestDatabase();
+        Assert.Empty(SalePersistenceService.Save(() => database.Open(),
+            [new SaleLine(1, 1m, 100m, 40.5m), new SaleLine(2, 1m, 100m, 20.25m)],
+            Invoice, "Customer", "222", 1m, PaymentStatus.Cash, ""));
+        using var reader = database.Open();
+        var sales = reader.Sales.Where(s => s.InvoiceNumber == Invoice).OrderBy(s => s.ItemId).ToList();
+        // Each proportional share is 0.5; independently rounding both gives 2, not the allowed 1.
+        Assert.Equal(new[] { 1m, 0m }, sales.Select(s => s.DiscountAmount));
+        Assert.Equal(1m, sales.Sum(s => s.DiscountAmount));
+        Assert.Equal(new[] { 99m, 100m }, sales.Select(s => s.Revenue));
+        Assert.Equal(new[] { 41m, 20m }, sales.Select(s => s.Cost));
+        Assert.Equal(new[] { 58m, 80m }, sales.Select(s => s.Profit));
+        Assert.Equal(199m, reader.Customers.Single(c => c.Phone == "222").TotalPurchasedAmount);
+    }
+
+    [Fact]
+    public void FixtureConstructionFailure_RemovesOnlyItsTemporaryDirectory()
+    {
+        string? folder = null;
+        var original = new InvalidOperationException("Injected fixture seed failure");
+        var actual = Assert.Throws<InvalidOperationException>(() => new TestDatabase(db =>
+        {
+            folder = Path.GetDirectoryName(db.Database.GetDbConnection().DataSource);
+            throw original;
+        }));
+        Assert.Same(original, actual);
+        Assert.NotNull(folder);
+        Assert.False(Directory.Exists(folder));
+    }
+
+    private static IReadOnlyList<Exception> Save(
+        Func<AppDbContext> createContext, bool existingCustomer, PaymentStatus payment = PaymentStatus.Cash)
+        => SalePersistenceService.Save(createContext, Lines, Invoice, " Updated customer ",
             existingCustomer ? "111" : "222", 10m, payment, "Terminal A");
 
     private static void AssertStateEqual(DatabaseState expected, DatabaseState actual)
@@ -350,40 +554,92 @@ public sealed class SalePersistenceTests
         }
     }
 
+    private sealed class DisposeFailureContext(
+        DbContextOptions<AppDbContext> options, bool failDispose) : AppDbContext(options)
+    {
+        public InvalidOperationException DisposeError { get; } = new("Injected context disposal failure");
+        public int DisposeCalls { get; private set; }
+
+        public override void Dispose()
+        {
+            DisposeCalls++;
+            base.Dispose();
+            if (failDispose) throw DisposeError;
+        }
+    }
+
+    // EF's real relational transaction is retained; only its cleanup is made to fail.
+    private sealed class DisposeFailureTransactionFactory(RelationalTransactionFactoryDependencies dependencies)
+        : RelationalTransactionFactory(dependencies)
+    {
+        public override RelationalTransaction Create(
+            IRelationalConnection connection, DbTransaction transaction, Guid transactionId,
+            IDiagnosticsLogger<DbLoggerCategory.Database.Transaction> logger, bool transactionOwned)
+            => new DisposeFailureTransaction(connection, transaction, transactionId,
+                logger, transactionOwned, Dependencies.SqlGenerationHelper);
+    }
+
+    private sealed class DisposeFailureTransaction(
+        IRelationalConnection connection, DbTransaction transaction, Guid transactionId,
+        IDiagnosticsLogger<DbLoggerCategory.Database.Transaction> logger, bool transactionOwned,
+        ISqlGenerationHelper sqlGenerationHelper)
+        : RelationalTransaction(connection, transaction, transactionId, logger, transactionOwned, sqlGenerationHelper)
+    {
+        private bool _injected;
+
+        public override void Dispose()
+        {
+            base.Dispose();
+            if (_injected) return;
+            _injected = true;
+            throw new InvalidOperationException("Injected transaction disposal failure");
+        }
+    }
+
     private sealed class TestDatabase : IDisposable
     {
         public static readonly DateTime OldDate = new(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         private readonly string _folder = Path.Combine(Path.GetTempPath(), "ShopManager-Phase2-" + Guid.NewGuid().ToString("N"));
         private string ConnectionString => $"Data Source={Path.Combine(_folder, "sale-test.db")};Pooling=False";
 
-        public TestDatabase()
+        public TestDatabase(Action<AppDbContext>? beforeSeedSave = null)
         {
-            Directory.CreateDirectory(_folder);
-            using var db = Open();
-            db.Database.EnsureCreated();
-            db.Items.AddRange(
-                new Item { Id = 1, ItemCode = 1, Name = "First", Unit = "unit", OpeningShopQty = 20m },
-                new Item { Id = 2, ItemCode = 2, Name = "Second", Unit = "unit", OpeningShopQty = 20m });
-            db.Customers.Add(new Customer
+            try
             {
-                Id = 1, Name = "Original customer", Phone = "111", Note = "Keep note",
-                FirstPurchaseAt = OldDate, LastPurchaseAt = OldDate, CreatedAt = OldDate,
-                TotalPurchasedAmount = 500m, PurchaseCount = 2
-            });
-            db.Transfers.AddRange(
-                new Transfer { ItemId = 1, Qty = 5m },
-                new Transfer { ItemId = 2, Qty = 3m });
-            db.Sales.Add(new Sale
+                Directory.CreateDirectory(_folder);
+                using var db = Open();
+                db.Database.EnsureCreated();
+                db.Items.AddRange(
+                    new Item { Id = 1, ItemCode = 1, Name = "First", Unit = "unit", OpeningShopQty = 20m },
+                    new Item { Id = 2, ItemCode = 2, Name = "Second", Unit = "unit", OpeningShopQty = 20m });
+                db.Customers.Add(new Customer
+                {
+                    Id = 1, Name = "Original customer", Phone = "111", Note = "Keep note",
+                    FirstPurchaseAt = OldDate, LastPurchaseAt = OldDate, CreatedAt = OldDate,
+                    TotalPurchasedAmount = 500m, PurchaseCount = 2
+                });
+                db.Transfers.AddRange(
+                    new Transfer { ItemId = 1, Qty = 5m },
+                    new Transfer { ItemId = 2, Qty = 3m });
+                db.Sales.Add(new Sale
+                {
+                    ItemId = 1, InvoiceNumber = "PREEXISTING", CustomerId = 1, Qty = 1m,
+                    SaleUnitPrice = 100m, Revenue = 100m, PaymentStatus = PaymentStatus.Cash
+                });
+                db.Purchases.Add(new Purchase
+                {
+                    ItemId = 1, Qty = 1m, UnitCost = 10m, TotalCost = 10m, PaymentStatus = PaymentStatus.Cash
+                });
+                db.CashLedgers.Add(new CashLedger { AmountIn = 70m, AmountOut = 20m });
+                beforeSeedSave?.Invoke(db);
+                db.SaveChanges();
+            }
+            catch (Exception original)
             {
-                ItemId = 1, InvoiceNumber = "PREEXISTING", CustomerId = 1, Qty = 1m,
-                SaleUnitPrice = 100m, Revenue = 100m, PaymentStatus = PaymentStatus.Cash
-            });
-            db.Purchases.Add(new Purchase
-            {
-                ItemId = 1, Qty = 1m, UnitCost = 10m, TotalCost = 10m, PaymentStatus = PaymentStatus.Cash
-            });
-            db.CashLedgers.Add(new CashLedger { AmountIn = 70m, AmountOut = 20m });
-            db.SaveChanges();
+                try { Dispose(); }
+                catch (Exception cleanup) { original.Data["FixtureCleanupException"] = cleanup; }
+                throw;
+            }
         }
 
         public AppDbContext Open(params IInterceptor[] interceptors)
@@ -394,6 +650,18 @@ public sealed class SalePersistenceTests
                 .Options;
             var db = new AppDbContext(options);
             // The exact production event handler, without invoking production schema/data paths.
+            db.SavedChanges += DatabaseService.OnSavedChanges;
+            return db;
+        }
+
+        public DisposeFailureContext OpenWithCleanupFailures(
+            bool failTransactionDispose, bool failContextDispose, params IInterceptor[] interceptors)
+        {
+            var builder = new DbContextOptionsBuilder<AppDbContext>()
+                .UseSqlite(ConnectionString).AddInterceptors(interceptors);
+            if (failTransactionDispose)
+                builder.ReplaceService<IRelationalTransactionFactory, DisposeFailureTransactionFactory>();
+            var db = new DisposeFailureContext(builder.Options, failContextDispose);
             db.SavedChanges += DatabaseService.OnSavedChanges;
             return db;
         }
@@ -419,6 +687,7 @@ public sealed class SalePersistenceTests
                     StringComparison.OrdinalIgnoreCase)
                 || !Path.GetFileName(folder).StartsWith("ShopManager-Phase2-", StringComparison.Ordinal))
                 throw new InvalidOperationException("Unexpected test database location");
+            if (!Directory.Exists(folder)) return;
             foreach (var file in Directory.GetFiles(folder)) File.Delete(file);
             Directory.Delete(folder);
         }

@@ -1082,29 +1082,21 @@ public partial class POSWindow : Window
 
     private void SaveSale(PaymentStatus paymentStatus)
     {
-        try
-        {
-            using var db = DatabaseService.CreateContext();
-            SalePersistenceService.Save(
-                db,
+        ExecuteSale(
+            () => SalePersistenceService.Save(
+                DatabaseService.CreateContext,
                 _cart.Select(c => new SaleLine(c.ItemId, c.Qty, c.SaleUnitPrice, c.LockedCost)).ToList(),
                 _currentInvoiceNumber,
                 CustomerNameBox.Text ?? "",
                 CustomerPhoneBox.Text ?? "",
                 _discountAmount,
                 paymentStatus,
-                _activePOSTerminal);
-        }
-        catch (Exception ex)
-        {
-            ErrorHandler.LogError(ex, "POS persistence/commit");
-            StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
-            StatusText.Text = "تأیید ثبت فروش ناموفق بود — " + ErrorHandler.GetUserMessage(ex);
-            return;
-        }
+                _activePOSTerminal),
+            CompleteCommittedSale,
+            ReportPersistenceFailure,
+            ReportPostCommitFailure);
 
-        // The sale has committed and DataChanged has already been published.
-        try
+        void CompleteCommittedSale()
         {
             var savedInvoice = _currentInvoiceNumber;
             var totalRevenueFinal = _cart.Sum(c => c.Revenue) - _discountAmount;
@@ -1158,9 +1150,54 @@ public partial class POSWindow : Window
                 catch (Exception ex) { ReportPostCommitFailure(ex); }
             }, DispatcherPriority.Background);
         }
+    }
+
+    // Sale-specific boundary, shared by the window and integration tests without constructing UI.
+    internal static void ExecuteSale(
+        Func<IReadOnlyList<Exception>> persist,
+        Action postCommit,
+        Action<Exception> reportPersistenceFailure,
+        Action<Exception> reportPostCommitFailure)
+    {
+        IReadOnlyList<Exception> secondaryErrors;
+        try
+        {
+            secondaryErrors = persist();
+        }
         catch (Exception ex)
         {
-            ReportPostCommitFailure(ex);
+            reportPersistenceFailure(ex);
+            return;
+        }
+
+        // Never classify notification, cleanup or UI errors as persistence failures.
+        // Report secondary errors last so a UI success message cannot overwrite them.
+        try
+        {
+            postCommit();
+        }
+        catch (Exception ex)
+        {
+            reportPostCommitFailure(ex);
+        }
+        foreach (var error in secondaryErrors)
+            reportPostCommitFailure(error);
+    }
+
+    private void ReportPersistenceFailure(Exception ex)
+    {
+        LogPersistenceFailure(ex, ErrorHandler.LogError);
+        StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
+        StatusText.Text = "تأیید ثبت فروش ناموفق بود — " + ErrorHandler.GetUserMessage(ex);
+    }
+
+    internal static void LogPersistenceFailure(Exception primary, Action<Exception, string> logError)
+    {
+        logError(primary, "POS persistence/commit");
+        foreach (var stage in new[] { "RollbackException", "TransactionDisposeException", "ContextDisposeException" })
+        {
+            if (primary.Data[stage] is Exception secondary)
+                logError(secondary, "POS secondary " + stage);
         }
     }
 
@@ -1168,7 +1205,7 @@ public partial class POSWindow : Window
     {
         ErrorHandler.LogError(ex, "POS post-commit UI/printing");
         StatusText.Foreground = new SolidColorBrush(Color.Parse("#D97706"));
-        StatusText.Text = "فروش ثبت شد؛ نمایش/چاپ با خطا مواجه شد.";
+        StatusText.Text = "فروش ثبت شد؛ عملیات پس از ثبت با خطا مواجه شد.";
     }
 
     /// <summary>

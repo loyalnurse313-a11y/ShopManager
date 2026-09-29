@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using ShopManager.Domain.Entities;
 using ShopManager.Domain.Enums;
 using ShopManager.Domain.Helpers;
@@ -20,9 +22,9 @@ internal sealed record SaleLine(int ItemId, decimal Qty, decimal SaleUnitPrice, 
 
 internal static class SalePersistenceService
 {
-    // The caller owns the context; this method owns the sale's single transaction.
-    internal static void Save(
-        AppDbContext db,
+    // Own both resources so cleanup cannot change the outcome of a successful commit.
+    internal static IReadOnlyList<Exception> Save(
+        Func<AppDbContext> createContext,
         IReadOnlyList<SaleLine> items,
         string invoiceNumber,
         string customerName,
@@ -31,9 +33,15 @@ internal static class SalePersistenceService
         PaymentStatus paymentStatus,
         string cardTerminal)
     {
-        using var tx = db.Database.BeginTransaction();
+        AppDbContext? db = null;
+        IDbContextTransaction? tx = null;
+        Exception? persistenceError = null;
+        var committed = false;
+        var postCommitErrors = new List<Exception>();
         try
         {
+            db = createContext();
+            tx = db.Database.BeginTransaction();
             var today = DateTime.Today;
 
             // ── ۱. مشتری (بدون SaveChanges، فقط track) ──
@@ -160,21 +168,48 @@ internal static class SalePersistenceService
             // ── ۴. کامیت اتمی ──
             db.SaveChanges();
             tx.Commit();
+            committed = true;
         }
         catch (Exception originalException)
         {
+            persistenceError = originalException;
             try
             {
-                tx.Rollback();
+                tx?.Rollback();
             }
             catch (Exception rollbackException)
             {
                 originalException.Data["RollbackException"] = rollbackException;
             }
-            throw;
+        }
+        finally
+        {
+            DisposeResource(tx, "TransactionDisposeException");
+            DisposeResource(db, "ContextDisposeException");
         }
 
+        if (persistenceError != null)
+            ExceptionDispatchInfo.Capture(persistenceError).Throw();
+
         // SavedChanges is not a commit notification when a transaction is explicit.
-        DatabaseService.NotifyDataChanged();
+        var notificationError = DatabaseService.NotifyDataChanged();
+        if (notificationError != null)
+            postCommitErrors.Add(notificationError);
+        return postCommitErrors;
+
+        void DisposeResource(IDisposable? resource, string stage)
+        {
+            try
+            {
+                resource?.Dispose();
+            }
+            catch (Exception cleanupError)
+            {
+                if (committed)
+                    postCommitErrors.Add(new InvalidOperationException(stage, cleanupError));
+                else
+                    persistenceError!.Data[stage] = cleanupError;
+            }
+        }
     }
 }
