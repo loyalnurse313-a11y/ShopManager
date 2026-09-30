@@ -715,6 +715,111 @@ public sealed class SalePersistenceTests
         Assert.Equal(3, reader.Customers.Single(c => c.Id == 1).PurchaseCount);
     }
 
+    [Fact]
+    public async Task DifferentOperationsCompetingForLastUnitPersistOnlyTheWinner()
+    {
+        using var database = new TestDatabase(db =>
+        {
+            db.Items.Local.Single(i => i.Id == 1).OpeningShopQty = 0;
+            db.Transfers.Local.Single(t => t.ItemId == 1).Qty = 2;
+        });
+        var before = database.ReadState();
+        Assert.Equal(1m, before.Stock[0]); // Two transferred minus the pre-existing sale.
+        using var firstStarted = new ManualResetEventSlim();
+        using var secondStarting = new ManualResetEventSlim();
+        var firstGate = new CompetingSaleTransaction(true, firstStarted, secondStarting);
+        var secondGate = new CompetingSaleTransaction(false, firstStarted, secondStarting);
+        var firstReads = new TransactionalSaleReads();
+        var secondReads = new TransactionalSaleReads();
+        var firstRequest = new SaleRequest([new(1, 1m, 100m, 40m)], "Winner", "111", 0, PaymentStatus.Cash, null);
+        var secondRequest = new SaleRequest([new(1, 1m, 200m, 40m)], "Loser", "222", 0, PaymentStatus.Cash, null);
+        var notifications = 0;
+        void Notify() => Interlocked.Increment(ref notifications);
+        DatabaseService.DataChanged += Notify;
+        try
+        {
+            var first = Task.Run(() => SalePersistenceService.Save(
+                () => database.Open(firstGate, firstReads), "stock-winner", firstRequest, "STOCK-FIRST"));
+            var second = Task.Run(() =>
+            {
+                Assert.True(firstStarted.Wait(TimeSpan.FromSeconds(10)));
+                return Record.Exception(() => SalePersistenceService.Save(
+                    () => database.Open(secondGate, secondReads), "stock-loser", secondRequest, "STOCK-SECOND"));
+            });
+            await Task.WhenAll(first, second);
+            var winner = await first;
+            var loser = await second;
+            Assert.False(winner.IsReplay);
+            Assert.Empty(winner.PostCommitErrors);
+            Assert.IsType<InvalidOperationException>(loser);
+            Assert.True(SaleFailure.IsNotCommitted(loser!));
+            Assert.NotNull(firstGate.Connection);
+            Assert.NotNull(secondGate.Connection);
+            Assert.NotSame(firstGate.Connection, secondGate.Connection);
+            Assert.True(firstReads.Count > 0);
+            Assert.True(secondReads.Count > 0);
+            Assert.Equal(1, notifications);
+
+            using var reader = database.Open();
+            Assert.Equal(2, reader.Sales.Count()); // Original row plus exactly one new sale.
+            var sale = reader.Sales.Single(s => s.InvoiceNumber == "STOCK-FIRST");
+            Assert.Equal((1m, 100m, 40m, 60m), (sale.Qty, sale.Revenue, sale.Cost, sale.Profit));
+            Assert.False(reader.Sales.Any(s => s.InvoiceNumber == "STOCK-SECOND"));
+            Assert.Equal("stock-winner", Assert.Single(reader.SaleOperations).OperationId);
+            var customer = Assert.Single(reader.Customers);
+            Assert.Equal("111", customer.Phone);
+            Assert.Equal("Winner", customer.Name);
+            Assert.Equal(3, customer.PurchaseCount);
+            Assert.Equal(600m, customer.TotalPurchasedAmount);
+            var after = database.ReadState();
+            Assert.Equal(0m, after.Stock[0]);
+            Assert.Equal(before.Stock[1], after.Stock[1]);
+            Assert.Equal(before.Cashbox + 100m, after.Cashbox);
+        }
+        finally { DatabaseService.DataChanged -= Notify; }
+    }
+
+    private sealed class CompetingSaleTransaction(
+        bool first, ManualResetEventSlim firstStarted, ManualResetEventSlim secondStarting) : DbTransactionInterceptor
+    {
+        public DbConnection? Connection { get; private set; }
+
+        public override InterceptionResult<DbTransaction> TransactionStarting(
+            DbConnection connection, TransactionStartingEventData eventData, InterceptionResult<DbTransaction> result)
+        {
+            Connection = connection;
+            if (!first) secondStarting.Set();
+            return result;
+        }
+
+        public override DbTransaction TransactionStarted(
+            DbConnection connection, TransactionEndEventData eventData, DbTransaction result)
+        {
+            if (first)
+            {
+                firstStarted.Set();
+                // Wait before the first stock read, while holding SQLite's writer transaction.
+                Assert.True(secondStarting.Wait(TimeSpan.FromSeconds(10)));
+            }
+            return result;
+        }
+    }
+
+    private sealed class TransactionalSaleReads : DbCommandInterceptor
+    {
+        public int Count { get; private set; }
+        public override InterceptionResult<DbDataReader> ReaderExecuting(
+            DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result)
+        {
+            if (command.CommandText.StartsWith("SELECT", StringComparison.Ordinal))
+            {
+                Assert.NotNull(command.Transaction);
+                Count++;
+            }
+            return result;
+        }
+    }
+
     [Theory]
     [InlineData(13, false)]
     [InlineData(12, true)]

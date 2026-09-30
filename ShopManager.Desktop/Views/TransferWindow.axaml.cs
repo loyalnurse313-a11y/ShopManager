@@ -187,25 +187,6 @@ public partial class TransferWindow : Window
                 return;
             }
 
-            using var db = DatabaseService.CreateContext();
-            var item = db.Items.FirstOrDefault(i => i.ItemCode == itemCode.Value && i.IsActive);
-            if (item == null)
-            {
-                StatusText.Text = $"کالایی با کد {itemCode} پیدا نشد";
-                return;
-            }
-
-            // چک موجودی انبار
-            var purchases = db.Purchases.ToList();
-            var transfers = db.Transfers.ToList();
-            var warehouseStock = StockCalculator.GetWarehouseStock(item, purchases, transfers);
-
-            if (warehouseStock < qty)
-            {
-                StatusText.Text = $"موجودی انبار کافی نیست. موجودی فعلی: {PersianNumber.ToPersian(warehouseStock)}";
-                return;
-            }
-
             // تاریخ میلادی
             DateTime gregorianDate;
             try
@@ -218,44 +199,73 @@ public partial class TransferWindow : Window
                 return;
             }
 
-            // ذخیره
-            var transfer = new Transfer
-            {
-                ItemId = item.Id,
-                DateShamsi = dateText,
-                DateGregorian = gregorianDate,
-                Qty = qty,
-                Note = string.IsNullOrWhiteSpace(note) ? null : note,
-                EntryType = EntryType.Normal,
-                CreatedAt = DateTime.UtcNow
-            };
+            ExecuteTransfer(
+                () => TransferPersistenceService.Save(DatabaseService.CreateContext, itemCode.Value, qty,
+                    dateText, gregorianDate, note),
+                result =>
+                {
+                    StatusText.Foreground = new SolidColorBrush(Color.Parse("#10B981"));
+                    StatusText.Text = $"✓ انتقال ثبت شد: {result.ItemName} — {PersianNumber.ToPersian(qty)} {result.ItemUnit}";
 
-            db.Transfers.Add(transfer);
-            db.SaveChanges();
+                    ItemSearchBox.Text = "";
+                    _selectedItem = null;
+                    ItemNameText.Text = "—";
+                    ItemNameText.Foreground = new SolidColorBrush(Color.Parse("#94A3B8"));
+                    QtyTextBox.Text = "";
+                    NoteTextBox.Text = "";
+                    WarehouseStockText.Text = "—";
+                    WarehouseAfterText.Text = "—";
+                    ShopAfterText.Text = "—";
 
-            // پیام موفقیت
-            StatusText.Foreground = new SolidColorBrush(Color.Parse("#10B981"));
-            StatusText.Text = $"✓ انتقال ثبت شد: {item.Name} — {PersianNumber.ToPersian(qty)} {item.Unit}";
-
-            // پاک کردن فرم
-            ItemSearchBox.Text = "";
-            _selectedItem = null;
-            ItemNameText.Text = "—";
-            ItemNameText.Foreground = new SolidColorBrush(Color.Parse("#94A3B8"));
-            QtyTextBox.Text = "";
-            NoteTextBox.Text = "";
-            WarehouseStockText.Text = "—";
-            WarehouseAfterText.Text = "—";
-            ShopAfterText.Text = "—";
-
-            LoadTodayTransfers();
+                    LoadTodayTransfers();
+                }, ReportPersistenceFailure, ReportPostCommitFailure);
         }
         catch (Exception ex)
         {
-            ErrorHandler.LogError(ex, "Transfer");
-            StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
-            StatusText.Text = ErrorHandler.GetUserMessage(ex);
+            ReportPersistenceFailure(ex);
         }
+    }
+
+    internal static void ExecuteTransfer(
+        Func<TransferSaveResult> persist,
+        Action<TransferSaveResult> postCommit,
+        Action<Exception> reportPersistenceFailure,
+        Action<Exception> reportPostCommitFailure)
+    {
+        TransferSaveResult result;
+        try { result = persist(); }
+        catch (Exception error)
+        {
+            reportPersistenceFailure(error);
+            return;
+        }
+
+        try { postCommit(result); }
+        catch (Exception error) { reportPostCommitFailure(error); }
+        // Report secondary errors last so a success message cannot overwrite them.
+        foreach (var error in result.PostCommitErrors) reportPostCommitFailure(error);
+    }
+
+    private void ReportPersistenceFailure(Exception error)
+    {
+        ErrorHandler.LogError(error, "Transfer persistence/commit");
+        var primary = error is TransferCommitUncertainException ? error.InnerException! : error;
+        foreach (var stage in new[] { "RollbackException", "TransactionDisposeException", "ContextDisposeException" })
+        {
+            if (primary.Data[stage] is Exception secondary)
+                ErrorHandler.LogError(secondary, "Transfer secondary " + stage);
+        }
+        StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
+        StatusText.Text = error is TransferCommitUncertainException
+            ? "نتیجه ثبت انتقال نامشخص است؛ پیش از ثبت مجدد، سابقه انتقال را بررسی کنید."
+            : ErrorHandler.GetUserMessage(error);
+    }
+
+    private void ReportPostCommitFailure(Exception error)
+    {
+        ErrorHandler.LogError(error, "Transfer post-commit UI/cleanup");
+        StatusText.Foreground = new SolidColorBrush(Color.Parse("#D97706"));
+        StatusText.Text = "انتقال ثبت شد؛ عملیات پس از ثبت با خطا مواجه شد.";
     }
 
     /// <summary>بارگذاری انتقال‌های امروز</summary>
