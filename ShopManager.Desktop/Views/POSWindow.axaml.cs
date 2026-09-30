@@ -1,4 +1,4 @@
-﻿using Avalonia;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -31,6 +31,7 @@ public partial class POSWindow : Window
     private List<Item> _allItems = new();
     private string _currentInvoiceNumber = "";
     private bool _isPaymentInProgress;
+    private PendingSale? _pendingSale;
     private decimal _discountAmount = 0;
     private string _activeTab = "popular";
 
@@ -209,7 +210,7 @@ public partial class POSWindow : Window
         switch (e.Key)
         {
             case Key.F2:
-                if (_cart.Count > 0) OnPayClick(null, new RoutedEventArgs());
+                if (_pendingSale != null || _cart.Count > 0) OnPayClick(null, new RoutedEventArgs());
                 e.Handled = true;
                 return;
 
@@ -618,6 +619,7 @@ public partial class POSWindow : Window
 
     private void AddItemToCart(Item item, decimal qty)
     {
+        if (HasPendingSale()) return;
         using (var db = DatabaseService.CreateContext())
         {
             var transfers = db.Transfers.ToList();
@@ -755,6 +757,7 @@ public partial class POSWindow : Window
 
         qtyBox.TextChanged += (s, e) =>
         {
+            if (HasPendingSale()) return;
             var text = PersianNumber.ToEnglishDigits(qtyBox.Text ?? "").Trim();
             text = text.Replace(" ", "").Replace(",", "").Replace("٬", "");
 
@@ -788,6 +791,7 @@ public partial class POSWindow : Window
 
         qtyBox.KeyDown += (s, e) =>
         {
+            if (HasPendingSale()) return;
             if (e.Key == Key.Enter)
             {
                 var text = PersianNumber.ToEnglishDigits(qtyBox.Text ?? "").Trim()
@@ -813,6 +817,7 @@ public partial class POSWindow : Window
 
         qtyBox.LostFocus += (s, e) =>
         {
+            if (HasPendingSale()) return;
             var text = PersianNumber.ToEnglishDigits(qtyBox.Text ?? "").Trim()
                 .Replace(" ", "").Replace(",", "").Replace("٬", "");
 
@@ -879,6 +884,7 @@ public partial class POSWindow : Window
         };
         deleteBtn.Click += (s, e) =>
         {
+            if (HasPendingSale()) return;
             _cart.Remove(capturedItem);
             RefreshCart();
         };
@@ -935,6 +941,7 @@ public partial class POSWindow : Window
 
     private void ClearCart()
     {
+        if (HasPendingSale()) return;
         _cart.Clear();
         _discountAmount = 0;
         RefreshCart();
@@ -951,6 +958,7 @@ public partial class POSWindow : Window
 
     private async void OnDiscountClick(object? sender, RoutedEventArgs e)
     {
+        if (HasPendingSale()) return;
         if (_cart.Count == 0)
         {
             StatusText.Text = "سبد خالیه";
@@ -1031,7 +1039,7 @@ public partial class POSWindow : Window
         if (_isPaymentInProgress)
             return;
 
-        if (_cart.Count == 0)
+        if (_pendingSale == null && _cart.Count == 0)
         {
             StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
             StatusText.Text = "سبد خالی است";
@@ -1043,6 +1051,12 @@ public partial class POSWindow : Window
 
         try
         {
+            if (_pendingSale != null)
+            {
+                SaveSale(null);
+                return;
+            }
+
             // ═══════════════════════════════════════════════════════════
             //  بررسی سریع موجودی برای فیدبک فوری
             //  بررسی authoritative در داخل SaveSale انجام میشود
@@ -1098,33 +1112,40 @@ public partial class POSWindow : Window
         }
     }
 
-    private void SaveSale(PaymentStatus paymentStatus)
+    private bool HasPendingSale()
     {
+        if (_pendingSale == null) return false;
+        StatusText.Text = "ابتدا با دکمه پرداخت، نتیجه فروش قبلی را تعیین کنید.";
+        return true;
+    }
+
+    private void SaveSale(PaymentStatus? paymentStatus)
+    {
+        _pendingSale ??= new PendingSale(new SaleRequest(
+            _cart.Select(c => new SaleLine(c.ItemId, c.Qty, c.SaleUnitPrice, c.LockedCost)),
+            CustomerNameBox.Text ?? "", CustomerPhoneBox.Text ?? "", _discountAmount,
+            paymentStatus ?? throw new InvalidOperationException("Payment selection is required."),
+            _activePOSTerminal), _currentInvoiceNumber);
+        var pending = _pendingSale;
+        var request = pending.Request;
         ExecuteSale(
-            () => SalePersistenceService.Save(
-                DatabaseService.CreateContext,
-                _cart.Select(c => new SaleLine(c.ItemId, c.Qty, c.SaleUnitPrice, c.LockedCost)).ToList(),
-                _currentInvoiceNumber,
-                CustomerNameBox.Text ?? "",
-                CustomerPhoneBox.Text ?? "",
-                _discountAmount,
-                paymentStatus,
-                _activePOSTerminal),
+            () => pending.Persist((id, snapshot, invoice) =>
+                SalePersistenceService.Save(DatabaseService.CreateContext, id, snapshot, invoice)),
             CompleteCommittedSale,
             ReportPersistenceFailure,
             ReportPostCommitFailure);
 
-        void CompleteCommittedSale()
+        void CompleteCommittedSale(SaleSaveResult result)
         {
-            var savedInvoice = _currentInvoiceNumber;
-            var totalRevenueFinal = _cart.Sum(c => c.Revenue) - _discountAmount;
+            var savedInvoice = result.InvoiceNumber;
+            var totalRevenueFinal = request.Lines.Sum(c => c.Revenue) - request.DiscountAmount;
 
-            var payTypeText = paymentStatus switch
+            var payTypeText = request.PaymentStatus switch
             {
                 PaymentStatus.Cash => "نقدی",
-                PaymentStatus.Card => string.IsNullOrWhiteSpace(_activePOSTerminal)
+                PaymentStatus.Card => string.IsNullOrWhiteSpace(request.CardTerminal)
                     ? "کارتی"
-                    : $"کارتی ({_activePOSTerminal})",
+                    : $"کارتی ({request.CardTerminal})",
                 PaymentStatus.Credit => "نسیه",
                 _ => "—"
             };
@@ -1167,20 +1188,21 @@ public partial class POSWindow : Window
                 try { BarcodeSearchBox.Focus(); }
                 catch (Exception ex) { ReportPostCommitFailure(ex); }
             }, DispatcherPriority.Background);
+            _pendingSale = null;
         }
     }
 
     // Sale-specific boundary, shared by the window and integration tests without constructing UI.
     internal static void ExecuteSale(
-        Func<IReadOnlyList<Exception>> persist,
-        Action postCommit,
+        Func<SaleSaveResult> persist,
+        Action<SaleSaveResult> postCommit,
         Action<Exception> reportPersistenceFailure,
         Action<Exception> reportPostCommitFailure)
     {
-        IReadOnlyList<Exception> secondaryErrors;
+        SaleSaveResult result;
         try
         {
-            secondaryErrors = persist();
+            result = persist();
         }
         catch (Exception ex)
         {
@@ -1192,13 +1214,13 @@ public partial class POSWindow : Window
         // Report secondary errors last so a UI success message cannot overwrite them.
         try
         {
-            postCommit();
+            postCommit(result);
         }
         catch (Exception ex)
         {
             reportPostCommitFailure(ex);
         }
-        foreach (var error in secondaryErrors)
+        foreach (var error in result.PostCommitErrors)
             reportPostCommitFailure(error);
     }
 

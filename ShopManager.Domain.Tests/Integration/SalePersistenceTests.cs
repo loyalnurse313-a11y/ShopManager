@@ -39,7 +39,7 @@ public sealed class SalePersistenceTests
         var transaction = new TransactionProbe();
         using var notification = new NotificationProbe(database, transaction);
         var started = DateTime.UtcNow;
-        Assert.Empty(Save(() => database.Open(transaction), existingCustomer, payment));
+        Assert.Empty(Save(() => database.Open(transaction), existingCustomer, payment).PostCommitErrors);
         var finished = DateTime.UtcNow;
 
         // All assertions use a new context after the writer has been disposed.
@@ -165,7 +165,7 @@ public sealed class SalePersistenceTests
         var before = database.ReadState();
         var transaction = new TransactionProbe();
         using var notification = new NotificationProbe(database, transaction);
-        Assert.Throws<InvalidOperationException>(() => SalePersistenceService.Save(
+        Assert.Throws<InvalidOperationException>(() => SaveRequest(
             () => database.Open(transaction), [new SaleLine(1, 100m, 101m, 40.5m)], Invoice,
             "Changed name", "111", 10m, PaymentStatus.Cash, ""));
         Assert.Equal(0, transaction.CommitAttempts);
@@ -178,8 +178,8 @@ public sealed class SalePersistenceTests
     public void SaleWithoutCustomer_PreservesOptionalCustomerAndCardTerminalBehavior()
     {
         using var database = new TestDatabase();
-        Assert.Empty(SalePersistenceService.Save(
-            () => database.Open(), Lines, Invoice, "", "", 0m, PaymentStatus.Card, " "));
+        Assert.Empty(SaveRequest(
+            () => database.Open(), Lines, Invoice, "", "", 0m, PaymentStatus.Card, " ").PostCommitErrors);
         using var reader = database.Open();
         Assert.Single(reader.Customers);
         var sales = reader.Sales.Where(s => s.InvoiceNumber == Invoice).OrderBy(s => s.ItemId).ToList();
@@ -224,7 +224,7 @@ public sealed class SalePersistenceTests
         try
         {
             var errors = Save(() => database.Open(), existingCustomer: false);
-            Assert.Equal("Subscriber failed after commit", Assert.Single(errors).Message);
+            Assert.Equal("Subscriber failed after commit", Assert.Single(errors.PostCommitErrors).Message);
             using var reader = database.Open();
             Assert.Equal(2, reader.Sales.Count(s => s.InvoiceNumber == Invoice));
             Assert.Equal(2, reader.Customers.Count());
@@ -252,7 +252,7 @@ public sealed class SalePersistenceTests
 
         POSWindow.ExecuteSale(
             () => Save(() => database.Open(failCommit ? [transaction] : [transaction, command]), false),
-            () => postCommitCalls++, persistenceErrors.Add, postCommitErrors.Add);
+            _ => postCommitCalls++, persistenceErrors.Add, postCommitErrors.Add);
 
         var primary = Assert.Single(persistenceErrors);
         if (failCommit)
@@ -286,7 +286,7 @@ public sealed class SalePersistenceTests
 
         POSWindow.ExecuteSale(
             () => Save(() => database.Open(transaction), false),
-            () =>
+            _ =>
             {
                 postCommitCalls++;
                 notifiedAtUi = notification.Count;
@@ -325,7 +325,7 @@ public sealed class SalePersistenceTests
         POSWindow.ExecuteSale(
             () => Save(() => writer = database.OpenWithCleanupFailures(
                 failTransactionDispose, failContextDispose, transaction), false),
-            () => order.Add("UI success"), persistenceErrors.Add,
+            _ => order.Add("UI success"), persistenceErrors.Add,
             error => { postCommitErrors.Add(error); order.Add("Post-commit error"); });
 
         Assert.Empty(persistenceErrors);
@@ -361,8 +361,14 @@ public sealed class SalePersistenceTests
         var command = new FailAfterSaleInsert();
         using var notification = new NotificationProbe(database, transaction);
         DisposeFailureContext? writer = null;
-        var primary = Record.Exception(() => Save(() => writer = database.OpenWithCleanupFailures(
-            true, true, failCommit ? [transaction] : [transaction, command]), true));
+        var primary = Record.Exception(() => Save(() =>
+        {
+            var context = database.OpenWithCleanupFailures(
+                true, true, failCommit ? [transaction] : [transaction, command]);
+            // Recovery may open a second context; assertions below concern the original writer.
+            writer ??= context;
+            return context;
+        }, true));
 
         Assert.NotNull(primary);
         if (failCommit)
@@ -401,7 +407,7 @@ public sealed class SalePersistenceTests
         try
         {
             POSWindow.ExecuteSale(() => Save(() => database.Open(), false),
-                () => order.Add("UI success"), persistenceErrors.Add,
+                _ => order.Add("UI success"), persistenceErrors.Add,
                 error => { postCommitErrors.Add(error); order.Add("Post-commit error"); });
             Assert.Empty(persistenceErrors);
             Assert.Same(notificationError, Assert.Single(postCommitErrors));
@@ -416,9 +422,9 @@ public sealed class SalePersistenceTests
     public void LastLineDiscount_UsesRemainderInsteadOfIndependentlyRoundedShare()
     {
         using var database = new TestDatabase();
-        Assert.Empty(SalePersistenceService.Save(() => database.Open(),
+        Assert.Empty(SaveRequest(() => database.Open(),
             [new SaleLine(1, 1m, 100m, 40.5m), new SaleLine(2, 1m, 100m, 20.25m)],
-            Invoice, "Customer", "222", 1m, PaymentStatus.Cash, ""));
+            Invoice, "Customer", "222", 1m, PaymentStatus.Cash, "").PostCommitErrors);
         using var reader = database.Open();
         var sales = reader.Sales.Where(s => s.InvoiceNumber == Invoice).OrderBy(s => s.ItemId).ToList();
         // Each proportional share is 0.5; independently rounding both gives 2, not the allowed 1.
@@ -445,20 +451,210 @@ public sealed class SalePersistenceTests
         Assert.False(Directory.Exists(folder));
     }
 
-    private static IReadOnlyList<Exception> Save(
+    [Fact]
+    public void ReplayPreservesMultilineSaleCustomerAndNotifications()
+    {
+        using var database = new TestDatabase();
+        var request = new SaleRequest(Lines, " Updated customer ", "111", 10m, PaymentStatus.Card, "Terminal A");
+        var notifications = 0;
+        void Notify() => notifications++;
+        DatabaseService.DataChanged += Notify;
+        try
+        {
+            var first = SalePersistenceService.Save(() => database.Open(), "replay", request, Invoice);
+            Assert.False(first.IsReplay);
+            Assert.Equal(Invoice, first.InvoiceNumber);
+            var state = database.ReadState();
+            using (var reader = database.Open())
+            {
+                var operation = Assert.Single(reader.SaleOperations);
+                Assert.Equal(request.Fingerprint(), operation.RequestFingerprint);
+                Assert.Equal(2, reader.Sales.Count(s => s.InvoiceNumber == Invoice));
+                Assert.Equal(3, reader.Customers.Single(c => c.Id == 1).PurchaseCount);
+            }
+            var replay = SalePersistenceService.Save(() => database.Open(), "replay", request, "IGNORED");
+            Assert.True(replay.IsReplay);
+            Assert.Equal(Invoice, replay.InvoiceNumber);
+            Assert.Empty(replay.PostCommitErrors);
+            AssertStateEqual(state, database.ReadState());
+            Assert.Equal(1, notifications);
+        }
+        finally { DatabaseService.DataChanged -= Notify; }
+    }
+
+    [Fact]
+    public void ReplayDoesNotRevalidateConsumedStockOrSaveChanges()
+    {
+        using var database = new TestDatabase();
+        var request = new SaleRequest([new SaleLine(1, 24m, 100m, 40m)], "", "", 0, PaymentStatus.Cash, null);
+        SalePersistenceService.Save(() => database.Open(), "consumed", request, Invoice);
+        var before = database.ReadState();
+        Assert.Equal(0m, before.Stock[0]);
+        var replay = SalePersistenceService.Save(() => database.Open(new RejectWrites()), "consumed", request, "");
+        Assert.True(replay.IsReplay);
+        AssertStateEqual(before, database.ReadState());
+    }
+
+    [Fact]
+    public void ChangedRequestIsConflictBeforeAnyMutation()
+    {
+        using var database = new TestDatabase();
+        var original = new SaleRequest(Lines, "Name", "111", 0, PaymentStatus.Cash, null);
+        SalePersistenceService.Save(() => database.Open(), "conflict", original, Invoice);
+        var before = database.ReadState();
+        var changed = new SaleRequest(Lines, "Changed", "111", 1, PaymentStatus.Card, "Other");
+        Assert.Throws<SaleOperationConflictException>(() =>
+            SalePersistenceService.Save(() => database.Open(new RejectWrites()), "conflict", changed, ""));
+        AssertStateEqual(before, database.ReadState());
+        using var reader = database.Open();
+        Assert.Single(reader.SaleOperations);
+    }
+
+    [Fact]
+    public void FailedCommitRollsBackOperationAndRetryUsesSameIdentity()
+    {
+        using var database = new TestDatabase();
+        var request = new SaleRequest(Lines, "Name", "111", 0, PaymentStatus.Cash, null);
+        var before = database.ReadState();
+        var probe = new TransactionProbe { FailCommit = true };
+        Assert.Same(probe.CommitError, Assert.Throws<InvalidOperationException>(() =>
+            SalePersistenceService.Save(() => database.Open(probe), "retry", request, Invoice)));
+        AssertStateEqual(before, database.ReadState());
+        using (var reader = database.Open()) Assert.Empty(reader.SaleOperations);
+        Assert.False(SalePersistenceService.Save(() => database.Open(), "retry", request, Invoice).IsReplay);
+        using var final = database.Open();
+        Assert.Single(final.SaleOperations);
+        Assert.Equal(2, final.Sales.Count(s => s.InvoiceNumber == Invoice));
+    }
+
+    [Fact]
+    public void ActualCommitThenExceptionResolvesFromFreshContextAndRetryIsReplay()
+    {
+        using var database = new TestDatabase();
+        var request = new SaleRequest(Lines, "Name", "111", 0, PaymentStatus.Cash, null);
+        var probe = new ThrowAfterCommit();
+        var opened = 0;
+        var result = SalePersistenceService.Save(() => { opened++; return database.Open(probe); },
+            "ambiguous", request, Invoice);
+        Assert.True(result.IsReplay);
+        Assert.Equal(2, opened);
+        Assert.Contains(probe.Error, result.PostCommitErrors);
+        var before = database.ReadState();
+        Assert.True(SalePersistenceService.Save(() => database.Open(), "ambiguous", request, "OTHER").IsReplay);
+        AssertStateEqual(before, database.ReadState());
+        using var reader = database.Open();
+        Assert.Single(reader.SaleOperations);
+    }
+
+    [Fact]
+    public void VerificationReadFailurePreservesOriginalErrorAndLaterRetryIsSafe()
+    {
+        using var database = new TestDatabase();
+        var request = new SaleRequest(Lines, "Name", "111", 0, PaymentStatus.Cash, null);
+        var probe = new ThrowAfterCommit();
+        var readError = new InvalidOperationException("Verification unavailable");
+        var calls = 0;
+        var error = Record.Exception(() => SalePersistenceService.Save(() =>
+        {
+            if (++calls == 2) throw readError;
+            return database.Open(probe);
+        }, "uncertain", request, Invoice));
+        Assert.Same(probe.Error, error);
+        Assert.Same(readError, error!.Data["ReplayVerificationException"]);
+        var before = database.ReadState();
+        Assert.True(SalePersistenceService.Save(() => database.Open(), "uncertain", request, Invoice).IsReplay);
+        AssertStateEqual(before, database.ReadState());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ExistingInvoiceIsRejectedWithoutEffects(bool operationExists)
+    {
+        using var database = new TestDatabase();
+        var request = new SaleRequest(Lines, "Name", "111", 0, PaymentStatus.Cash, null);
+        var invoice = "PREEXISTING";
+        if (operationExists)
+        {
+            invoice = Invoice;
+            SalePersistenceService.Save(() => database.Open(), "owner", request, invoice);
+        }
+        var before = database.ReadState();
+        Assert.Throws<InvalidOperationException>(() =>
+            SalePersistenceService.Save(() => database.Open(), "new", request, invoice));
+        AssertStateEqual(before, database.ReadState());
+        using var reader = database.Open();
+        Assert.False(reader.SaleOperations.Any(o => o.OperationId == "new"));
+    }
+
+    [Fact]
+    public void ReplayCleanupFailuresRemainSecondary()
+    {
+        using var database = new TestDatabase();
+        var request = new SaleRequest(Lines, "Name", "111", 0, PaymentStatus.Cash, null);
+        SalePersistenceService.Save(() => database.Open(), "cleanup", request, Invoice);
+        var result = SalePersistenceService.Save(() => database.OpenWithCleanupFailures(true, true),
+            "cleanup", request, Invoice);
+        Assert.True(result.IsReplay);
+        Assert.Equal(2, result.PostCommitErrors.Count);
+        using var reader = database.Open();
+        Assert.Single(reader.SaleOperations);
+    }
+
+    [Fact]
+    public async Task SameOperationOnIndependentConnectionsCreatesOnlyOneSale()
+    {
+        using var database = new TestDatabase();
+        var request = new SaleRequest(Lines, "Name", "111", 0, PaymentStatus.Cash, null);
+        using var start = new Barrier(2);
+        Task<SaleSaveResult> Run() => Task.Run(() =>
+        {
+            Assert.True(start.SignalAndWait(TimeSpan.FromSeconds(10)));
+            return SalePersistenceService.Save(() => database.Open(), "parallel", request, Invoice);
+        });
+        var results = await Task.WhenAll(Run(), Run());
+        Assert.Single(results, r => !r.IsReplay);
+        Assert.Single(results, r => r.IsReplay);
+        using var reader = database.Open();
+        Assert.Single(reader.SaleOperations);
+        Assert.Equal(2, reader.Sales.Count(s => s.InvoiceNumber == Invoice));
+        Assert.Equal(3, reader.Customers.Single(c => c.Id == 1).PurchaseCount);
+    }
+
+    private sealed class RejectWrites : SaveChangesInterceptor
+    {
+        public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
+            => throw new InvalidOperationException("Replay must not save changes.");
+    }
+
+    private sealed class ThrowAfterCommit : DbTransactionInterceptor
+    {
+        public Exception Error { get; } = new InvalidOperationException("Commit succeeded but acknowledgement failed.");
+        public override void TransactionCommitted(DbTransaction transaction, TransactionEndEventData eventData)
+            => throw Error;
+    }
+
+    private static SaleSaveResult SaveRequest(Func<AppDbContext> createContext,
+        IReadOnlyList<SaleLine> lines, string invoice, string name, string phone,
+        decimal discount, PaymentStatus payment, string terminal) =>
+        SalePersistenceService.Save(createContext, "phase2-operation",
+            new SaleRequest(lines, name, phone, discount, payment, terminal), invoice);
+
+    private static SaleSaveResult Save(
         Func<AppDbContext> createContext, bool existingCustomer, PaymentStatus payment = PaymentStatus.Cash)
-        => SalePersistenceService.Save(createContext, Lines, Invoice, " Updated customer ",
+        => SaveRequest(createContext, Lines, Invoice, " Updated customer ",
             existingCustomer ? "111" : "222", 10m, payment, "Terminal A");
 
     private static void AssertStateEqual(DatabaseState expected, DatabaseState actual)
     {
+        Assert.Equal(expected.Operations, actual.Operations);
         Assert.Equal(expected.Sales, actual.Sales);
         Assert.Equal(expected.Customers, actual.Customers);
         Assert.Equal(expected.Stock, actual.Stock);
         Assert.Equal(expected.Cashbox, actual.Cashbox);
     }
 
-    private sealed record DatabaseState(string Sales, string Customers, decimal[] Stock, decimal Cashbox);
+    private sealed record DatabaseState(string Sales, string Customers, decimal[] Stock, decimal Cashbox, string Operations);
 
     private sealed class NotificationProbe : IDisposable
     {
@@ -676,7 +872,8 @@ public sealed class SalePersistenceTests
             var stock = items.Select(i => StockCalculator.GetShopStock(i, transfers, sales)).ToArray();
             var cashbox = CashboxCalculator.CalculateCashbox(
                 1000m, sales, db.Purchases.AsNoTracking().ToList(), db.CashLedgers.AsNoTracking().ToList());
-            return new DatabaseState(JsonSerializer.Serialize(sales), JsonSerializer.Serialize(customers), stock, cashbox);
+            return new DatabaseState(JsonSerializer.Serialize(sales), JsonSerializer.Serialize(customers), stock, cashbox,
+                JsonSerializer.Serialize(db.SaleOperations.AsNoTracking().OrderBy(o => o.OperationId).ToList()));
         }
 
         public void Dispose()
