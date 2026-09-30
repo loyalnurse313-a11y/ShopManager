@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<Purchase> Purchases => Set<Purchase>();
     public DbSet<Transfer> Transfers => Set<Transfer>();
     public DbSet<Sale> Sales => Set<Sale>();
+    public DbSet<SaleOperation> SaleOperations => Set<SaleOperation>();
     public DbSet<CashLedger> CashLedgers => Set<CashLedger>();
     public DbSet<Setting> Settings => Set<Setting>();
     public DbSet<Customer> Customers => Set<Customer>();
@@ -108,6 +109,15 @@ public class AppDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(e => e.CustomerId)
                   .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<SaleOperation>(entity =>
+        {
+            entity.HasKey(e => e.OperationId);
+            entity.Property(e => e.OperationId).IsRequired().ValueGeneratedNever();
+            entity.Property(e => e.InvoiceNumber).IsRequired();
+            entity.Property(e => e.RequestFingerprint).IsRequired();
+            entity.HasIndex(e => e.InvoiceNumber).IsUnique();
         });
 
         // ─── CashLedger ───
