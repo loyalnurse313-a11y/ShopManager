@@ -30,6 +30,7 @@ public partial class POSWindow : Window
     private List<POSCartItem> _cart = new();
     private List<Item> _allItems = new();
     private string _currentInvoiceNumber = "";
+    private bool _isPaymentInProgress;
     private decimal _discountAmount = 0;
     private string _activeTab = "popular";
 
@@ -45,7 +46,10 @@ public partial class POSWindow : Window
     public POSWindow()
     {
         InitializeComponent();
-
+        AddHandler(
+            KeyDownEvent,
+            OnWindowKeyDown,
+            Avalonia.Interactivity.RoutingStrategies.Tunnel);
         GenerateInvoiceNumber();
         LoadAllItems();
         LoadPOSTerminals();
@@ -1024,6 +1028,9 @@ public partial class POSWindow : Window
 
     private async void OnPayClick(object? sender, RoutedEventArgs e)
     {
+        if (_isPaymentInProgress)
+            return;
+
         if (_cart.Count == 0)
         {
             StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
@@ -1031,53 +1038,64 @@ public partial class POSWindow : Window
             return;
         }
 
-        // ═══════════════════════════════════════════════════════════
-        //  بررسی سریع موجودی برای فیدبک فوری
-        //  بررسی authoritative در داخل SaveSale انجام میشود
-        // ═══════════════════════════════════════════════════════════
+        _isPaymentInProgress = true;
+        PayButton.IsEnabled = false;
+
         try
         {
-            using var db = DatabaseService.CreateContext();
-
-            var cartItemIds = _cart.Select(c => c.ItemId).Distinct().ToList();
-            var transfers = db.Transfers
-                              .Where(t => cartItemIds.Contains(t.ItemId))
-                              .ToList();
-            var sales = db.Sales
-                          .Where(s => cartItemIds.Contains(s.ItemId))
-                          .ToList();
-
-            foreach (var cartItem in _cart)
+            // ═══════════════════════════════════════════════════════════
+            //  بررسی سریع موجودی برای فیدبک فوری
+            //  بررسی authoritative در داخل SaveSale انجام میشود
+            // ═══════════════════════════════════════════════════════════
+            try
             {
-                var item = db.Items.FirstOrDefault(i => i.Id == cartItem.ItemId);
-                if (item == null)
-                {
-                    StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
-                    StatusText.Text = "کالا پیدا نشد";
-                    return;
-                }
+                using var db = DatabaseService.CreateContext();
 
-                var shopStock = StockCalculator.GetShopStock(item, transfers, sales);
-                if (shopStock < cartItem.Qty)
+                var cartItemIds = _cart.Select(c => c.ItemId).Distinct().ToList();
+                var transfers = db.Transfers
+                                  .Where(t => cartItemIds.Contains(t.ItemId))
+                                  .ToList();
+                var sales = db.Sales
+                              .Where(s => cartItemIds.Contains(s.ItemId))
+                              .ToList();
+
+                foreach (var cartItem in _cart)
                 {
-                    StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
-                    StatusText.Text = $"⚠️ موجودی {item.Name} کافی نیست (موجودی: {PersianNumber.ToPersian(shopStock)})";
-                    return;
+                    var item = db.Items.FirstOrDefault(i => i.Id == cartItem.ItemId);
+                    if (item == null)
+                    {
+                        StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
+                        StatusText.Text = "کالا پیدا نشد";
+                        return;
+                    }
+
+                    var shopStock = StockCalculator.GetShopStock(item, transfers, sales);
+                    if (shopStock < cartItem.Qty)
+                    {
+                        StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
+                        StatusText.Text = $"⚠️ موجودی {item.Name} کافی نیست (موجودی: {PersianNumber.ToPersian(shopStock)})";
+                        return;
+                    }
                 }
             }
+            catch (Exception ex)
+            {
+                ErrorHandler.LogError(ex, "POS");
+                StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
+                StatusText.Text = ErrorHandler.GetUserMessage(ex);
+                return;
+            }
+
+            var paymentType = await ShowPaymentDialog();
+            if (paymentType == null) return;
+
+            SaveSale(paymentType.Value);
         }
-        catch (Exception ex)
+        finally
         {
-            ErrorHandler.LogError(ex, "POS");
-            StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
-            StatusText.Text = ErrorHandler.GetUserMessage(ex);
-            return;
+            _isPaymentInProgress = false;
+            PayButton.IsEnabled = true;
         }
-
-        var paymentType = await ShowPaymentDialog();
-        if (paymentType == null) return;
-
-        SaveSale(paymentType.Value);
     }
 
     private void SaveSale(PaymentStatus paymentStatus)
