@@ -1,10 +1,10 @@
-﻿# AUDIT-RECONCILIATION — تطبیق ممیزی با Roadmap جدید
+# AUDIT-RECONCILIATION — تطبیق ممیزی با Roadmap جدید
 
 > **هدف:** پل بین ممیزی، وضعیت فعلی، و Roadmap جدید (۱۰ Phase).
 > **اصل حاکم:** هیچ Phase بدون DoD اثبات‌شده Done نیست.
 > **آخرین به‌روزرسانی:** 1405/07/07
-> **آخرین Commit:** ceb6326 (Phase 1 COMPLETE)
-> **تست‌ها:** 30 Pass / 0 Fail
+> **آخرین Commit:** 3e1e74a (Phase 2 implementation/review)
+> **تست‌ها:** 57 Pass / 0 Fail / 0 Skip
 
 ---
 
@@ -13,7 +13,7 @@
 | # | Phase | Scope | DoD کوتاه |
 |:---:|---|---|---|
 | 1 | Business Correctness | Sale, Return, Cost, Profit, Discount, Rounding, Stock | تست عددی |
-| 2 | Transaction Boundary | Sale+Payment+Inventory+Cashbox+Rollback | شکست → صفر تغییر |
+| 2 | Transaction Boundary | Sale+Payment+Inventory+Cashbox+Rollback | Pre-Commit failure → Rollback؛ Post-Commit failure → حفظ Sale |
 | 3 | Concurrency+Idempotency | Double-click, Stock Race, Concurrency Token | دو درخواست → یک نتیجه |
 | 4 | Crash Recovery+Backup | WAL, Migrate, Integrity, Restore, Encryption | Crash → بازیابی سالم |
 | 5 | Audit+Security | AuditLog, Authorization, Password | هر تغییر حساس → رکورد |
@@ -33,7 +33,7 @@
 
 | # | یافته | Phase | وضعیت | DoD |
 |:---:|---|:---:|:---:|:---:|
-| F1 | نبود Transaction دور SaveSale | 2 | 🟡 | ❌ |
+| F1 | نبود Transaction دور SaveSale | 2 | ✅ | ✅ |
 | F2 | EnsureCreated به جای Migrate | 4 | ❌ | ❌ |
 | F3 | XSS در ۴ پنجره | خارج | ✅ | ✅ |
 | F4 | RestoreBackup ناایمن | 4 | ❌ | ❌ |
@@ -62,7 +62,7 @@
 | D5 | EULA/Privacy | 10 | ❌ |
 | D6 | Tax/Legal | Business Req | 🟡 |
 | D7 | Inventory Concurrency | 3 | ❌ |
-| D8 | Sale Transaction Boundary | 2 | 🟡 |
+| D8 | Sale Transaction Boundary | 2 | ✅ |
 | D9 | Idempotency | 3 | ❌ |
 | D10 | Time/Date edge cases | 1 | ❌ |
 | D11 | UX Loading States | 8 | ❌ |
@@ -163,20 +163,25 @@ Cleanup یک Pre-Phase است، نه Phase شماره‌دار. حذف S1 (`POSC
 
 شواهد: [docs/PRE-PHASE-2-CLEANUP.md](PRE-PHASE-2-CLEANUP.md)
 
-### Phase 2 — Transaction Boundary
+### Phase 2 — Transaction Boundary ✅ COMPLETE
 
 **Scope:** Sale, Payment, Inventory, Cashbox, Cost/Profit, Rollback
 
 **DoD:**
-- [ ] SaveSale داخل BeginTransaction
-- [ ] شکست هر Stage → صفر تغییر DB
-- [ ] تست: خطا در Stage ۳ → Stage ۱،۲ rollback
-- [ ] تست: Sale موفق → همه commit
-- [ ] تست: Exception در SaveChanges → rollback
-- [ ] مستند: جریان Sale با شماره Stage
+- [x] Sale persistence داخل یک Transaction صریح اجرا می‌شود.
+- [x] شکست Persistence پیش از Commit موفق وارد مسیر Rollback می‌شود.
+- [x] شکست پس از تغییرات Stageهای قبلی، فروش نیمه‌ثبت‌شده باقی نمی‌گذارد.
+- [x] Sale موفق، واحد Persistence را Commit می‌کند.
+- [x] Exception در SaveChanges وارد مسیر Persistence Failure / Rollback می‌شود.
+- [x] Exception اصلی هنگام شکست هم‌زمان Rollback یا Cleanup حفظ می‌شود.
+- [x] خطاهای ثانویه Rollback/Cleanup برای Logging حفظ می‌شوند.
+- [x] DataChanged برای Transaction صریح فروش فقط پس از Commit موفق منتشر می‌شود.
+- [x] خطاهای Cleanup / Notification / UI پس از Commit به‌عنوان Persistence Failure طبقه‌بندی نمی‌شوند.
+- [x] جریان Sale و Commit Boundary با Stageهای شماره‌دار مستند شده است.
 
-**شواهد:** ۴ سناریو با نتیجه DB بعد از شکست.
+**Clarification:** عبارت قدیمی «شکست هر Stage → صفر تغییر DB» فقط درباره مسیر Persistence پیش از Commit موفق صدق می‌کند. پس از Commit موفق، خطاهای Post-Commit نباید فروش ثبت‌شده را Rollback کنند.
 
+**شواهد:** [PHASE-2-TRANSACTION-BOUNDARY.md](PHASE-2-TRANSACTION-BOUNDARY.md) — Build: 0W/0E؛ Tests: 57 Passed / 0 Failed / 0 Skipped؛ Production Review: PASS؛ Test Review: PASS.
 ### Phase 3 — Concurrency + Idempotency
 
 **Scope:** Stock race, Double-click, Duplicate invoice, Concurrency Token
@@ -323,16 +328,16 @@ text
 
 | مورد | مقدار |
 |---|---|
-| فازهای کامل (Framework جدید) | 1 (Phase 1) |
-| فازهای با کد بدون DoD | 2 (Transaction, Unique Index) |
-| فازهای شروع‌نشده | 7 |
+| فازهای کامل (Framework جدید) | 2 (Phase 1, Phase 2) |
+| موارد پیاده‌سازی‌شده با Verification Pending | 1 (Unique Index) |
+| فاز بعدی | Phase 3 — Concurrency + Idempotency |
 | فازهای حذف‌شده از Roadmap | Alert، Cloud، Multi-terminal |
 | کارهای انجام‌شده (تولید محکم) | ۱۳ |
-| تست‌های موجود | 30 (Domain.Tests) |
+| تست‌های موجود | 57 Passed / 0 Failed / 0 Skipped |
 | Build | 0W / 0E |
-| Git | پاک، commit ceb6326 |
+| Git | Phase 2 implementation/review at 3e1e74a؛ documentation closure pending commit |
 
-**نقطه شروع جدید: Phase 2 — Transaction Boundary؛ Cleanup در Pre-Phase تکمیل و تأیید شده است. Phase 2 کامل نشده است.**
+**Phase 2 — Transaction Boundary تکمیل و تأیید شده است. نقطه شروع جدید: Phase 3 — Concurrency + Idempotency.**
 
 ---
 
@@ -340,6 +345,7 @@ text
 
 | تاریخ | تصمیم | دلیل |
 |---|---|---|
+| 1405/07/08 | Phase 2 — Transaction Boundary COMPLETE | DoD، Build/Test، Production Review و Test Review تأیید شدند |
 | 1405/07/08 | تفکیک Cleanup به Pre-Phase (نه Phase شماره‌دار) | جلوگیری از تداخل شماره‌گذاری با Transaction Boundary |
 | 1405/07/07 | Framework جدید (۱۲ بُعد + Audit + Reconciliation + Roadmap) | جلوگیری از Scope Creep |
 | 1405/07/07 | Alert System حذف | معماری زود است |
@@ -373,4 +379,4 @@ text
 
 ---
 
-**پایان سند. نقطه شروع: Phase 2 — Transaction Boundary (هنوز کامل نشده است).**
+**پایان سند. نقطه شروع: Phase 3 — Concurrency + Idempotency.**

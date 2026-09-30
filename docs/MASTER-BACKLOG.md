@@ -1,4 +1,4 @@
-﻿# MASTER-BACKLOG
+# MASTER-BACKLOG
 
 > **هدف:** مرجع واحد برای همه‌ی یافته‌های ممیزی.
 > **آخرین به‌روزرسانی:** 1405/07/07
@@ -9,7 +9,7 @@
 
 | ID | یافته | فایل | شدت | Phase | وضعیت |
 |---|---|---|---|---|---|
-| AR-1 | نبود Transaction دور SaveSale | POSWindow | 🔴 | 2 | 🟡 |
+| AR-1 | نبود Transaction دور SaveSale | POSWindow | 🔴 | 2 | ✅ |
 | AR-2 | EnsureCreated به جای Migrate | DatabaseService | 🔴 | 4 | ❌ |
 | AR-3 | XSS در ۴ پنجره | *HistoryWindow | 🟠 | ad-hoc | ✅ |
 | AR-4 | RestoreBackup ناایمن | BackupService | 🟠 | 4 | ❌ |
@@ -52,7 +52,7 @@
 | D5 | EULA/Privacy | 10 | ❌ |
 | D6 | Tax/Legal | Business Req | 🟡 |
 | D7 | Inventory Concurrency | 3 | ❌ |
-| D8 | Sale Transaction Boundary | 2 | 🟡 |
+| D8 | Sale Transaction Boundary | 2 | ✅ |
 | D9 | Idempotency | 3 | ❌ |
 | D10 | Time/Date edge cases | 1 | ❌ |
 | D11 | UX Loading States | 8 | ❌ |
@@ -101,9 +101,9 @@
 
 شواهد: [PRE-PHASE-2-CLEANUP.md](PRE-PHASE-2-CLEANUP.md)
 
-### Phase 2 — Transaction Boundary
-- [AR-1] نبود Transaction دور SaveSale — 🟡
-- [D8] Sale Transaction Boundary — 🟡
+### Phase 2 — Transaction Boundary ✅ COMPLETE
+- [x] [AR-1] نبود Transaction دور SaveSale — ✅
+- [x] [D8] Sale Transaction Boundary — ✅
 
 ### Phase 3 — Concurrency
 - [AR-5] Unique Index — Verification Pending
