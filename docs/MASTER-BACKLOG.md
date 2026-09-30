@@ -1,7 +1,9 @@
 # MASTER-BACKLOG
 
 > **هدف:** مرجع واحد برای همه‌ی یافته‌های ممیزی.
-> **آخرین به‌روزرسانی:** 1405/07/07
+> **آخرین به‌روزرسانی:** بستن مستندات Phase 3؛ مبنای پیاده‌سازی `da7d5b4`.
+> **وضعیت:** Phase 1، Phase 2 و Phase 3 کامل‌اند؛ مرحلهٔ بعد Phase 4 — Crash Recovery + Backup است.
+> نام یافته‌ها و ارجاع‌های قدیمی، سابقهٔ ممیزی‌اند؛ ستون وضعیت و توضیحات closure، نتیجهٔ فعلی را مشخص می‌کنند.
 
 ---
 
@@ -13,9 +15,9 @@
 | AR-2 | EnsureCreated به جای Migrate | DatabaseService | 🔴 | 4 | ❌ |
 | AR-3 | XSS در ۴ پنجره | *HistoryWindow | 🟠 | ad-hoc | ✅ |
 | AR-4 | RestoreBackup ناایمن | BackupService | 🟠 | 4 | ❌ |
-| AR-5 | Unique Index InvoiceNumber | AppDbContext | 🟠 | 3 | 🟡 |
+| AR-5 | Unique Index InvoiceNumber | AppDbContext | 🟠 | 3 | ✅ یکتایی در SaleOperations؛ شرح زیر |
 | AR-6 | N+1 در CreateProductTile | POSWindow | 🟠 | 7 | ❌ |
-| AR-7 | Race بررسی موجودی | POSWindow | 🟠 | 3 | ❌ |
+| AR-7 | Race بررسی موجودی | POSWindow / TransferWindow | 🟠 | 3 | ✅ فروش و انتقال عادی |
 | AR-8 | Code Signing | release.yml | 🟡 | 10 | ❌ |
 | AR-9 | API key plaintext | AppPreferences | 🟡 | ad-hoc | ✅ |
 | AR-10 | admin/admin | AuthServiceInitializer | 🟡 | ad-hoc | ✅ |
@@ -51,9 +53,9 @@
 | D4 | Audit Trail | 5 | ❌ |
 | D5 | EULA/Privacy | 10 | ❌ |
 | D6 | Tax/Legal | Business Req | 🟡 |
-| D7 | Inventory Concurrency | 3 | ❌ |
+| D7 | Inventory Concurrency | 3 | ✅ محدودهٔ فروش/انتقال عادی |
 | D8 | Sale Transaction Boundary | 2 | ✅ |
-| D9 | Idempotency | 3 | ❌ |
+| D9 | Idempotency | 3 | ✅ عملیات فروش |
 | D10 | Time/Date edge cases | 1 | ❌ |
 | D11 | UX Loading States | 8 | ❌ |
 | D12 | Future-Proofing | Future | خارج |
@@ -81,8 +83,8 @@
 | S1 | POSCartItem.HasDiscount | Pre-Phase | ✅ |
 | S2 | POSCartItem.DiscountPct | Pre-Phase | ✅ |
 | S3 | SaleCartItem مدل موازی | Pre-Phase | ✅ |
-| S4 | Negative-stock guard | 3 | ❌ |
-| S5 | Optimistic Concurrency Token | 3 | ❌ |
+| S4 | Negative-stock guard | 3 | ✅ کنترل authoritative داخل تراکنش |
+| S5 | Optimistic Concurrency Token | 3 | ✅ هدف هم‌زمانی با تراکنش SQLite؛ token پیاده نشده |
 | S6 | StockAlert Warning در Fixed-only | 7 | ❌ |
 | S7 | Reversal Sign Contradiction | Future | ❌ |
 | S8 | Schema Drift | 4 | ❌ |
@@ -105,13 +107,23 @@
 - [x] [AR-1] نبود Transaction دور SaveSale — ✅
 - [x] [D8] Sale Transaction Boundary — ✅
 
-### Phase 3 — Concurrency
-- [AR-5] Unique Index — Verification Pending
-- [AR-7] Race موجودی
-- [S4] Negative-stock guard
-- [S5] Optimistic Concurrency Token
+### Phase 3 — Concurrency + Idempotency ✅ COMPLETE
 
-### Phase 4 — Crash Recovery + Backup
+- [x] 3A (`45c6511`): جلوگیری از ورود مجدد به پرداخت در `POSWindow.OnPayClick`.
+- [x] 3B-1 (`c3268af`): جدول `SaleOperations` با کلید یکتای `OperationId`، fingerprint اجباری و index یکتای `InvoiceNumber`؛ آماده‌سازی و اعتبارسنجی schema برای دیتابیس جدید/قدیمی.
+- [x] 3B-2 (`5ff9a68`): snapshot/fingerprint، replay بدون ثبت مجدد، رد payload متفاوت، تفکیک pending قطعی/نامعلوم، بازیابی برخورد شمارهٔ فاکتور و کنترل مجموع ردیف‌های هم‌کالا.
+- [x] 3C (`da7d5b4`): کنترل موجودی و ثبت انتقال در یک تراکنش؛ اثبات رقابت فروش‌های مستقل بدون تغییر production فروش؛ تفکیک شکست ثبت از خطای پس از commit.
+- [x] [AR-7 / D7 / S4 / S5]: تراکنش SQLite پیش از خواندن موجودی، جایگزین الزام طراحی قدیمی RowVersion شد. **RowVersion یا optimistic concurrency token اضافه نشده است.**
+
+**تطبیق AR-5:** یکتایی در سطح عملیات/فاکتور در `SaleOperations` اعمال می‌شود؛ `Sales.InvoiceNumber` به‌تنهایی unique نیست، چون یک فاکتور چند ردیف دارد. رکوردهای تاریخی backfill نشده‌اند؛ سرویس فروش برخورد با شماره‌های تاریخی `Sales` را نیز بررسی می‌کند. این closure ادعای اصلاح همهٔ schemaهای legacy یا اجرای `Migrate()` نیست.
+
+**شواهد Phase 3C:** build با 0 errors / 0 warnings؛ 134/134 tests passed، 0 failed / 0 skipped؛ `git diff --check` clean؛ final adversarial review: PASS. خروجی build/test/check از اجرای ثبت‌شدهٔ Phase 3C است؛ PASS بازبینی نهایی طبق تأیید کاربر در درخواست Documentation Closure ثبت شده است. در این کار مستندسازی build/test دوباره اجرا نشده‌اند.
+
+نگاشت دقیق رفتارها به فایل‌ها و نام تست‌ها، منشأ شواهد و حدود تضمین در [AUDIT-RECONCILIATION.md](AUDIT-RECONCILIATION.md) و راهنمای ادامه در [AI-HANDOFF.md](AI-HANDOFF.md) آمده است.
+
+**خارج از closure:** exactly-once/recovery عمومی انتقال، بازیابی pending فروش پس از restart، crash/restore و schema drift، writerهای خارجی و همهٔ مسیرهای ویرایش موجودی. تست دستی UI/چاپ و ماتریس مستقل WAL/DELETE/timeout، جزو شواهد این closure نیستند. این موارد با موفقیت تست رقابت دو اتصال مستقل یکسان نیستند.
+
+### Phase 4 — Crash Recovery + Backup — مرحلهٔ بعد؛ شروع نشده
 - [AR-2] EnsureCreated → Migrate()
 - [AR-4] RestoreBackup
 - [S8] Schema Drift
