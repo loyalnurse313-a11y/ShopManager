@@ -63,7 +63,7 @@ internal static class SalePersistenceService
                 ArgumentException.ThrowIfNullOrWhiteSpace(invoiceNumber);
                 if (db.SaleOperations.Any(o => o.InvoiceNumber == invoiceNumber)
                     || db.Sales.Any(s => s.InvoiceNumber == invoiceNumber))
-                    throw new InvalidOperationException("Invoice number is already in use.");
+                    throw new SaleInvoiceCollisionException(invoiceNumber);
                 PersistNewSale();
             }
 
@@ -119,7 +119,8 @@ internal static class SalePersistenceService
                     .Where(s => cartItemIds.Contains(s.ItemId))
                     .ToList();
 
-                foreach (var cartItem in items)
+                foreach (var cartItem in items.GroupBy(line => line.ItemId)
+                    .Select(group => new { ItemId = group.Key, Qty = group.Sum(line => line.Qty) }))
                 {
                     var item = db.Items.FirstOrDefault(i => i.Id == cartItem.ItemId);
                     if (item == null)
@@ -225,12 +226,13 @@ internal static class SalePersistenceService
 
         if (persistenceError != null)
         {
-            // Only ambiguous COMMIT or an OperationId constraint race can resolve as replay.
-            var keyRace = persistenceError is DbUpdateException
+            // Constraint codes identify candidates; only the stored key and fingerprint prove replay.
+            var constraintFailure = persistenceError is DbUpdateException
             {
-                InnerException: SqliteException { SqliteErrorCode: 19 } sqlite
-            } && sqlite.Message.Contains("SaleOperations.OperationId", StringComparison.Ordinal);
-            if (commitAttempted || keyRace)
+                InnerException: SqliteException { SqliteErrorCode: 19 }
+            };
+            var verificationFailed = false;
+            if (commitAttempted || constraintFailure)
             {
                 AppDbContext? verification = null;
                 SaleOperation? stored = null;
@@ -242,6 +244,7 @@ internal static class SalePersistenceService
                 }
                 catch (Exception readError)
                 {
+                    verificationFailed = true;
                     persistenceError.Data["ReplayVerificationException"] = readError;
                 }
                 finally
@@ -263,6 +266,8 @@ internal static class SalePersistenceService
                     return new SaleSaveResult(stored.InvoiceNumber, true, postCommitErrors);
                 }
             }
+            if (!commitAttempted && !verificationFailed && persistenceError is not SaleOperationConflictException)
+                SaleFailure.MarkNotCommitted(persistenceError);
             ExceptionDispatchInfo.Capture(persistenceError).Throw();
         }
 

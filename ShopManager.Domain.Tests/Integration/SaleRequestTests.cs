@@ -86,6 +86,69 @@ public class SaleRequestTests
     }
 
     [Fact]
+    public void UncertainAttemptCannotBeDiscardedAfterDefinitiveRetryFailure()
+    {
+        var pending = new PendingSale(new SaleRequest(Lines, "", "", 0, PaymentStatus.Cash, null), "PROPOSED");
+        var id = pending.OperationId;
+        var definitive = new InvalidOperationException("Failure before COMMIT");
+        SaleFailure.MarkNotCommitted(definitive);
+        var collision = new SaleInvoiceCollisionException("PROPOSED");
+        SaleFailure.MarkNotCommitted(collision);
+        foreach (var error in new Exception[] { new InvalidOperationException("Unknown outcome"), definitive, collision })
+        {
+            POSWindow.ExecutePendingSale(pending, (_, _, _) => throw error,
+                () => Assert.Fail("No reset on unresolved outcome"),
+                () => Assert.Fail("Must retain unresolved request"),
+                _ => Assert.Fail("Must not replace an unresolved invoice"),
+                _ => Assert.Fail("No post-commit action"), actual => Assert.Same(error, actual),
+                _ => Assert.Fail("No post-commit failure"));
+            Assert.False(pending.CanDiscard);
+            Assert.Equal(id, pending.OperationId);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CompletedSaleReleasesPendingBeforeFallibleUi(bool failReset)
+    {
+        var request = new SaleRequest(Lines, "", "", 0, PaymentStatus.Cash, null);
+        PendingSale? active = new(request, "FIRST");
+        var original = active;
+        var writes = 0;
+        var cartCount = 2;
+        var resetError = new InvalidOperationException("Reset failed");
+        var uiError = new InvalidOperationException("Refresh or print failed");
+        var errors = new List<Exception>();
+        void Run(bool resetFails) => POSWindow.ExecutePendingSale(active!, (_, _, invoice) =>
+        {
+            writes++;
+            return new SaleSaveResult(invoice, false, []);
+        }, () =>
+        {
+            if (resetFails) throw resetError;
+            cartCount = 0;
+        }, () => active = null, _ => Assert.Fail("No collision"), result =>
+        {
+            Assert.Null(active);
+            Assert.Equal(0, cartCount);
+            Assert.Equal("FIRST", result.InvoiceNumber);
+            throw uiError;
+        }, _ => Assert.Fail("Persistence succeeded"), errors.Add);
+        Run(failReset);
+        if (failReset)
+        {
+            Assert.Same(original, active);
+            Assert.Equal(2, cartCount);
+            Assert.Same(resetError, Assert.Single(errors));
+            Run(false);
+        }
+        Assert.Null(active);
+        Assert.Equal(1, writes);
+        Assert.Same(uiError, errors.Last());
+    }
+
+    [Fact]
     public void PendingRequestRetainsIdentityOnFailureAndSuccessBeforeUiFailure()
     {
         var request = new SaleRequest(Lines, "", "", 0, PaymentStatus.Cash, null);
@@ -115,6 +178,7 @@ public class SaleRequestTests
         }, _ => Assert.Fail("Persistence was successful"), uiErrors.Add);
         Assert.Single(uiErrors);
         Assert.Same(expected, pending.Persist((_, _, _) => throw new Exception("Must not persist again")));
-        Assert.NotEqual(id, new PendingSale(request, "NEXT").OperationId);
+        // Identity allocation is independent of the invoice proposal; number generation is tested against SQLite.
+        Assert.NotEqual(id, new PendingSale(request, "PROPOSED").OperationId);
     }
 }

@@ -74,14 +74,39 @@ internal sealed record SaleSaveResult(
 internal sealed class SaleOperationConflictException(string operationId)
     : InvalidOperationException($"Sale operation '{operationId}' was already used for a different request.");
 
-// Owned by one POS request, retained on failure and through fallible UI completion.
+internal sealed class SaleInvoiceCollisionException(string invoiceNumber)
+    : InvalidOperationException($"Invoice number '{invoiceNumber}' is already in use.");
+
+// Preserve the original exception and its diagnostics while explicitly marking a definitive failure.
+internal static class SaleFailure
+{
+    private static readonly object OutcomeKey = new();
+    internal static void MarkNotCommitted(Exception error) => error.Data[OutcomeKey] = true;
+    internal static bool IsNotCommitted(Exception error) => error.Data[OutcomeKey] is true;
+}
+
+// An unresolved attempt must retain its identity even if a later retry fails before COMMIT.
 internal sealed class PendingSale(SaleRequest request, string proposedInvoiceNumber)
 {
     public string OperationId { get; } = Guid.NewGuid().ToString("N");
     public SaleRequest Request { get; } = request;
     public string ProposedInvoiceNumber { get; } = proposedInvoiceNumber;
     public SaleSaveResult? Result { get; private set; }
+    public bool CanDiscard { get; private set; }
+    private bool _requiresResolution;
 
-    public SaleSaveResult Persist(Func<string, SaleRequest, string, SaleSaveResult> save) =>
-        Result ??= save(OperationId, Request, ProposedInvoiceNumber);
+    public SaleSaveResult Persist(Func<string, SaleRequest, string, SaleSaveResult> save)
+    {
+        try
+        {
+            CanDiscard = false;
+            return Result ??= save(OperationId, Request, ProposedInvoiceNumber);
+        }
+        catch (Exception error)
+        {
+            _requiresResolution |= !SaleFailure.IsNotCommitted(error);
+            CanDiscard = !_requiresResolution;
+            throw;
+        }
+    }
 }

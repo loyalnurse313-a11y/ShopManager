@@ -1,5 +1,6 @@
 using System.Data.Common;
 using System.Text.Json;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -106,6 +107,7 @@ public sealed class SalePersistenceTests
         using var notification = new NotificationProbe(database, transaction);
         var error = Record.Exception(() => Save(() => database.Open(failCommit ? [transaction] : [transaction, command]), existingCustomer));
         Assert.NotNull(error);
+        Assert.Equal(!failCommit, SaleFailure.IsNotCommitted(error));
         if (failCommit)
         {
             Assert.Same(transaction.CommitError, error);
@@ -580,11 +582,103 @@ public sealed class SalePersistenceTests
             SalePersistenceService.Save(() => database.Open(), "owner", request, invoice);
         }
         var before = database.ReadState();
-        Assert.Throws<InvalidOperationException>(() =>
+        Assert.Throws<SaleInvoiceCollisionException>(() =>
             SalePersistenceService.Save(() => database.Open(), "new", request, invoice));
         AssertStateEqual(before, database.ReadState());
         using var reader = database.Open();
         Assert.False(reader.SaleOperations.Any(o => o.OperationId == "new"));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void InvoiceCollisionReleasesPendingPreservesCartAndNextPaymentPersistsExactlyOnce(bool operationOnly)
+    {
+        using var database = new TestDatabase();
+        var proposedInvoice = SaleInvoiceNumberGenerator.Create(() => database.Open());
+        var rejectedInvoice = proposedInvoice;
+        using (var seed = database.Open())
+        {
+            if (operationOnly)
+                seed.SaleOperations.Add(new SaleOperation
+                {
+                    OperationId = "invoice-owner", InvoiceNumber = rejectedInvoice, RequestFingerprint = "existing"
+                });
+            else
+                seed.Sales.Single().InvoiceNumber = rejectedInvoice;
+            seed.SaveChanges();
+        }
+        var before = database.ReadState();
+        int initialSales;
+        int initialOperations;
+        using (var reader = database.Open())
+        {
+            initialSales = reader.Sales.Count();
+            initialOperations = reader.SaleOperations.Count();
+        }
+
+        var cart = new List<SaleLine> { new(1, 2m, 100m, 40m) };
+        var originalCart = cart.ToArray();
+        PendingSale? active = null;
+        SaleSaveResult? saved = null;
+        var failures = new List<Exception>();
+        var invoiceRefreshes = 0;
+        var attempts = new List<PendingSale>();
+        void Pay()
+        {
+            active ??= new PendingSale(new SaleRequest(cart, "Customer", "111", 3m,
+                PaymentStatus.Cash, null), proposedInvoice);
+            attempts.Add(active);
+            POSWindow.ExecutePendingSale(active,
+                (id, snapshot, invoice) => SalePersistenceService.Save(() => database.Open(), id, snapshot, invoice),
+                cart.Clear, () => active = null,
+                rejected =>
+                {
+                    Assert.Null(active);
+                    Assert.Equal(rejectedInvoice, rejected);
+                    invoiceRefreshes++;
+                    // Use the production generator, not a manually supplied "NEXT" invoice.
+                    proposedInvoice = SaleInvoiceNumberGenerator.Create(() => database.Open(), rejected);
+                }, result => saved = result, failures.Add,
+                _ => Assert.Fail("Unexpected post-commit failure"));
+        }
+
+        Pay();
+        Assert.IsType<SaleInvoiceCollisionException>(Assert.Single(failures));
+        Assert.Null(active);
+        Assert.Null(saved);
+        Assert.Equal(originalCart, cart);
+        AssertStateEqual(before, database.ReadState());
+        Assert.Equal(1, invoiceRefreshes);
+        Assert.NotEqual(rejectedInvoice, proposedInvoice);
+        using (var reader = database.Open())
+        {
+            Assert.False(reader.Sales.Any(s => s.InvoiceNumber == proposedInvoice));
+            Assert.False(reader.SaleOperations.Any(o => o.InvoiceNumber == proposedInvoice));
+        }
+
+        Pay();
+        Assert.Null(active);
+        Assert.Empty(cart);
+        Assert.Single(failures);
+        Assert.NotNull(saved);
+        Assert.False(saved.IsReplay);
+        Assert.Equal(proposedInvoice, saved.InvoiceNumber);
+        Assert.NotEqual(attempts[0].OperationId, attempts[1].OperationId);
+        Assert.Equal(attempts[0].Request.Fingerprint(), attempts[1].Request.Fingerprint());
+        Assert.Equal(proposedInvoice, attempts[1].ProposedInvoiceNumber);
+        using (var reader = database.Open())
+        {
+            Assert.Equal(initialSales + 1, reader.Sales.Count());
+            Assert.Equal(initialOperations + 1, reader.SaleOperations.Count());
+            Assert.False(reader.SaleOperations.Any(o => o.OperationId == attempts[0].OperationId));
+            var sale = Assert.Single(reader.Sales.Where(s => s.InvoiceNumber == proposedInvoice));
+            Assert.Equal((1, 2m, 100m, 3m), (sale.ItemId, sale.Qty, sale.SaleUnitPrice, sale.DiscountAmount));
+        }
+        var after = database.ReadState();
+        Assert.True(SalePersistenceService.Save(() => database.Open(), attempts[1].OperationId,
+            attempts[1].Request, proposedInvoice).IsReplay);
+        AssertStateEqual(after, database.ReadState());
     }
 
     [Fact]
@@ -619,6 +713,99 @@ public sealed class SalePersistenceTests
         Assert.Single(reader.SaleOperations);
         Assert.Equal(2, reader.Sales.Count(s => s.InvoiceNumber == Invoice));
         Assert.Equal(3, reader.Customers.Single(c => c.Id == 1).PurchaseCount);
+    }
+
+    [Theory]
+    [InlineData(13, false)]
+    [InlineData(12, true)]
+    [InlineData(10, true)]
+    public void DuplicateItemLinesUseCombinedStockWithoutMergingPersistedLines(int quantity, bool succeeds)
+    {
+        using var database = new TestDatabase();
+        var before = database.ReadState();
+        var request = new SaleRequest([new(1, quantity, 100m, 40m), new(1, quantity, 120m, 50m)],
+            "Updated", "111", 5m, PaymentStatus.Cash, null);
+        var pending = new PendingSale(request, Invoice);
+        var released = false;
+        Exception? failure = null;
+        POSWindow.ExecutePendingSale(pending,
+            (id, snapshot, invoice) => SalePersistenceService.Save(() => database.Open(), id, snapshot, invoice),
+            () => { }, () => released = true, _ => Assert.Fail("No invoice collision"), _ => { }, error => failure = error,
+            _ => Assert.Fail("Unexpected post-commit failure"));
+        Assert.True(released);
+        if (!succeeds)
+        {
+            Assert.NotNull(failure);
+            Assert.True(SaleFailure.IsNotCommitted(failure));
+            AssertStateEqual(before, database.ReadState());
+            var corrected = new PendingSale(new SaleRequest([new(1, 1m, 100m, 40m)],
+                "Updated", "111", 0, PaymentStatus.Cash, null), Invoice);
+            Assert.NotEqual(pending.OperationId, corrected.OperationId);
+            corrected.Persist((id, snapshot, invoice) =>
+                SalePersistenceService.Save(() => database.Open(), id, snapshot, invoice));
+            return;
+        }
+        Assert.Null(failure);
+        using var reader = database.Open();
+        var rows = reader.Sales.Where(s => s.InvoiceNumber == Invoice).OrderBy(s => s.Id).ToList();
+        Assert.Equal(2, rows.Count);
+        Assert.Equal(new[] { 100m, 120m }, rows.Select(s => s.SaleUnitPrice));
+        Assert.Equal(5m, rows.Sum(s => s.DiscountAmount));
+        Assert.Equal(24m - 2 * quantity, database.ReadState().Stock[0]);
+        var state = database.ReadState();
+        Assert.True(SalePersistenceService.Save(() => database.Open(), pending.OperationId, request, "IGNORED").IsReplay);
+        AssertStateEqual(state, database.ReadState());
+    }
+
+    [Theory]
+    [InlineData(0)] // No operation: unrelated constraint remains a failure.
+    [InlineData(1)] // Matching operation: verified replay.
+    [InlineData(2)] // Different fingerprint: conflict.
+    [InlineData(3)] // Verification unavailable: unresolved.
+    public void ConstraintResolutionUsesStoredIdentityWithoutExceptionMessage(int scenario)
+    {
+        using var database = new TestDatabase();
+        var request = new SaleRequest(Lines, "Name", "111", 0, PaymentStatus.Cash, null);
+        var before = database.ReadState();
+        var probe = new FailConstraint();
+        var opened = 0;
+        SaleSaveResult? result = null;
+        var error = Record.Exception(() => result = SalePersistenceService.Save(() =>
+        {
+            if (++opened == 1) return database.Open(probe);
+            if (scenario == 3) throw new InvalidOperationException("Verification unavailable");
+            if (scenario is 1 or 2)
+                SalePersistenceService.Save(() => database.Open(), "constraint",
+                    scenario == 1 ? request : new SaleRequest(Lines, "Other", "111", 0, PaymentStatus.Cash, null),
+                    "WINNER");
+            return database.Open();
+        }, "constraint", request, Invoice));
+        Assert.Equal(2, opened);
+        if (scenario == 1)
+        {
+            Assert.Null(error);
+            Assert.True(result!.IsReplay);
+            Assert.Equal("WINNER", result.InvoiceNumber);
+            Assert.Contains(probe.Error, result.PostCommitErrors);
+        }
+        else if (scenario == 2)
+            Assert.IsType<SaleOperationConflictException>(error);
+        else
+        {
+            Assert.Same(probe.Error, error);
+            Assert.Equal(scenario == 0, SaleFailure.IsNotCommitted(error!));
+            AssertStateEqual(before, database.ReadState());
+        }
+        using var reader = database.Open();
+        Assert.False(reader.Sales.Any(s => s.InvoiceNumber == Invoice));
+    }
+
+    private sealed class FailConstraint : SaveChangesInterceptor
+    {
+        public Exception Error { get; } = new DbUpdateException("Constraint failure",
+            new SqliteException("Arbitrary localized diagnostic without table or column names", 19));
+        public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
+            => throw Error;
     }
 
     private sealed class RejectWrites : SaveChangesInterceptor

@@ -1128,12 +1128,27 @@ public partial class POSWindow : Window
             _activePOSTerminal), _currentInvoiceNumber);
         var pending = _pendingSale;
         var request = pending.Request;
-        ExecuteSale(
-            () => pending.Persist((id, snapshot, invoice) =>
-                SalePersistenceService.Save(DatabaseService.CreateContext, id, snapshot, invoice)),
+        ExecutePendingSale(
+            pending,
+            (id, snapshot, invoice) =>
+                SalePersistenceService.Save(DatabaseService.CreateContext, id, snapshot, invoice),
+            ResetCommittedCart,
+            () => _pendingSale = null,
+            rejectedInvoice => GenerateInvoiceNumber(rejectedInvoice),
             CompleteCommittedSale,
             ReportPersistenceFailure,
             ReportPostCommitFailure);
+
+        void ResetCommittedCart()
+        {
+            // Clear the completed request before releasing its pending identity.
+            _cart.Clear();
+            _discountAmount = 0;
+            _selectedCustomerId = null;
+            CustomerNameBox.Text = "";
+            CustomerPhoneBox.Text = "";
+            GenerateInvoiceNumber();
+        }
 
         void CompleteCommittedSale(SaleSaveResult result)
         {
@@ -1150,14 +1165,6 @@ public partial class POSWindow : Window
                 _ => "—"
             };
 
-            // پاک کردن سبد
-            _cart.Clear();
-            _discountAmount = 0;
-            _selectedCustomerId = null;
-            CustomerNameBox.Text = "";
-            CustomerPhoneBox.Text = "";
-
-            GenerateInvoiceNumber();
             RefreshCart();
             LoadProductTiles(_activeTab);
 
@@ -1188,8 +1195,36 @@ public partial class POSWindow : Window
                 try { BarcodeSearchBox.Focus(); }
                 catch (Exception ex) { ReportPostCommitFailure(ex); }
             }, DispatcherPriority.Background);
-            _pendingSale = null;
         }
+    }
+
+    internal static void ExecutePendingSale(
+        PendingSale pending,
+        Func<string, SaleRequest, string, SaleSaveResult> save,
+        Action resetCommittedCart,
+        Action releasePending,
+        Action<string> refreshInvoiceNumber,
+        Action<SaleSaveResult> postCommit,
+        Action<Exception> reportPersistenceFailure,
+        Action<Exception> reportPostCommitFailure)
+    {
+        ExecuteSale(() => pending.Persist(save), result =>
+        {
+            // Keep the cached result until the old cart is safely reset. Optional UI/printing
+            // must not keep a completed sale active or cause another persistence attempt.
+            resetCommittedCart();
+            releasePending();
+            postCommit(result);
+        }, error =>
+        {
+            if (pending.CanDiscard)
+            {
+                releasePending();
+                if (error is SaleInvoiceCollisionException)
+                    refreshInvoiceNumber(pending.ProposedInvoiceNumber);
+            }
+            reportPersistenceFailure(error);
+        }, reportPostCommitFailure);
     }
 
     // Sale-specific boundary, shared by the window and integration tests without constructing UI.
@@ -1639,37 +1674,19 @@ public partial class POSWindow : Window
         _allItems = db.Items.Where(i => i.IsActive).OrderBy(i => i.ItemCode).ToList();
     }
 
-    private void GenerateInvoiceNumber()
+    private void GenerateInvoiceNumber(string? rejectedInvoice = null)
     {
         try
         {
-            using var db = DatabaseService.CreateContext();
-
-            var todayShamsi = JalaliDate.TodayShamsi();
-            var yearPart = todayShamsi.Split('/')[0];
-
-            var lastInvoice = db.Sales
-                .Where(s => s.InvoiceNumber != null && s.InvoiceNumber.StartsWith($"POS-{yearPart}-"))
-                .OrderByDescending(s => s.Id)
-                .Select(s => s.InvoiceNumber)
-                .FirstOrDefault();
-
-            int nextNumber = 1;
-            if (!string.IsNullOrWhiteSpace(lastInvoice))
-            {
-                var parts = lastInvoice.Split('-');
-                if (parts.Length == 3 && int.TryParse(parts[2], out int lastNum))
-                {
-                    nextNumber = lastNum + 1;
-                }
-            }
-
-            _currentInvoiceNumber = $"POS-{yearPart}-{nextNumber:D4}";
+            _currentInvoiceNumber = SaleInvoiceNumberGenerator.Create(DatabaseService.CreateContext, rejectedInvoice);
             InvoiceNoText.Text = PersianNumber.ToPersianDigits(_currentInvoiceNumber);
         }
-        catch
+        catch (Exception error)
         {
-            _currentInvoiceNumber = $"POS-{DateTime.Now:HHmmss}";
+            ErrorHandler.LogError(error, "POS invoice number generation");
+            // Stay within the invoice's 20-character limit and avoid repeating a timestamp fallback.
+            do { _currentInvoiceNumber = $"POS-{Guid.NewGuid():N}"[..20]; }
+            while (_currentInvoiceNumber == rejectedInvoice);
             InvoiceNoText.Text = _currentInvoiceNumber;
         }
     }
