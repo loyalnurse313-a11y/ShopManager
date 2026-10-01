@@ -1,0 +1,685 @@
+﻿using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using Microsoft.Data.Sqlite;
+using ShopManager.Desktop.Services;
+
+namespace ShopManager.Domain.Tests.Integration;
+
+/// <summary>
+/// Phase 4B-1 — آماده‌سازی بازیابی امن تا پیش از تعویض دیتابیس زنده:
+/// اعتبارسنجی بکاپ، اسنپ‌شات ایمنی WAL-سازگار، staging اعتبارسنجی‌شده و cleanup.
+/// همهٔ تست‌ها روی دیتابیس‌ها و پوشه‌های موقت و ایزوله اجرا می‌شوند (بدون دادهٔ عملیاتی).
+/// </summary>
+[Collection("Backup lifecycle")]
+public sealed class RestorePreparationTests : IDisposable
+{
+    private readonly string _root =
+        Path.Combine(Path.GetTempPath(), "ShopManager-Phase4B1-" + Guid.NewGuid().ToString("N"));
+
+    public RestorePreparationTests() => Directory.CreateDirectory(_root);
+
+    public void Dispose()
+    {
+        // Delete only this fixture's uniquely named temporary tree.
+        var root = Path.GetFullPath(_root);
+        if (!string.Equals(Path.GetDirectoryName(root), Path.TrimEndingDirectorySeparator(Path.GetTempPath()),
+                StringComparison.OrdinalIgnoreCase)
+            || !Path.GetFileName(root).StartsWith("ShopManager-Phase4B1-", StringComparison.Ordinal))
+            throw new InvalidOperationException("Unexpected test location");
+        SqliteConnection.ClearAllPools();
+        if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+    }
+
+    // ═══════════ اعتبارسنجی بکاپ پیش از هر عملیات روی دیتابیس زنده ═══════════
+
+    [Fact]
+    public void PrepareRestore_MissingBackup_ThrowsWithoutTouchingLiveDatabase()
+    {
+        var backupFolder = Sub("backups");
+        using var live = new WalSource(Sub("data"), "shop.db");
+        var liveBefore = HashFile(live.DatabasePath);
+
+        var missing = Path.Combine(backupFolder, "does-not-exist.db");
+
+        Assert.Throws<FileNotFoundException>(
+            () => BackupService.PrepareRestore(missing, live.DatabasePath, backupFolder));
+
+        Assert.Equal(liveBefore, HashFile(live.DatabasePath));
+        Assert.Empty(Directory.GetFiles(backupFolder));
+        AssertNoRestoreTemporaryArtifacts(Path.GetDirectoryName(live.DatabasePath)!);
+    }
+
+    [Fact]
+    public void PrepareRestore_CorruptBackup_ThrowsWithoutTouchingLiveDatabase()
+    {
+        var backupFolder = Sub("backups");
+        using var live = new WalSource(Sub("data"), "shop.db");
+        var liveBefore = HashFile(live.DatabasePath);
+
+        var corrupt = Path.Combine(backupFolder, "corrupt.db");
+        File.WriteAllText(corrupt, "this is not a sqlite database");
+
+        Assert.ThrowsAny<Exception>(
+            () => BackupService.PrepareRestore(corrupt, live.DatabasePath, backupFolder));
+
+        Assert.Equal(liveBefore, HashFile(live.DatabasePath));
+        Assert.Single(Directory.GetFiles(backupFolder)); // only the corrupt input file
+        AssertNoRestoreTemporaryArtifacts(Path.GetDirectoryName(live.DatabasePath)!);
+    }
+
+    // ═══════════ اسنپ‌شات ایمنی WAL-سازگار + staging معتبر ═══════════
+
+    [Fact]
+    public void PrepareRestore_CreatesWalConsistentSafetySnapshotAndValidStagedCopy()
+    {
+        var backupFolder = Sub("backups");
+        var dataFolder = Sub("data");
+
+        // بکاپ از یک دیتابیس قدیمی‌تر (بدون ردیف live-only) گرفته می‌شود.
+        using var older = new WalSource(Sub("older"), "source.db");
+        var backupPath = BackupService.CreateBackup(older.DatabasePath, backupFolder, keepCount: 5);
+
+        // دیتابیس زنده: یک ردیف اضافه که فقط در WAL است (auto-checkpoint خاموش).
+        using var live = new WalSource(dataFolder, "shop.db", (3, "live-only"));
+        var liveBefore = HashFile(live.DatabasePath);
+
+        var preparation = BackupService.PrepareRestore(backupPath, live.DatabasePath, backupFolder);
+
+        // اسنپ‌شات ایمنی: WAL-سازگار، معتبر، با ردیفِ فقط-WAL و به‌عنوان بکاپ معتبر منتشرشده.
+        Assert.True(File.Exists(preparation.SafetyBackupPath));
+        Assert.StartsWith("shop-backup-before-restore-", Path.GetFileName(preparation.SafetyBackupPath));
+        using (var safety = OpenReadWrite(preparation.SafetyBackupPath))
+        {
+            Assert.Equal("ok", ScalarString(safety, "PRAGMA integrity_check;"));
+            Assert.Equal(3, ScalarLong(safety, "SELECT count(*) FROM Items;"));
+            Assert.Equal("live-only", ScalarString(safety, "SELECT Name FROM Items WHERE Id = 3;"));
+        }
+        Assert.Contains(BackupService.GetBackups(backupFolder),
+            b => b.FileName.StartsWith("shop-backup-before-restore-", StringComparison.Ordinal));
+
+        // staging: کنار دیتابیس زنده، با نام مخصوص بازیابی، معتبر و هم‌محتوا با بکاپ انتخابی.
+        Assert.Equal(Path.GetFullPath(dataFolder), Path.GetFullPath(Path.GetDirectoryName(preparation.StagingPath)!));
+        Assert.Contains(".restore.tmp", Path.GetFileName(preparation.StagingPath));
+        Assert.DoesNotContain(".staging.tmp", Path.GetFileName(preparation.StagingPath));
+        using (var staged = OpenReadWrite(preparation.StagingPath))
+        {
+            Assert.Equal("ok", ScalarString(staged, "PRAGMA integrity_check;"));
+            Assert.Equal(2, ScalarLong(staged, "SELECT count(*) FROM Items;"));
+            Assert.Equal(0, ScalarLong(staged, "SELECT count(*) FROM Items WHERE Name = 'live-only';"));
+        }
+
+        // فاز 4B-1 هیچ‌گاه shop.db زنده را جایگزین نمی‌کند.
+        Assert.Equal(Path.GetFullPath(live.DatabasePath), preparation.LiveDatabasePath);
+        Assert.Equal(liveBefore, HashFile(live.DatabasePath));
+    }
+
+    // ═══════════ اسنپ‌شات ایمنی بدون اتصال باز — دیتابیس زنده تغییر نمی‌کند ═══════════
+
+    [Fact]
+    public void PrepareRestore_WalResidentDataWithoutKeeper_IsPreservedAndLiveDatabaseNotMutated()
+    {
+        var backupFolder = Sub("backups");
+        var dataFolder = Sub("data");
+
+        // بکاپ انتخابی از یک دیتابیس قدیمی‌تر (دو ردیف).
+        using var older = new WalSource(Sub("older"), "source.db");
+        var backupPath = BackupService.CreateBackup(older.DatabasePath, backupFolder, keepCount: 5);
+
+        // دیتابیس زنده پس از کرش: ردیف‌های committed فقط در WAL هستند و هنگام اسنپ‌شات
+        // هیچ اتصال بازِ نگه‌داشته‌شده‌ای (writer/keeper) روی دیتابیس زنده وجود ندارد.
+        var livePath = Path.Combine(dataFolder, "shop.db");
+        BuildCrashedWalState(Sub("crash-state"), livePath);
+        Assert.True(File.Exists(livePath + "-wal"));
+
+        // اثبات اینکه ردیف‌های جدید صرفاً در WAL هستند: فایل اصلیِ تنها هنوز حالت کهنه دارد.
+        var mainOnlyCopy = Path.Combine(Sub("main-only"), "shop.db");
+        File.Copy(livePath, mainOnlyCopy);
+        using (var mainOnly = OpenReadOnly(mainOnlyCopy))
+        {
+            Assert.Equal(1, ScalarLong(mainOnly, "SELECT count(*) FROM Items;"));
+        }
+
+        var liveDbBefore = HashFile(livePath);
+        var liveWalBefore = HashFile(livePath + "-wal");
+
+        var preparation = BackupService.PrepareRestore(backupPath, livePath, backupFolder);
+
+        // اسنپ‌شات ایمنی همهٔ دادهٔ committed موجود در WAL را WAL-سازگار دارد (داده گم نمی‌شود).
+        using (var safety = OpenReadWrite(preparation.SafetyBackupPath))
+        {
+            Assert.Equal("ok", ScalarString(safety, "PRAGMA integrity_check;"));
+            Assert.Equal(3, ScalarLong(safety, "SELECT count(*) FROM Items;"));
+            Assert.Equal("from-wal", ScalarString(safety, "SELECT Name FROM Items WHERE Id = 2;"));
+            Assert.Equal("live-only", ScalarString(safety, "SELECT Name FROM Items WHERE Id = 3;"));
+        }
+
+        // آماده‌سازی، دیتابیس زنده را تغییر نداده است: نه checkpoint، نه بازنویسی/حذف WAL.
+        Assert.Equal(liveDbBefore, HashFile(livePath));
+        Assert.True(File.Exists(livePath + "-wal"));
+        Assert.Equal(liveWalBefore, HashFile(livePath + "-wal"));
+    }
+
+    // ═══════════ پاک‌سازی مصنوعات در صورت شکست ═══════════
+
+    [Fact]
+    public void PrepareRestore_FailureBeforeSafetySnapshot_LeavesNoArtifacts()
+    {
+        var backupFolder = Sub("backups");
+        var dataFolder = Sub("data");
+        using var older = new WalSource(Sub("older"), "source.db");
+        var backupPath = BackupService.CreateBackup(older.DatabasePath, backupFolder, keepCount: 5);
+        using var live = new WalSource(dataFolder, "shop.db");
+        var liveBefore = HashFile(live.DatabasePath);
+
+        var sentinel = new IOException("simulated failure before safety snapshot");
+        var thrown = Assert.Throws<IOException>(() => BackupService.PrepareRestore(
+            backupPath, live.DatabasePath, backupFolder,
+            stage =>
+            {
+                if (stage == RestorePreparationStage.BackupValidated) throw sentinel;
+            }));
+
+        Assert.Same(sentinel, thrown);
+        Assert.Single(Directory.GetFiles(backupFolder)); // only the selected backup
+        AssertNoRestoreTemporaryArtifacts(backupFolder);
+        AssertNoRestoreTemporaryArtifacts(dataFolder);
+        Assert.Equal(liveBefore, HashFile(live.DatabasePath));
+    }
+
+    [Fact]
+    public void PrepareRestore_FailureAfterStagingCopy_CleansTemporaryArtifactsAndKeepsValidSafetySnapshot()
+    {
+        var backupFolder = Sub("backups");
+        var dataFolder = Sub("data");
+        using var older = new WalSource(Sub("older"), "source.db");
+        var backupPath = BackupService.CreateBackup(older.DatabasePath, backupFolder, keepCount: 5);
+        using var live = new WalSource(dataFolder, "shop.db", (3, "live-only"));
+        var liveBefore = HashFile(live.DatabasePath);
+
+        var sentinel = new IOException("simulated failure after staging copy");
+        var thrown = Assert.Throws<IOException>(() => BackupService.PrepareRestore(
+            backupPath, live.DatabasePath, backupFolder,
+            stage =>
+            {
+                if (stage == RestorePreparationStage.StagingCopied) throw sentinel;
+            }));
+
+        Assert.Same(sentinel, thrown);
+
+        // هیچ فایل موقت بازیابی باقی نمی‌ماند (staging و temp اسنپ‌شات پاک شده‌اند).
+        AssertNoRestoreTemporaryArtifacts(dataFolder);
+        AssertNoRestoreTemporaryArtifacts(backupFolder);
+
+        // دیتابیس زنده دست‌نخورده است.
+        Assert.Equal(liveBefore, HashFile(live.DatabasePath));
+
+        // اسنپ‌شات ایمنیِ معتبرِ منتشرشده باقی می‌ماند؛ هرگز بکاپ معتبر حذف نمی‌شود.
+        using var safety = OpenReadWrite(Assert.Single(
+            Directory.GetFiles(backupFolder, "shop-backup-before-restore-*.db")));
+        Assert.Equal("ok", ScalarString(safety, "PRAGMA integrity_check;"));
+        Assert.Equal(3, ScalarLong(safety, "SELECT count(*) FROM Items;"));
+    }
+
+    // ═══════════ TOCTOU: staging فقط از مصنوع تثبیت‌شدهٔ اعتبارسنجی‌شده ساخته می‌شود ═══════════
+
+    [Fact]
+    public void PrepareRestore_SourceReplacedAtBackupValidated_StagingStillContainsValidatedArtifact()
+    {
+        var backupFolder = Sub("backups");
+        using var older = new WalSource(Sub("older"), "source.db");
+        var backupPath = BackupService.CreateBackup(older.DatabasePath, backupFolder, keepCount: 5);
+        var validatedArtifactHash = HashFile(backupPath);
+
+        // دیتابیس معتبر B با محتوای متفاوت که پس از پایان اعتبارسنجی جایگزین مسیر منبع می‌شود.
+        using var replacement = new WalSource(Sub("replacement"), "replacement.db", (7, "replacement-marker"));
+        var replacementBackupPath = BackupService.CreateBackup(replacement.DatabasePath, backupFolder, keepCount: 5);
+
+        using var live = new WalSource(Sub("data"), "shop.db");
+
+        var replacedAtBackupValidated = false;
+        var preparation = BackupService.PrepareRestore(backupPath, live.DatabasePath, backupFolder, stage =>
+        {
+            if (stage != RestorePreparationStage.BackupValidated) return;
+            // جایگزینی مسیر فایل انتخابیِ کاربر با یک دیتابیس معتبر ولی متفاوت (B).
+            File.Copy(replacementBackupPath, backupPath, overwrite: true);
+            replacedAtBackupValidated = true;
+        });
+
+        Assert.True(replacedAtBackupValidated, "the source replacement step did not run");
+
+        // staging باید دقیقاً همان بایت‌های مصنوع A (اعتبارسنجی‌شده) را داشته باشد، هرگز B را.
+        Assert.Equal(validatedArtifactHash, HashFile(preparation.StagingPath));
+        using var staged = OpenReadWrite(preparation.StagingPath);
+        Assert.Equal("ok", ScalarString(staged, "PRAGMA integrity_check;"));
+        Assert.Equal(2, ScalarLong(staged, "SELECT count(*) FROM Items;"));
+        Assert.Equal(0, ScalarLong(staged, "SELECT count(*) FROM Items WHERE Name = 'replacement-marker';"));
+    }
+
+    // ═══════════ گارد هویت فایل: hard link به دیتابیس زنده بکاپ معتبر نیست ═══════════
+
+    [Fact]
+    public void PrepareRestore_BackupHardLinkedToLiveDatabase_IsRejectedBeforeValidation()
+    {
+        // گارد هویت فایل در محصول عمداً Windows-only است؛ روی پلتفرم دیگر قابل اجرا نیست.
+        if (!OperatingSystem.IsWindows()) return;
+
+        var backupFolder = Sub("backups");
+        var dataFolder = Sub("data");
+
+        // دیتابیس زنده با دادهٔ committed که فقط در WAL است (بدون checkpoint خودکار).
+        using var live = new WalSource(dataFolder, "shop.db", (3, "live-only"));
+        Assert.True(File.Exists(live.DatabasePath + "-wal"));
+        var liveDatabaseHash = HashFile(live.DatabasePath);
+        var liveWalHash = HashFile(live.DatabasePath + "-wal");
+
+        // «بکاپ» انتخابی با مسیر/نام متفاوت اما hard link به همان فایل shop.db زنده.
+        var aliasedBackupPath = Path.Combine(backupFolder, "shop-backup-hardlink.db");
+        Assert.True(CreateHardLink(aliasedBackupPath, live.DatabasePath), "hard link creation failed");
+
+        var stagesObserved = new List<RestorePreparationStage>();
+        Assert.Throws<InvalidOperationException>(() => BackupService.PrepareRestore(
+            aliasedBackupPath, live.DatabasePath, backupFolder, stagesObserved.Add));
+
+        // رد پیش از هر اعتبارسنجی: هیچ مرحله‌ای اجرا نشده و هیچ مصنوع موقتی ساخته نشده است.
+        Assert.Empty(stagesObserved);
+        AssertNoRestoreTemporaryArtifacts(backupFolder);
+        AssertNoRestoreTemporaryArtifacts(dataFolder);
+
+        // دیتابیس زنده و دادهٔ WAL دست‌نخورده‌اند و فایل کاربر (hard link) حذف/تغییر نشده است.
+        Assert.Equal(liveDatabaseHash, HashFile(live.DatabasePath));
+        Assert.Equal(liveWalHash, HashFile(live.DatabasePath + "-wal"));
+        Assert.True(File.Exists(aliasedBackupPath));
+        Assert.Equal(liveDatabaseHash, HashFile(aliasedBackupPath));
+    }
+
+    // ═══════════ BLOCKER: sidecarهای بکاپ منبع هرگز حذف یا تغییر نمی‌شوند ═══════════
+
+    [Fact]
+    public void PrepareRestore_ExistingSourceSidecars_RejectsWithoutDeletingOrModifyingThem()
+    {
+        var backupFolder = Sub("backups");
+        using var older = new WalSource(Sub("older"), "source.db");
+        var backupPath = BackupService.CreateBackup(older.DatabasePath, backupFolder, keepCount: 5);
+
+        var backupHashBefore = HashFile(backupPath);
+        var sidecarBytes = new byte[] { 0x11, 0x22, 0x33, 0x44 };
+        File.WriteAllBytes(backupPath + "-wal", sidecarBytes);
+        File.WriteAllBytes(backupPath + "-shm", sidecarBytes);
+
+        using var live = new WalSource(Sub("data"), "shop.db");
+        var liveBefore = HashFile(live.DatabasePath);
+
+        Assert.Throws<InvalidDataException>(
+            () => BackupService.PrepareRestore(backupPath, live.DatabasePath, backupFolder));
+
+        // هیچ sidecarی حذف نشده و محتوای فایل بکاپ و sidecarها دست‌نخورده است.
+        Assert.Equal(backupHashBefore, HashFile(backupPath));
+        Assert.Equal(sidecarBytes, File.ReadAllBytes(backupPath + "-wal"));
+        Assert.Equal(sidecarBytes, File.ReadAllBytes(backupPath + "-shm"));
+        Assert.Equal(liveBefore, HashFile(live.DatabasePath));
+        AssertNoRestoreTemporaryArtifacts(backupFolder);
+        AssertNoRestoreTemporaryArtifacts(Path.GetDirectoryName(live.DatabasePath)!);
+    }
+
+    [Fact]
+    public void PrepareRestore_SidecarAppearingDuringValidation_IsNeverDeletedOrModified()
+    {
+        var backupFolder = Sub("backups");
+        using var older = new WalSource(Sub("older"), "source.db");
+        var backupPath = BackupService.CreateBackup(older.DatabasePath, backupFolder, keepCount: 5);
+        using var live = new WalSource(Sub("data"), "shop.db");
+        var backupHashBefore = HashFile(backupPath);
+
+        var sidecarBytes = new byte[] { 0x5A, 0x5B, 0x5C, 0x5D };
+        var sidecarAppeared = false;
+        var preparation = BackupService.PrepareRestore(backupPath, live.DatabasePath, backupFolder,
+            stage =>
+            {
+                if (stage != RestorePreparationStage.BackupValidationCopyCaptured) return;
+                File.WriteAllBytes(backupPath + "-wal", sidecarBytes);
+                File.WriteAllBytes(backupPath + "-shm", sidecarBytes);
+                sidecarAppeared = true;
+            });
+
+        // اعتبارسنجی روی کپی خصوصی ادامه می‌یابد و عملیات کامل می‌شود؛ اما هیچ چیزی از سمت
+        // منبع حذف یا تغییر نمی‌شود — حتی وقتی sidecar در میانهٔ اعتبارسنجی ظاهر شود.
+        Assert.True(sidecarAppeared);
+        Assert.NotNull(preparation);
+        Assert.True(File.Exists(preparation.StagingPath));
+        Assert.Equal(backupHashBefore, HashFile(backupPath));
+        Assert.Equal(sidecarBytes, File.ReadAllBytes(backupPath + "-wal"));
+        Assert.Equal(sidecarBytes, File.ReadAllBytes(backupPath + "-shm"));
+        AssertNoRestoreTemporaryArtifacts(backupFolder); // کپی خصوصی اعتبارسنجی کامل پاک شده است
+    }
+
+    // ═══════════ نام‌گذاری staging بازیابی در برابر sweep بکاپ ═══════════
+
+    [Fact]
+    public void RestoreStagingNaming_IsNotRemovedByBackupStagingSweep()
+    {
+        var backupFolder = Sub("backups");
+        var restoreArtifact = BackupService.BuildRestoreTemporaryPath(backupFolder, "restore");
+        File.WriteAllBytes(restoreArtifact, new byte[] { 1 });
+        File.WriteAllBytes(restoreArtifact + "-wal", new byte[] { 2 });
+        File.WriteAllBytes(restoreArtifact + "-shm", new byte[] { 3 });
+
+        var legacyStaging = Path.Combine(backupFolder, "control-abc.staging.tmp");
+        File.WriteAllBytes(legacyStaging, new byte[] { 4 });
+
+        var removed = BackupService.CleanupOrphanedStagingArtifacts(backupFolder);
+
+        Assert.Equal(1, removed); // فقط staging بکاپ پاک می‌شود
+        Assert.True(File.Exists(restoreArtifact));
+        Assert.True(File.Exists(restoreArtifact + "-wal"));
+        Assert.True(File.Exists(restoreArtifact + "-shm"));
+        Assert.False(File.Exists(legacyStaging));
+    }
+
+    // ═══════════ عدم هم‌پوشانی با single-flight بکاپ ═══════════
+
+    [Fact]
+    public void PrepareRestore_WaitsForInProgressBackup_ThenCompletesAfterRelease()
+    {
+        var backupFolder = Sub("backups");
+        using var older = new WalSource(Sub("older"), "source.db");
+        var backupPath = BackupService.CreateBackup(older.DatabasePath, backupFolder, keepCount: 5);
+        using var live = new WalSource(Sub("data"), "shop.db");
+
+        using var holderHasGate = new ManualResetEventSlim(false);
+        using var holderMayFinish = new ManualResetEventSlim(false);
+        using var holderFinished = new ManualResetEventSlim(false);
+        var holder = new Thread(() => BackupService.RunExclusive(() =>
+        {
+            holderHasGate.Set();
+            holderMayFinish.Wait(TimeSpan.FromSeconds(10));
+            // پیش از آزادسازی گیت ثبت می‌شود تا هر مرحله‌ای که پس از کسب گیت اجرا شود آن را ببیند.
+            holderFinished.Set();
+            return 0;
+        }));
+        holder.Start();
+
+        using var restoreCrossedGate = new ManualResetEventSlim(false);
+        using var restoreMayProceed = new ManualResetEventSlim(false);
+        RestorePreparation? preparation = null;
+        Exception? failure = null;
+        var crossedGateWhileBackupHeldIt = false;
+        var stageRanWhileBackupHeldGate = false;
+        var stagesObserved = 0;
+        var restorer = new Thread(() =>
+        {
+            try
+            {
+                preparation = BackupService.PrepareRestore(
+                    backupPath, live.DatabasePath, backupFolder,
+                    stage =>
+                    {
+                        stagesObserved++;
+                        if (!holderFinished.IsSet) stageRanWhileBackupHeldGate = true;
+                    },
+                    gateAcquired: () =>
+                    {
+                        // مرز واقعی کسب گیت: این seam فقط پس از _backupGate.Wait() موفق اجرا می‌شود
+                        // (اگر PrepareRestore دیگر گیت را نمی‌گرفت، هنوز همین‌جا از مرز رد می‌شد).
+                        if (!holderFinished.IsSet) crossedGateWhileBackupHeldIt = true;
+                        restoreCrossedGate.Set();
+                        // restorer داخل ناحیهٔ گیت نگه داشته می‌شود تا تست، مالکیت واقعی گیت را
+                        // در همین لحظه به‌صورت قطعی بررسی کند؛ سپس با Set آزاد می‌شود.
+                        if (!restoreMayProceed.Wait(TimeSpan.FromSeconds(10)))
+                            throw new TimeoutException("the test did not release the restore gate seam");
+                    });
+            }
+            catch (Exception ex) { failure = ex; }
+        });
+
+        try
+        {
+            // handshake صریح: نخست گیت واقعاً در اختیار holder است، سپس تلاش بازیابی آغاز می‌شود
+            // (restorer فقط پس از تثبیت مالکیت گیت شروع می‌شود تا ترتیب قطعی و بدون رقابت باشد).
+            Assert.True(holderHasGate.Wait(TimeSpan.FromSeconds(5)), "the gate holder did not start");
+            restorer.Start();
+
+            // شاهد منفیِ قطعی: تا وقتی holder مالک گیت است، عبور از مرز کسب گیت ممکن نیست؛
+            // اگر PrepareRestore دیگر گیت را نمی‌گرفت، همین حالا از مرز رد می‌شد.
+            Assert.False(restoreCrossedGate.Wait(TimeSpan.FromMilliseconds(500)),
+                "restore crossed the gate boundary while a backup still held _backupGate");
+            Assert.Null(preparation);
+        }
+        finally
+        {
+            holderMayFinish.Set();
+            Assert.True(holder.Join(TimeSpan.FromSeconds(5)), "the gate holder did not finish");
+        }
+
+        // شاهد مثبت: پس از آزادسازی گیت، بازیابی باید از مرز کسب گیت رد شود (اگر دیگر گیت
+        // گرفته نشود یا این seam اجرا نشود، این انتظار برآورده نمی‌شود و تست شکست می‌خورد).
+        Assert.True(restoreCrossedGate.Wait(TimeSpan.FromSeconds(5)),
+            "restore preparation never crossed the _backupGate acquisition boundary");
+
+        // اثبات قطعیِ مالکیت گیت در همان مرز: restorer داخل seam پارک است؛ اگر گیت واقعاً
+        // گرفته نشده بود، این تلاش غیرمسدودکننده موفق می‌شد و تست شکست می‌خورد.
+        Assert.False(BackupService.TryRunExclusive(() => { }),
+            "restore must actually hold _backupGate after crossing its acquisition boundary");
+
+        restoreMayProceed.Set();
+        Assert.True(restorer.Join(TimeSpan.FromSeconds(10)), "restore preparation did not finish");
+        Assert.Null(failure);
+        Assert.NotNull(preparation);
+        Assert.True(stagesObserved > 0, "restore preparation did not reach any stage");
+        Assert.False(crossedGateWhileBackupHeldIt,
+            "restore crossed the gate boundary while a backup still held _backupGate");
+        Assert.False(stageRanWhileBackupHeldGate,
+            "no restore stage may run while a backup still holds the gate");
+    }
+
+    [Fact]
+    public void BackupAttempt_IsSkippedWhileRestorePreparationHoldsTheGate()
+    {
+        var backupFolder = Sub("backups");
+        using var older = new WalSource(Sub("older"), "source.db");
+        var backupPath = BackupService.CreateBackup(older.DatabasePath, backupFolder, keepCount: 5);
+        using var live = new WalSource(Sub("data"), "shop.db");
+
+        using var entered = new ManualResetEventSlim(false);
+        using var release = new ManualResetEventSlim(false);
+        RestorePreparation? preparation = null;
+        Exception? failure = null;
+        var restorer = new Thread(() =>
+        {
+            try
+            {
+                preparation = BackupService.PrepareRestore(backupPath, live.DatabasePath, backupFolder,
+                    stage =>
+                    {
+                        if (stage == RestorePreparationStage.BackupValidated)
+                        {
+                            entered.Set();
+                            release.Wait(TimeSpan.FromSeconds(10));
+                        }
+                    });
+            }
+            catch (Exception ex) { failure = ex; }
+        });
+        restorer.Start();
+
+        try
+        {
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(5)),
+                "restore preparation did not reach the barrier");
+            Assert.False(BackupService.TryCreateSmartBackup(),
+                "a backup attempt must be skipped while restore preparation holds the gate");
+        }
+        finally
+        {
+            release.Set();
+        }
+
+        Assert.True(restorer.Join(TimeSpan.FromSeconds(10)), "restore preparation did not finish");
+        Assert.Null(failure);
+        Assert.NotNull(preparation);
+    }
+
+    // ═══════════ ابزارها ═══════════
+
+    private string Sub(string name)
+    {
+        var path = Path.Combine(_root, name);
+        Directory.CreateDirectory(path);
+        return path;
+    }
+
+    private static byte[] HashFile(string path)
+    {
+        // SQLite keeps the database open with read/write access; a read handle must
+        // share read/write or Windows rejects the open with a sharing violation.
+        using var stream = new FileStream(
+            path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        return SHA256.HashData(stream);
+    }
+
+    /// <summary>
+    /// ساخت hard link ویندوزی (kernel32) برای شبیه‌سازی «بکاپی» با مسیر متفاوت که در
+    /// واقع همان فایل دیتابیس زنده است. گارد هویت فایل در محصول عمداً Windows-only است.
+    /// </summary>
+    private static bool CreateHardLink(string linkPath, string existingPath)
+        => OperatingSystem.IsWindows() && CreateHardLinkW(linkPath, existingPath, IntPtr.Zero);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CreateHardLinkW(
+        string lpFileName, string lpExistingFileName, IntPtr lpSecurityAttributes);
+
+    private static void AssertNoRestoreTemporaryArtifacts(string folder)
+    {
+        Assert.DoesNotContain(Directory.GetFiles(folder),
+            f => Path.GetFileName(f).Contains(".restore.tmp", StringComparison.Ordinal));
+    }
+
+    private static SqliteConnection OpenReadWrite(string databasePath)
+    {
+        var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = databasePath,
+            Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false
+        }.ToString());
+        connection.Open();
+        return connection;
+    }
+
+    private static SqliteConnection OpenReadOnly(string databasePath)
+    {
+        var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = databasePath,
+            Mode = SqliteOpenMode.ReadOnly,
+            Pooling = false
+        }.ToString());
+        connection.Open();
+        return connection;
+    }
+
+    private static void Execute(SqliteConnection connection, string sql)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// ساخت قطعیِ وضعیت «پس از کرش»: ردیف baseline در فایل اصلی چک‌پوینت می‌شود و
+    /// ردیف‌های committed بعدی فقط در WAL می‌مانند. از اتصال بازِ مبدأ یک نسخهٔ سازگار
+    /// (فایل اصلی + WAL، بدون SHM) کپی می‌شود و سپس اتصال بسته می‌شود؛ بنابراین هنگام
+    /// اسنپ‌شات هیچ اتصال بازی روی دیتابیس مقصد وجود ندارد.
+    /// </summary>
+    private static void BuildCrashedWalState(string buildFolder, string destinationPath)
+    {
+        Directory.CreateDirectory(buildFolder);
+        Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+        var snapshotSource = Path.Combine(buildFolder, "live-snapshot.db");
+
+        using (var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = snapshotSource,
+            Mode = SqliteOpenMode.ReadWriteCreate,
+            Pooling = false
+        }.ToString()))
+        {
+            connection.Open();
+            Execute(connection, "PRAGMA journal_mode=WAL;");
+            Execute(connection, "PRAGMA wal_autocheckpoint=0;");
+            Execute(connection, "CREATE TABLE Items (Id INTEGER PRIMARY KEY, Name TEXT NOT NULL);");
+            Execute(connection, "INSERT INTO Items (Id, Name) VALUES (1, 'baseline');");
+            Execute(connection, "PRAGMA wal_checkpoint(TRUNCATE);");
+            Execute(connection, "INSERT INTO Items (Id, Name) VALUES (2, 'from-wal');");
+            Execute(connection, "INSERT INTO Items (Id, Name) VALUES (3, 'live-only');");
+
+            File.Copy(snapshotSource, destinationPath, overwrite: false);
+            File.Copy(snapshotSource + "-wal", destinationPath + "-wal", overwrite: false);
+        }
+    }
+
+    private static string? ScalarString(SqliteConnection connection, string sql)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        return command.ExecuteScalar() as string;
+    }
+
+    private static long ScalarLong(SqliteConnection connection, string sql)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        return Convert.ToInt64(command.ExecuteScalar() ?? 0L);
+    }
+
+    /// <summary>
+    /// دیتابیس مبدأ WAL-mode: ردیف baseline در فایل اصلی checkpoint می‌شود، سپس ردیف‌های
+    /// بعدی فقط در WAL می‌مانند (auto-checkpoint عمداً خاموش است). اتصال تا پایان تست باز
+    /// می‌ماند تا WAL پاک/چک‌پوینت نشود.
+    /// </summary>
+    private sealed class WalSource : IDisposable
+    {
+        private readonly SqliteConnection _connection;
+
+        public string DatabasePath { get; }
+
+        public WalSource(string folder, string fileName, params (int Id, string Name)[] walOnlyRows)
+        {
+            Directory.CreateDirectory(folder);
+            DatabasePath = Path.Combine(folder, fileName);
+            _connection = new SqliteConnection(new SqliteConnectionStringBuilder
+            {
+                DataSource = DatabasePath,
+                Mode = SqliteOpenMode.ReadWriteCreate,
+                Pooling = false
+            }.ToString());
+            _connection.Open();
+            Execute("PRAGMA journal_mode=WAL;");
+            Execute("PRAGMA wal_autocheckpoint=0;"); // keep auto-checkpoint under explicit control
+            Execute("CREATE TABLE Items (Id INTEGER PRIMARY KEY, Name TEXT NOT NULL);");
+            Execute("INSERT INTO Items (Id, Name) VALUES (1, 'baseline');");
+            Execute("PRAGMA wal_checkpoint(TRUNCATE);"); // baseline is fully written into the main database file
+            Execute("INSERT INTO Items (Id, Name) VALUES (2, 'from-wal');"); // committed after baseline, WAL only
+            foreach (var (id, name) in walOnlyRows)
+            {
+                Execute($"INSERT INTO Items (Id, Name) VALUES ({id}, '{name}');");
+            }
+        }
+
+        private void Execute(string sql)
+        {
+            using var command = _connection.CreateCommand();
+            command.CommandText = sql;
+            command.ExecuteNonQuery();
+        }
+
+        public void Dispose()
+        {
+            _connection.Dispose();
+            foreach (var sidecar in new[] { DatabasePath + "-wal", DatabasePath + "-shm" })
+            {
+                try { if (File.Exists(sidecar)) File.Delete(sidecar); } catch { }
+            }
+        }
+    }
+}

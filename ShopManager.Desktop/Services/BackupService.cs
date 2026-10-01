@@ -1,9 +1,11 @@
 ﻿using Microsoft.Data.Sqlite;
+using Microsoft.Win32.SafeHandles;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace ShopManager.Desktop.Services;
@@ -228,7 +230,9 @@ public static class BackupService
         var published = false;
         try
         {
-            CreateSnapshot(sourceDatabasePath, stagingPath);
+            // مسیر بکاپ عادی (4A) رفتار قبلی خود را حفظ می‌کند؛ فقط مسیر بازیابی (4B-1)
+            // مبدأ را فقط-خواندنی باز می‌کند.
+            CreateSnapshot(sourceDatabasePath, stagingPath, SqliteOpenMode.ReadWrite);
             ValidateSnapshot(stagingPath);
 
             // sidecarهای احتمالیِ اعتبارسنجی نباید همراه بکاپ منتشر شوند.
@@ -293,13 +297,17 @@ public static class BackupService
 
     /// <summary>
     /// گرفتن اسنپ‌شات commit-consistent با مکانیزم رسمی SQLite online backup API.
+    /// حالت اتصال مبدأ صریح است: مسیر بکاپ عادی (4A) مبدأ را ReadWrite باز می‌کند،
+    /// اما آماده‌سازی بازیابی (4B-1) مبدأ را فقط-خواندنی باز می‌کند تا باز/بستن اتصال
+    /// هرگز checkpoint نزند یا دیتابیس مبدأ (shop.db زنده) را تغییر ندهد؛ در عین حال
+    /// دادهٔ committed موجود در WAL همچنان به‌صورت WAL-consistent خوانده می‌شود.
     /// </summary>
-    private static void CreateSnapshot(string sourceDatabasePath, string stagingPath)
+    private static void CreateSnapshot(string sourceDatabasePath, string stagingPath, SqliteOpenMode sourceMode)
     {
         using var source = new SqliteConnection(new SqliteConnectionStringBuilder
         {
             DataSource = sourceDatabasePath,
-            Mode = SqliteOpenMode.ReadWrite,
+            Mode = sourceMode,
             Pooling = false
         }.ToString());
         source.Open();
@@ -337,6 +345,15 @@ public static class BackupService
         }.ToString());
         connection.Open();
 
+        ValidateOpenDatabase(connection);
+    }
+
+    /// <summary>
+    /// بررسی مشترک یکپارچگی و داشتن شیء دیتابیسی روی یک اتصال باز — برای snapshot بکاپ
+    /// و فایل بکاپ انتخابیِ بازیابی (فاز 4B-1) تا قرارداد اعتبارسنجی یکسان بماند.
+    /// </summary>
+    private static void ValidateOpenDatabase(SqliteConnection connection)
+    {
         using (var command = connection.CreateCommand())
         {
             command.CommandText = "PRAGMA integrity_check;";
@@ -347,7 +364,7 @@ public static class BackupService
             }
         }
 
-        // staging خالی یا بدون هیچ شیئی یک بکاپ قابل‌استفاده نیست.
+        // دیتابیس خالی یا بدون هیچ شیئی برای بکاپ/بازیابی قابل‌استفاده نیست.
         using (var command = connection.CreateCommand())
         {
             command.CommandText = "SELECT count(*) FROM sqlite_master;";
@@ -415,6 +432,279 @@ public static class BackupService
             })
             .OrderByDescending(b => b.CreatedAt)
             .ToList();
+    }
+
+    // ═══════════ آماده‌سازی بازیابی (فاز 4B-1) ═══════════
+
+    /// <summary>
+    /// نشانهٔ نام مصنوعات موقت بازیابی؛ عمداً هرگز شامل «.staging.tmp» نیست تا
+    /// sweep خودکار staging بکاپ (4A-4) هیچ فایل بازیابی را حذف نکند.
+    /// </summary>
+    internal const string RestoreTemporaryMarker = ".restore.tmp";
+
+    /// <summary>
+    /// آماده‌سازی بازیابی تا پیش از تعویض دیتابیس زنده: اعتبارسنجی بکاپ انتخابی، اسنپ‌شات
+    /// ایمنی WAL-سازگار از دیتابیس فعلی، و staging اعتبارسنجی‌شده در کنار دیتابیس زنده.
+    /// زیر گیتِ single-flight بکاپ اجرا می‌شود و هرگز shop.db را جایگزین نمی‌کند (تعویض در 4B-2).
+    /// </summary>
+    internal static RestorePreparation PrepareRestore(
+        string backupFilePath, string liveDatabasePath, string backupFolder)
+        => PrepareRestore(backupFilePath, liveDatabasePath, backupFolder, stageReached: null, gateAcquired: null);
+
+    /// <summary>
+    /// نسخهٔ دارای seam رویداد مرحله‌ها برای تست‌های قطعی (مانع/تزریق شکست).
+    /// همهٔ اعتبارسنجی‌ها و ساخت مصنوعات داخل گیتِ single-flight انجام می‌شود.
+    /// </summary>
+    internal static RestorePreparation PrepareRestore(
+        string backupFilePath, string liveDatabasePath, string backupFolder,
+        Action<RestorePreparationStage>? stageReached)
+        => PrepareRestore(backupFilePath, liveDatabasePath, backupFolder, stageReached, gateAcquired: null);
+
+    /// <summary>
+    /// نسخهٔ دارای هر دو seam تست: رویداد مراحل و رویداد «مرز کسب گیت».
+    /// <paramref name="gateAcquired"/> دقیقاً پس از کسب موفق <c>_backupGate</c> و پیش از
+    /// اجرای هر بخشی از آماده‌سازی فراخوانی می‌شود؛ بنابراین تستِ هم‌زمانی می‌تواند در همان
+    /// لحظه، مالکیت واقعی گیت را به‌صورت قطعی (بدون وابستگی به زمان‌بندی) بررسی کند.
+    /// </summary>
+    internal static RestorePreparation PrepareRestore(
+        string backupFilePath, string liveDatabasePath, string backupFolder,
+        Action<RestorePreparationStage>? stageReached, Action? gateAcquired)
+    {
+        _backupGate.Wait();
+        try
+        {
+            gateAcquired?.Invoke();
+            return PrepareRestoreCore(backupFilePath, liveDatabasePath, backupFolder, stageReached);
+        }
+        finally
+        {
+            _backupGate.Release();
+        }
+    }
+
+    private static RestorePreparation PrepareRestoreCore(
+        string backupFilePath, string liveDatabasePath, string backupFolder,
+        Action<RestorePreparationStage>? stageReached)
+    {
+        var pathComparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        var sourceBackupPath = Path.GetFullPath(backupFilePath);
+        var livePath = Path.GetFullPath(liveDatabasePath);
+
+        if (string.Equals(sourceBackupPath, livePath, pathComparison))
+        {
+            throw new InvalidOperationException("فایل بکاپ نمی‌تواند همان دیتابیس زنده باشد.");
+        }
+
+        // گارد هویت فایل: مسیر متفاوت (از جمله hard link ویندوز) می‌تواند به همان فایل
+        // دیتابیس زنده اشاره کند؛ Path.GetFullPath به‌تنهایی کافی نیست. هویت پایدار فایل
+        // از روی هندل خوانده می‌شود و پیش از هر اعتبارسنجی رد می‌گردد تا هرگز به‌عنوان
+        // بکاپ «معتبر» تلقی نشود. اگر فایلی وجود نداشته باشد یا هندل در دسترس نباشد،
+        // تصمیم‌گیری به همان مسیر قبلی (اعتبارسنجی/خطای فایل‌نیست) واگذار می‌شود.
+        if (File.Exists(sourceBackupPath) && File.Exists(livePath)
+            && TryGetFileIdentity(sourceBackupPath) is { } selectedIdentity
+            && TryGetFileIdentity(livePath) is { } liveIdentity
+            && selectedIdentity.Equals(liveIdentity))
+        {
+            throw new InvalidOperationException(
+                "فایل بکاپ انتخابی همان فایل دیتابیس زنده است (هویت فایل یکسان) و قابل استفاده نیست.");
+        }
+
+        // ۱) اعتبارسنجی بکاپ انتخابی روی یک کپی تثبیت‌شدهٔ متعلق به همین عملیات، پیش از
+        // هر عملیات روی دیتابیس زنده. فایل کاربر هرگز باز/پاک/تغییر نمی‌شود. پس از موفقیت،
+        // همین مصنوع تثبیت‌شده حفظ می‌شود و staging فقط از آن ساخته می‌شود؛ منبع انتخابی
+        // کاربر در ادامهٔ آماده‌سازی هیچ مشارکتی ندارد (رفع TOCTOU).
+        Directory.CreateDirectory(backupFolder);
+        var validatedBackupPath = ValidateBackupForRestore(sourceBackupPath, backupFolder, stageReached);
+
+        string? safetyTemporaryPath = null;
+        string? stagingPath = null;
+        string? safetyBackupPath = null;
+        var safetyPublished = false;
+        var completed = false;
+
+        try
+        {
+            stageReached?.Invoke(RestorePreparationStage.BackupValidated);
+
+            if (!File.Exists(livePath))
+            {
+                throw new FileNotFoundException("فایل دیتابیس زنده پیدا نشد", livePath);
+            }
+
+            var liveFolder = Path.GetDirectoryName(livePath)
+                ?? throw new InvalidOperationException("پوشهٔ دیتابیس زنده قابل تعیین نیست.");
+
+            safetyTemporaryPath = BuildRestoreTemporaryPath(backupFolder, "safety");
+
+            // ۲) اسنپ‌شات ایمنی WAL-سازگار از دیتابیس زنده با همان مکانیزم رسمی بکاپ.
+            // عمداً از CreateBackup استفاده نمی‌شود تا گیت دوباره وارد نشود (deadlock)
+            // و وضعیت ردیابی تغییرات بکاپ دست‌کاری نشود. اتصال مبدأ فقط-خواندنی است تا
+            // باز/بستن آن هرگز checkpoint نزند یا shop.db زنده را تغییر ندهد؛ دادهٔ
+            // committed داخل WAL (مثلاً پس از کرش) با خواندن WAL-consistent منتقل می‌شود.
+            CreateSnapshot(livePath, safetyTemporaryPath, SqliteOpenMode.ReadOnly);
+            ValidateSnapshot(safetyTemporaryPath);
+            TryDeleteSidecarFiles(safetyTemporaryPath);
+            safetyBackupPath = PublishStaging(
+                safetyTemporaryPath, backupFolder,
+                $"before-restore-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}", PublishStagingFile);
+            safetyPublished = true;
+            stageReached?.Invoke(RestorePreparationStage.SafetySnapshotPublished);
+
+            // ۳) staging در کنار دیتابیس زنده (همان volume) از همان مصنوع تثبیت‌شدهٔ
+            // اعتبارسنجی‌شده ساخته می‌شود — نه با بازخوانی دوبارهٔ مسیر انتخابی کاربر؛
+            // بنابراین جایگزینی آن مسیر پس از اعلام BackupValidated اثری روی staging ندارد.
+            // همچنین رفع attribute فقط-خواندنی که File.Copy از بکاپ read-only به ارث می‌برد (باگ تاریخی D4).
+            stagingPath = BuildRestoreTemporaryPath(liveFolder, "restore");
+            File.Copy(validatedBackupPath, stagingPath, overwrite: false);
+            ClearReadOnlyAttribute(stagingPath);
+            stageReached?.Invoke(RestorePreparationStage.StagingCopied);
+
+            TryDeleteSidecarFiles(stagingPath);
+            ValidateSnapshot(stagingPath);
+            TryDeleteSidecarFiles(stagingPath);
+            stageReached?.Invoke(RestorePreparationStage.StagingValidated);
+
+            completed = true;
+            return new RestorePreparation(sourceBackupPath, livePath, safetyBackupPath, stagingPath);
+        }
+        finally
+        {
+            // مصنوع تثبیت‌شدهٔ اعتبارسنجی متعلق به همین عملیات است؛ پس از انتقال به staging
+            // (یا در صورت شکست) باقی نمی‌ماند و منبع کاربر هرگز لمس نمی‌شود.
+            TryDeleteStagingArtifacts(validatedBackupPath);
+
+            if (!completed)
+            {
+                // فقط مصنوعات ناتمام پاک می‌شوند؛ اسنپ‌شات ایمنیِ منتشرشدهٔ معتبر حذف نمی‌شود.
+                if (stagingPath != null) TryDeleteStagingArtifacts(stagingPath);
+                if (!safetyPublished && safetyTemporaryPath != null) TryDeleteStagingArtifacts(safetyTemporaryPath);
+            }
+        }
+    }
+
+    // ═══════════ هویت پایدار فایل (گارد hard link، فاز 4B-1) ═══════════
+
+    /// <summary>هویت فایل روی Windows: شماره سری volume + ایندکس فایل (برای hard linkها یکسان).</summary>
+    private readonly record struct FileIdentity(ulong VolumeSerialNumber, ulong FileIndex);
+
+    /// <summary>
+    /// خواندن هویت پایدار فایل از روی هندل فایل. باز کردن هندل فقط-خواندنی هیچ اثر
+    /// جانبی روی فایل ندارد (نه checkpoint، نه تغییر بایت). روی پلتفرم‌های غیر-Windows —
+    /// که برنامه هدف نمی‌گیرد — و در صورت شکست بازکردن، null برمی‌گرداند.
+    /// </summary>
+    private static FileIdentity? TryGetFileIdentity(string filePath)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+
+        try
+        {
+            using var handle = File.OpenHandle(
+                filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+
+            if (!GetFileInformationByHandle(handle, out var information)) return null;
+
+            var fileIndex = ((ulong)information.FileIndexHigh << 32) | information.FileIndexLow;
+            return new FileIdentity(information.VolumeSerialNumber, fileIndex);
+        }
+        catch (IOException) { return null; }
+        catch (UnauthorizedAccessException) { return null; }
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetFileInformationByHandle(
+        SafeFileHandle fileHandle, out ByHandleFileInformation fileInformation);
+
+    /// <summary>نگاشت BY_HANDLE_FILE_INFORMATION برای GetFileInformationByHandle.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ByHandleFileInformation
+    {
+        public uint FileAttributes;
+        public System.Runtime.InteropServices.ComTypes.FILETIME CreationTime;
+        public System.Runtime.InteropServices.ComTypes.FILETIME LastAccessTime;
+        public System.Runtime.InteropServices.ComTypes.FILETIME LastWriteTime;
+        public uint VolumeSerialNumber;
+        public uint FileSizeHigh;
+        public uint FileSizeLow;
+        public uint NumberOfLinks;
+        public uint FileIndexHigh;
+        public uint FileIndexLow;
+    }
+
+    /// <summary>
+    /// اعتبارسنجی فایل بکاپ انتخابی برای بازیابی روی یک «کپی تثبیت‌شده» متعلق به همین
+    /// عملیات و بازگرداندن مسیر همان کپی. هر کنش جانبی SQLite (ایجاد/بازکردن <c>-wal</c>
+    /// و <c>-shm</c>) فقط کنار همان کپی رخ می‌دهد و فایل کاربر هرگز باز/پاک/تغییر نمی‌شود؛
+    /// بکاپ‌های read-only (باگ تاریخی D4) هم پذیرفته می‌شوند. وجود sidecar کنار فایل بکاپ
+    /// از قبل، نشانهٔ آلودگی است و فقط-خواندنی رد می‌شود (هیچ sidecar‌ای حذف یا تغییر داده نمی‌شود).
+    /// روی موفقیت، مالکیت کپی تثبیت‌شده به فراخوان منتقل می‌شود (پاک‌سازی با اوست) و از این
+    /// پس منبع انتخابی کاربر در آماده‌سازی مشارکت نمی‌کند؛ روی شکست، فقط همان کپی عملیاتی پاک می‌شود.
+    /// </summary>
+    internal static string ValidateBackupForRestore(
+        string backupFilePath, string restoreWorkspaceFolder, Action<RestorePreparationStage>? stageReached)
+    {
+        var sourcePath = Path.GetFullPath(backupFilePath);
+        if (!File.Exists(sourcePath))
+        {
+            throw new FileNotFoundException("فایل بکاپ پیدا نشد", sourcePath);
+        }
+
+        // بررسی فقط-تشخیصی؛ هرگز حذفی انجام نمی‌شود چون مالکیت این فایل‌ها قابل اثبات نیست.
+        if (File.Exists(sourcePath + "-wal") || File.Exists(sourcePath + "-shm"))
+        {
+            throw new InvalidDataException("فایل بکاپ به sidecarهای SQLite آلوده است: " + sourcePath);
+        }
+
+        var stabilizedCopyPath = BuildRestoreTemporaryPath(restoreWorkspaceFolder, "validate");
+        var validated = false;
+        try
+        {
+            // فقط بایت‌های فایل اصلی کپی می‌شوند؛ هیچ sidecarی از منبع خوانده، باز یا حذف نمی‌شود.
+            File.Copy(sourcePath, stabilizedCopyPath, overwrite: false);
+            ClearReadOnlyAttribute(stabilizedCopyPath);
+
+            // seam تست: فرصت «ظهور sidecar کنار منبع در میانهٔ اعتبارسنجی» — اثبات اینکه
+            // حتی در این حالت هیچ چیزی از منبع حذف/تغییر نمی‌شود.
+            stageReached?.Invoke(RestorePreparationStage.BackupValidationCopyCaptured);
+
+            using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+            {
+                DataSource = stabilizedCopyPath,
+                Mode = SqliteOpenMode.ReadOnly,
+                Pooling = false
+            }.ToString());
+            connection.Open();
+
+            ValidateOpenDatabase(connection);
+
+            // اعتبارسنجی موفق: کپی تثبیت‌شده حفظ می‌شود تا staging دقیقاً از همین مصنوع
+            // ساخته شود (تضمین «مصنوع اعتبارسنجی‌شده = مبنای staging»).
+            validated = true;
+            return stabilizedCopyPath;
+        }
+        finally
+        {
+            // روی شکست، پاک‌سازی فقط مصنوعات همین کپی عملیاتی (فایل + sidecarهای خودش).
+            if (!validated) TryDeleteStagingArtifacts(stabilizedCopyPath);
+        }
+    }
+
+    /// <summary>ساخت مسیر موقت اختصاصی بازیابی؛ خارج از الگوی نام و sweep استیجینگ بکاپ.</summary>
+    internal static string BuildRestoreTemporaryPath(string folder, string purpose)
+        => Path.Combine(
+            folder,
+            $"{purpose}-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}-{Guid.NewGuid():N}{RestoreTemporaryMarker}");
+
+    /// <summary>حذف attribute فقط-خواندنی از کپی staging تا دیتابیس بازیابی‌شده قابل نوشتن باشد.</summary>
+    private static void ClearReadOnlyAttribute(string filePath)
+    {
+        var attributes = File.GetAttributes(filePath);
+        if ((attributes & FileAttributes.ReadOnly) != 0)
+        {
+            File.SetAttributes(filePath, attributes & ~FileAttributes.ReadOnly);
+        }
     }
 
     /// <summary>بازیابی از بکاپ</summary>
@@ -492,6 +782,9 @@ public static class BackupService
 
     private static bool IsStagingArtifactName(string fileName)
     {
+        // مصنوعات موقت بازیابی (4B) هرگز نباید توسط sweep استیجینگ بکاپ حذف شوند.
+        if (fileName.Contains(RestoreTemporaryMarker, StringComparison.Ordinal)) return false;
+
         const string marker = ".staging.tmp";
         var index = fileName.IndexOf(marker, StringComparison.Ordinal);
         if (index < 0) return false;
@@ -584,3 +877,24 @@ public class BackupInfo
 
     public string SizeDisplay => BackupService.FormatSize(Size);
 }
+
+/// <summary>مراحل آماده‌سازی بازیابی — seam رویداد برای تست‌های قطعی (فاز 4B-1).</summary>
+internal enum RestorePreparationStage
+{
+    /// <summary>کپی خصوصی اعتبارسنجی از بایت‌های بکاپ گرفته شد (پیش از باز کردن آن).</summary>
+    BackupValidationCopyCaptured,
+    BackupValidated,
+    SafetySnapshotPublished,
+    StagingCopied,
+    StagingValidated
+}
+
+/// <summary>
+/// نتیجهٔ آماده‌سازی بازیابی (فاز 4B-1): بکاپ انتخابی، دیتابیس زنده، اسنپ‌شات ایمنی
+/// منتشرشده و staging اعتبارسنجی‌شده. تعویض واقعی دیتابیس در 4B-2 انجام می‌شود.
+/// </summary>
+internal sealed record RestorePreparation(
+    string BackupFilePath,
+    string LiveDatabasePath,
+    string SafetyBackupPath,
+    string StagingPath);
