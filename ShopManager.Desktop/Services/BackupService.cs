@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 
 namespace ShopManager.Desktop.Services;
 
@@ -26,11 +27,27 @@ public static class BackupService
     /// <summary>پسوند نام بکاپ‌های معتبر</summary>
     internal const string BackupFileExtension = ".db";
 
-    private static bool _hasChangesSinceLastBackup = false;
-    private static DateTime _lastBackupTime = DateTime.MinValue;
+    /// <summary>
+    /// شمارندهٔ نسلِ تغییرات داده. با هر رویداد DataChanged یک واحد افزایش می‌یابد.
+    /// مقایسهٔ آن با نسلِ آخرین بکاپ، تغییراتِ رخ‌داده در حین بکاپ را حفظ می‌کند.
+    /// </summary>
+    private static long _dataGeneration = 0;
+
+    /// <summary>نسلِ داده‌ای که آخرین بکاپِ موفق آن را پوشش داده است.</summary>
+    private static long _lastBackedUpGeneration = 0;
+
+    private static long _lastBackupTimeTicks = DateTime.MinValue.Ticks;
+
+    private static int _backupCountThisSession = 0;
+
+    /// <summary>تا از اشتراک تکراری رویداد تغییر داده در فراخوانی چندبارهٔ Initialize جلوگیری شود.</summary>
+    private static int _dataChangedSubscribed = 0;
+
+    /// <summary>گیتِ single-flight فرایندی: در هر لحظه فقط یک بکاپ اجازهٔ اجرا دارد.</summary>
+    private static readonly SemaphoreSlim _backupGate = new(1, 1);
 
     /// <summary>شمارنده بکاپ‌های این نشست</summary>
-    public static int BackupCountThisSession { get; private set; } = 0;
+    public static int BackupCountThisSession => Volatile.Read(ref _backupCountThisSession);
 
     /// <summary>تایمر خودکار</summary>
     private static System.Timers.Timer? _autoTimer;
@@ -38,19 +55,32 @@ public static class BackupService
     /// <summary>راه‌اندازی سرویس</summary>
     public static void Initialize()
     {
-        DatabaseService.DataChanged += OnDataChanged;
+        if (Interlocked.Exchange(ref _dataChangedSubscribed, 1) == 0)
+        {
+            DatabaseService.DataChanged += OnDataChanged;
+        }
 
-        _hasChangesSinceLastBackup = false;
-        _lastBackupTime = DateTime.Now;
+        // تغییرات موجود تا این لحظه به‌عنوان پوشش‌داده‌شده مبنا گرفته می‌شوند.
+        Interlocked.Exchange(ref _lastBackedUpGeneration, Volatile.Read(ref _dataGeneration));
+        Volatile.Write(ref _lastBackupTimeTicks, DateTime.Now.Ticks);
+
+        // حذف باقی‌ماندهٔ staging جاگذاشته‌شده از کرش/قطع سخت قبلی.
+        try
+        {
+            CleanupOrphanedStagingArtifacts(BackupFolder);
+        }
+        catch (Exception ex)
+        {
+            LogBackupError("backup initialization staging sweep", ex);
+        }
     }
 
-    private static void OnDataChanged()
-    {
-        _hasChangesSinceLastBackup = true;
-    }
+    private static void OnDataChanged() => Interlocked.Increment(ref _dataGeneration);
 
-    public static bool HasChangesSinceLastBackup() => _hasChangesSinceLastBackup;
-    public static DateTime LastBackupTime => _lastBackupTime;
+    public static bool HasChangesSinceLastBackup() =>
+        Volatile.Read(ref _dataGeneration) != Volatile.Read(ref _lastBackedUpGeneration);
+
+    public static DateTime LastBackupTime => new DateTime(Volatile.Read(ref _lastBackupTimeTicks));
 
     // ═══════════ تایمر خودکار ═══════════
 
@@ -77,16 +107,20 @@ public static class BackupService
             {
                 try
                 {
-                    if (HasChangesSinceLastBackup())
-                    {
-                        CreateSmartBackup();
-                    }
+                    // Non-blocking: اگر بکاپی در حال اجراست، این tick رد می‌شود و تغییر pending می‌ماند.
+                    TryCreateSmartBackup();
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    LogBackupError("auto-backup timer", ex);
+                }
             };
             _autoTimer.Start();
         }
-        catch { }
+        catch (Exception ex)
+        {
+            LogBackupError("auto-backup timer setup", ex);
+        }
     }
 
     /// <summary>متوقف کردن تایمر</summary>
@@ -98,24 +132,58 @@ public static class BackupService
             _autoTimer?.Dispose();
             _autoTimer = null;
         }
-        catch { }
+        catch (Exception ex)
+        {
+            LogBackupError("auto-backup timer stop", ex);
+        }
+    }
+
+    // ═══════════ single-flight ═══════════
+
+    /// <summary>
+    /// اجرای عملیات در حالی که گیتِ single-flight فرایندی نگه داشته شده است (با انتظار).
+    /// تضمین می‌کند هیچ دو بکاپی هم‌زمان اجرا نشوند؛ فراخوانی‌های هم‌زمان صف می‌شوند.
+    /// </summary>
+    internal static T RunExclusive<T>(Func<T> operation)
+    {
+        _backupGate.Wait();
+        try { return operation(); }
+        finally { _backupGate.Release(); }
+    }
+
+    /// <summary>
+    /// تلاش غیرمسدودکننده برای اجرای عملیات زیر گیت. اگر بکاپی در حال اجرا باشد
+    /// <c>false</c> برمی‌گرداند و هیچ کاری انجام نمی‌شود (coalescing تایمر).
+    /// </summary>
+    internal static bool TryRunExclusive(Action operation)
+    {
+        if (!_backupGate.Wait(0)) return false;
+        try { operation(); return true; }
+        finally { _backupGate.Release(); }
     }
 
     // ═══════════ بکاپ ═══════════
 
     /// <summary>بکاپ هوشمند — فقط اگه تغییری باشه</summary>
-    public static string? CreateSmartBackup()
+    public static string? CreateSmartBackup() => RunExclusive(CreateSmartBackupCore);
+
+    /// <summary>نسخهٔ غیرمسدودکنندهٔ بکاپ هوشمند برای تایمر (coalescing).</summary>
+    internal static bool TryCreateSmartBackup() => TryRunExclusive(() => CreateSmartBackupCore());
+
+    private static string? CreateSmartBackupCore()
     {
-        if (!_hasChangesSinceLastBackup)
+        if (!HasChangesSinceLastBackup())
         {
             return null;
         }
 
-        return CreateForcedBackup();
+        return CreateForcedBackupCore();
     }
 
     /// <summary>بکاپ اجباری (حتی اگه تغییری نباشه)</summary>
-    public static string CreateForcedBackup()
+    public static string CreateForcedBackup() => RunExclusive(CreateForcedBackupCore);
+
+    private static string CreateForcedBackupCore()
     {
         var keepCount = StoreSettingsService.Current.BackupKeepCount;
         if (keepCount < 5) keepCount = 5;
@@ -154,6 +222,9 @@ public static class BackupService
         // نام staging عمداً خارج از الگوی نام بکاپ‌های معتبر است تا هرگز در لیست بکاپ‌ها دیده نشود.
         var stagingPath = Path.Combine(backupFolder, $"{timestamp}-{Guid.NewGuid():N}.staging.tmp");
 
+        // نسلِ تغییرات پیش از snapshot ثبت می‌شود؛ تغییرات پس از این لحظه pending می‌مانند.
+        var generationAtSnapshot = Volatile.Read(ref _dataGeneration);
+
         var published = false;
         try
         {
@@ -166,9 +237,10 @@ public static class BackupService
             var finalPath = PublishStaging(stagingPath, backupFolder, timestamp, publish);
             published = true;
 
-            _hasChangesSinceLastBackup = false;
-            _lastBackupTime = DateTime.Now;
-            BackupCountThisSession++;
+            // فقط تا نسلِ زمانِ snapshot پوشش داده می‌شود؛ نه نسلِ لحظهٔ اتمام.
+            Interlocked.Exchange(ref _lastBackedUpGeneration, generationAtSnapshot);
+            Volatile.Write(ref _lastBackupTimeTicks, DateTime.Now.Ticks);
+            Interlocked.Increment(ref _backupCountThisSession);
 
             // پاک‌سازی بکاپ‌های قدیمی فقط بعد از انتشار موفق انجام می‌شود.
             CleanOldBackups(backupFolder, keepCount);
@@ -366,7 +438,7 @@ public static class BackupService
 
         File.Copy(backupFilePath, dbPath, overwrite: true);
 
-        _lastBackupTime = DateTime.Now;
+        Volatile.Write(ref _lastBackupTimeTicks, DateTime.Now.Ticks);
     }
 
     /// <summary>پاک کردن فایل بکاپ خاص</summary>
@@ -397,6 +469,72 @@ public static class BackupService
         }
         catch { }
     }
+
+    // ═══════════ پاک‌سازی staging و لاگ خطا ═══════════
+
+    /// <summary>
+    /// حذف ایمن باقی‌ماندهٔ فایل‌های staging که پس از کرش/قطع سخت جا مانده‌اند.
+    /// فقط الگوی دقیق «staging.tmp» و sidecarهای SQLite آن (<c>-wal</c>/<c>-shm</c>) حذف می‌شوند؛
+    /// هیچ بکاپ معتبری (<c>shop-backup-*.db</c>) هرگز لمس نمی‌شود.
+    /// </summary>
+    internal static int CleanupOrphanedStagingArtifacts(string backupFolder)
+    {
+        if (!Directory.Exists(backupFolder)) return 0;
+
+        var removed = 0;
+        foreach (var file in Directory.EnumerateFiles(backupFolder))
+        {
+            if (!IsStagingArtifactName(Path.GetFileName(file))) continue;
+            try { File.Delete(file); removed++; } catch { }
+        }
+        return removed;
+    }
+
+    private static bool IsStagingArtifactName(string fileName)
+    {
+        const string marker = ".staging.tmp";
+        var index = fileName.IndexOf(marker, StringComparison.Ordinal);
+        if (index < 0) return false;
+
+        var suffix = fileName[(index + marker.Length)..];
+        return suffix.Length == 0 || suffix == "-wal" || suffix == "-shm";
+    }
+
+    /// <summary>پوشهٔ پیش‌فرض لاگ خطاهای بکاپ — پایدار و مستقل از DataFolder.</summary>
+    internal static string DefaultBackupErrorLogFolder => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "ShopManager");
+
+    /// <summary>ثبت پایدار خطای init/تایمر/خاموشی بکاپ به‌جای swallow بی‌صدا.</summary>
+    internal static void LogBackupError(string context, Exception error)
+        => LogBackupError(context, error, DefaultBackupErrorLogFolder);
+
+    /// <summary>نسخهٔ با پوشهٔ صریح (seam تست). هرگز استثنا پرتاب نمی‌کند.</summary>
+    internal static void LogBackupError(string context, Exception error, string logFolder)
+    {
+        try
+        {
+            Directory.CreateDirectory(logFolder);
+            File.AppendAllText(
+                Path.Combine(logFolder, "backup-error.log"),
+                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} — {context}: {error.Message}{Environment.NewLine}");
+        }
+        catch { }
+    }
+
+    // ═══════════ seamهای تست ═══════════
+
+    /// <summary>seam تست: بازگرداندن وضعیت ردیابی تغییرات بدون دست‌زدن به هیچ دیتابیس.</summary>
+    internal static void ResetForTests()
+    {
+        Interlocked.Exchange(ref _dataGeneration, 0);
+        Interlocked.Exchange(ref _lastBackedUpGeneration, 0);
+        Volatile.Write(ref _lastBackupTimeTicks, DateTime.MinValue.Ticks);
+        Interlocked.Exchange(ref _backupCountThisSession, 0);
+    }
+
+    /// <summary>seam تست: شبیه‌سازی اعلان تغییر دادهٔ ذخیره‌شده.</summary>
+    internal static void RegisterDataChangeForTests() => OnDataChanged();
 
     /// <summary>فرمت خوانا برای حجم فایل</summary>
     public static string FormatSize(long bytes)

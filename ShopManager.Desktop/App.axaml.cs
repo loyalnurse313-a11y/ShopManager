@@ -64,6 +64,7 @@ public partial class App : Application
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($">>> Backup init error: {ex.Message}");
+                BackupService.LogBackupError("startup backup initialization", ex);
             }
 
             // ─── راه‌اندازی اولیه سیستم کاربران ───
@@ -103,7 +104,10 @@ public partial class App : Application
                         BackupService.CreateSmartBackup();
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    BackupService.LogBackupError("shutdown backup", ex);
+                }
             };
         }
 

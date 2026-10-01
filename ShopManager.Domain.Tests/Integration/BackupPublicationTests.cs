@@ -4,9 +4,17 @@ using ShopManager.Desktop.Services;
 namespace ShopManager.Domain.Tests.Integration;
 
 /// <summary>
+/// تست‌های 4A-1 و 4A-4 وضعیت بکاپ را در حالت‌های استاتیک به اشتراک می‌گذارند؛
+/// اجرای ترتیبی داخل یک collection از تداخل بین‌صنفی جلوگیری می‌کند.
+/// </summary>
+[CollectionDefinition("Backup lifecycle", DisableParallelization = true)]
+public sealed class BackupLifecycleCollection;
+
+/// <summary>
 /// Phase 4A-1 — بخش انتشار بکاپ امن SQLite.
 /// همهٔ تست‌ها روی دیتابیس‌های موقت و ایزوله اجرا می‌شوند (بدون دسترسی به داده/بکاپ عملیاتی).
 /// </summary>
+[Collection("Backup lifecycle")]
 public sealed class BackupPublicationTests : IDisposable
 {
     private readonly string _root =
