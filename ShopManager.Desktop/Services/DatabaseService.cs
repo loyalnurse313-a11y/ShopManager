@@ -1,13 +1,16 @@
 ﻿using System;
 using System.Data;
+using System.Data.Common;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using ShopManager.Infrastructure.Persistence;
 
 namespace ShopManager.Desktop.Services;
@@ -249,8 +252,9 @@ public static class DatabaseService
         {
             return; // Another creator established the file; never retain creation permission.
         }
-        using var context = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite(ExistingConnectionString(path)).Options);
+        using var context = new AppDbContext(DurableOptions(ExistingConnectionString(path)));
+        // Establish durability before even the initial schema writes or EF existence probes.
+        context.Database.OpenConnection();
         context.Database.EnsureCreated();
     }
 
@@ -259,6 +263,59 @@ public static class DatabaseService
         DataSource = path,
         Mode = SqliteOpenMode.ReadWrite
     }.ToString();
+
+    private static readonly DurabilityInterceptor _durabilityInterceptor = new();
+
+    internal static DbContextOptions<AppDbContext> DurableOptions(string connectionString) =>
+        new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(connectionString)
+            .AddInterceptors(_durabilityInterceptor)
+            .Options;
+
+    // Runs on the actual open connection, never inferred from a cached/pool value.
+    // Closing on failure prevents a subsequent EF operation from using an unverified connection.
+    internal static void EstablishDurability(DbConnection connection)
+    {
+        try
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = "PRAGMA main.journal_mode=WAL;";
+            RequireWal(command.ExecuteScalar());
+            command.CommandText = "PRAGMA main.journal_mode;";
+            RequireWal(command.ExecuteScalar());
+
+            command.CommandText = "PRAGMA main.synchronous=FULL;";
+            command.ExecuteNonQuery();
+            command.CommandText = "PRAGMA main.synchronous;";
+            if (Convert.ToInt64(command.ExecuteScalar()) != 2)
+                throw new InvalidOperationException("SQLite durability verification failed: synchronous must be FULL (2).");
+        }
+        catch
+        {
+            connection.Close();
+            throw;
+        }
+
+        static void RequireWal(object? value)
+        {
+            if (!string.Equals(Convert.ToString(value), "wal", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("SQLite durability verification failed: journal_mode must be WAL.");
+        }
+    }
+
+    private sealed class DurabilityInterceptor : DbConnectionInterceptor
+    {
+        public override void ConnectionOpened(DbConnection connection, ConnectionEndEventData eventData) =>
+            EstablishDurability(connection);
+
+        public override Task ConnectionOpenedAsync(DbConnection connection, ConnectionEndEventData eventData,
+            CancellationToken cancellationToken = default)
+        {
+            // Microsoft.Data.Sqlite executes database I/O synchronously, including its async APIs.
+            EstablishDurability(connection);
+            return Task.CompletedTask;
+        }
+    }
 
     /// <summary>seam تست: تعیین مسیر با ورودی‌های تزریقی و همان قانون یک‌بار-در-پروسه</summary>
     internal static void ResolveForTests(
@@ -370,10 +427,7 @@ public static class DatabaseService
             }
         }
 
-        var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
-        optionsBuilder.UseSqlite(ExistingConnectionString(path));
-
-        var context = new AppDbContext(optionsBuilder.Options);
+        var context = new AppDbContext(DurableOptions(ExistingConnectionString(path)));
         try
         {
             context.Database.EnsureCreated();
@@ -384,13 +438,6 @@ public static class DatabaseService
             context.Dispose();
             throw;
         }
-
-        try
-        {
-            context.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
-            context.Database.ExecuteSqlRaw("PRAGMA synchronous=NORMAL;");
-        }
-        catch { }
 
         context.SavedChanges += OnSavedChanges;
 
@@ -511,19 +558,13 @@ public static class DatabaseService
         log.AppendLine($">>> Schema check: {DateTime.Now:HH:mm:ss}");
         log.AppendLine($"    DB: {DatabasePath}");
 
+        // Durability failures must propagate, outside legacy best-effort schema handling.
+        using var conn = new SqliteConnection(ExistingConnectionString(DatabasePath));
+        conn.Open();
+        EstablishDurability(conn);
+
         try
         {
-            // اگه دیتابیس وجود نداره، اول با EF ساخته می‌شه
-            if (!File.Exists(DatabasePath))
-            {
-                log.AppendLine("    DB doesn't exist, EF will create it");
-                WriteLog(log.ToString());
-                return;
-            }
-
-            using var conn = new SqliteConnection(ExistingConnectionString(DatabasePath));
-            conn.Open();
-
             // ─── چک و اضافه کردن ستون‌ها ───
             EnsureColumnAdoNet(conn, log, "Users", "CanPOS", "INTEGER NOT NULL DEFAULT 0");
             EnsureColumnAdoNet(conn, log, "Users", "CanViewFinance", "INTEGER NOT NULL DEFAULT 0");
