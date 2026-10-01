@@ -402,6 +402,12 @@ public static class DatabaseService
 
     private static AppDbContext CreateContextCore(Action? beforeOpen = null)
     {
+        // ─── فاز 4B-2A: پذیرش دیتابیس روی همان مرز همگام‌سازی گذار بازیابی ───
+        // lease تا پایان ساخت context نگه داشته می‌شود؛ اگر Arm مالک انحصاری گذار باشد این
+        // فراخوانی تا آزادسازی منتظر می‌ماند و اگر بازیابی مسلح باشد fail-closed می‌شود.
+        // این یک مرز واقعی است، نه یک بازبینی دوبارهٔ IsArmed که خودش دچار TOCTOU می‌شود.
+        using var admission = RestoreRecoveryService.EnterDatabaseAdmission();
+
         // ─── فاز 4A-2: توقف صریح پیش از هر کار با دیتابیس در حالت blocked ───
         EnsureResolved();
         if (_blockedReason != null)
