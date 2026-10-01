@@ -2,25 +2,26 @@
 
 > **هدف:** این فایل مرجع کامل برای هر AI است که وارد پروژه می‌شود. قبل از هر اقدامی، این سند را کامل بخوان.
 >
-> **آخرین به‌روزرسانی:** بستن مستندات Phase 3؛ HEAD پیاده‌سازی تأییدشده `da7d5b4`.
-> **وضعیت فعلی:** Phase 1، Phase 2 و Phase 3 تا 3C کامل‌اند. مرحلهٔ بعد: Phase 4 — Crash Recovery + Backup، مطابق roadmap موجود.
+> **آخرین به‌روزرسانی:** به‌روزرسانی وضعیت Phase 4 تا checkpoint `4B-2A`؛ HEAD `59d0dfc`.
+> **وضعیت فعلی:** Phase 1، Phase 2 و Phase 3 تا 3C کامل‌اند. Phase 4 — Crash Recovery + Backup **IN PROGRESS** است و تکمیل نشده (checkpoint ها تا `4B-2A`).
 > **مرجع قواعد اجرایی:** ابتدا [AGENTS.md](../AGENTS.md). بخش‌های تاریخی این سند دستور اجرای کار یا مجوز دست‌کاری داده نیستند.
 
 ---
 
 ## ۱. شناسنامه‌ی پروژه
 
-| مورد | مقدار |
-|---|---|
-| نام | ShopManager — اپ POS/مدیریت فروشگاهی |
-| مسیر checkout بررسی‌شده | `E:\Projects\ShopManager`؛ مسیر قدیمی handoff: `G:\ShopManager\ShopManager` |
-| DB | مسیر از `DatabaseService.DatabasePath`؛ اولویت `G:\ShopManager-Data\shop.db` و fallback پوشهٔ Documents/ShopManager؛ مسیر runtime در این closure باز نشده است |
-| Backups | `DatabaseService.BackupFolder` کنار دیتابیس انتخاب‌شده؛ وضعیت backup عملیاتی در این کار بررسی نشده است |
-| Stack | Avalonia 12.1.2 / .NET 10 / EF Core + Microsoft.Data.Sqlite 10.0.12 |
-| ساختار | 3 پروژهٔ production: `Domain` / `Infrastructure` / `Desktop`؛ به‌علاوه `ShopManager.Domain.Tests` |
-| IDE | VS Code + PowerShell |
-| گزارش ممیزی تاریخی | [AUDIT-REPORT.md](../AUDIT-REPORT.md)؛ برای وضعیت فعلی، [AUDIT-RECONCILIATION.md](AUDIT-RECONCILIATION.md) و [MASTER-BACKLOG.md](MASTER-BACKLOG.md) |
-| آخرین verification، Phase 3C | build: 0 Warning / 0 Error؛ tests: 134/134 passed، 0 failed / 0 skipped؛ `git diff --check`: clean؛ final adversarial review: PASS |
+| مورد                                 | مقدار                                                                                                                                                                                                                                       |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| نام                                  | ShopManager — اپ POS/مدیریت فروشگاهی                                                                                                                                                                                                        |
+| مسیر checkout بررسی‌شده              | `E:\Projects\ShopManager`؛ مسیر قدیمی handoff: `G:\ShopManager\ShopManager`                                                                                                                                                                 |
+| DB                                   | هویت مسیر از Phase 4A-2: یک‌بار در هر پروسه تعیین و در `%LocalAppData%\ShopManager\database-location.json` ثبت می‌شود؛ marker معتبر است و در ابهام/نبود مقصد، startup با `BlockedReason` متوقف می‌شود. مسیر runtime در این کار باز نشده است |
+| Backups                              | `DatabaseService.BackupFolder` کنار دیتابیس انتخاب‌شده؛ وضعیت backup عملیاتی در این کار بررسی نشده است                                                                                                                                      |
+| Stack                                | Avalonia 12.1.2 / .NET 10 / EF Core + Microsoft.Data.Sqlite 10.0.12                                                                                                                                                                         |
+| ساختار                               | 3 پروژهٔ production: `Domain` / `Infrastructure` / `Desktop`؛ به‌علاوه `ShopManager.Domain.Tests`                                                                                                                                           |
+| IDE                                  | VS Code + PowerShell                                                                                                                                                                                                                        |
+| گزارش ممیزی تاریخی                   | [AUDIT-REPORT.md](../AUDIT-REPORT.md)؛ برای وضعیت فعلی، [AUDIT-RECONCILIATION.md](AUDIT-RECONCILIATION.md) و [MASTER-BACKLOG.md](MASTER-BACKLOG.md)                                                                                         |
+| آخرین verification، Phase 3C         | build: 0 Warning / 0 Error؛ tests: 134/134 passed، 0 failed / 0 skipped؛ `git diff --check`: clean؛ final adversarial review: PASS                                                                                                          |
+| آخرین verification در HEAD `59d0dfc` | build: 0 Warning / 0 Error؛ tests: 246/246 passed، 0 failed / 0 skipped (اجرای کامل در همین کار مستندسازی)                                                                                                                                  |
 
 نتایج build/test/check از اجرای ثبت‌شدهٔ Phase 3C هستند. PASS بازبینی adversarial نهایی طبق تأیید کاربر در درخواست Documentation Closure ثبت شده است؛ فایل مستقل آن در مخزن این بررسی یافت نشد. این کار فقط مستندسازی است و build/test را دوباره اجرا نمی‌کند. منشأ و نگاشت کامل شواهد در بخش Phase 3 سند [AUDIT-RECONCILIATION.md](AUDIT-RECONCILIATION.md) آمده است.
 
@@ -42,18 +43,18 @@ Domain (Entities + Enums + Helpers + Services خالص)
 
 ## ۳. موجودیت‌های اصلی
 
-| Entity | نقش | نکات حیاتی |
-|---|---|---|
-| `Item` | کالا | `ItemCode` یکتا، `SalePrice` اختیاری (Override)، `MarkupPct` پیش‌فرض ۳۰ |
-| `Purchase` | خرید از تأمین‌کننده | `EntryType.Normal/Reversal`، `PaymentStatus` |
-| `Transfer` | انتقال انبار→مغازه | `EntryType` برای reversal |
-| `Sale` | فروش | `LockedUnitCost` snapshot است، هرگز تغییر نمی‌کند |
-| `SaleOperation` | هویت عملیات فروش | OperationId کلید اصلی؛ InvoiceNumber یکتا در سطح عملیات؛ RequestFingerprint اجباری |
-| `Customer` | مشتری | `Phone` یکتا |
-| `User` | کاربر | `Role` (Admin/User)، ۱۳ مجوز `Can*` |
-| `LoginHistory` | Audit ورود/خروج | `UserId` nullable |
-| `CashLedger` | دفتر صندوق | `AmountIn`/`AmountOut` |
-| `Setting` | تنظیمات (تک‌رکورد Id=1) | `InitialCapital` |
+| Entity          | نقش                     | نکات حیاتی                                                                         |
+| --------------- | ----------------------- | ---------------------------------------------------------------------------------- |
+| `Item`          | کالا                    | `ItemCode` یکتا، `SalePrice` اختیاری (Override)، `MarkupPct` پیش‌فرض ۳۰            |
+| `Purchase`      | خرید از تأمین‌کننده     | `EntryType.Normal/Reversal`، `PaymentStatus`                                       |
+| `Transfer`      | انتقال انبار→مغازه      | `EntryType` برای reversal                                                          |
+| `Sale`          | فروش                    | `LockedUnitCost` snapshot است، هرگز تغییر نمی‌کند                                  |
+| `SaleOperation` | هویت عملیات فروش        | OperationId کلید اصلی؛ InvoiceNumber یکتا در سطح عملیات؛ RequestFingerprint اجباری |
+| `Customer`      | مشتری                   | `Phone` یکتا                                                                       |
+| `User`          | کاربر                   | `Role` (Admin/User)، ۱۳ مجوز `Can*`                                                |
+| `LoginHistory`  | Audit ورود/خروج         | `UserId` nullable                                                                  |
+| `CashLedger`    | دفتر صندوق              | `AmountIn`/`AmountOut`                                                             |
+| `Setting`       | تنظیمات (تک‌رکورد Id=1) | `InitialCapital`                                                                   |
 
 ---
 
@@ -90,6 +91,7 @@ PersianNumber.ToPersianDigits(HtmlEncoder.Encode(input))
 ```
 
 **MaxLength**: در XAML فقط UI را محدود می‌کند → **گارد سمت منطق اجباری است**:
+
 ```csharp
 if (text.Length > N) { StatusText.Text = "..."; return; }
 ```
@@ -137,19 +139,19 @@ if (text.Length > N) { StatusText.Text = "..."; return; }
 
 جدول جاری بر مبنای roadmap ده‌مرحله‌ای است؛ شماره‌گذاری قدیمی پایین فقط سابقه است.
 
-| Phase | عنوان | وضعیت فعلی |
-|---|---|---|
-| 1 | Business Correctness | ✅ COMPLETE؛ شواهد تاریخی در سند Phase 1 |
-| Pre-Phase | Cleanup محدود S1/S2/S3 | ✅؛ مرحلهٔ شماره‌دار نیست |
-| 2 | Transaction Boundary | ✅ COMPLETE؛ شواهد تاریخی در سند Phase 2 |
-| 3 | Concurrency + Idempotency | ✅ COMPLETE تا 3C در `da7d5b4` |
-| 4 | Crash Recovery + Backup | بعدی؛ ابتدا AUDIT، سپس scope و approval |
-| 5 | Audit + Security | برنامه‌ریزی‌شده |
-| 6 | Logging + Global Error | برنامه‌ریزی‌شده |
-| 7 | EF Core + Performance | برنامه‌ریزی‌شده |
-| 8 | Avalonia Reliability | برنامه‌ریزی‌شده |
-| 9 | Tests | توسعهٔ پوشش؛ وجود 134 تست به معنی اتمام این Phase نیست |
-| 10 | Release Hardening | برنامه‌ریزی‌شده |
+| Phase     | عنوان                     | وضعیت فعلی                                                                                                                 |
+| --------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| 1         | Business Correctness      | ✅ COMPLETE؛ شواهد تاریخی در سند Phase 1                                                                                   |
+| Pre-Phase | Cleanup محدود S1/S2/S3    | ✅؛ مرحلهٔ شماره‌دار نیست                                                                                                  |
+| 2         | Transaction Boundary      | ✅ COMPLETE؛ شواهد تاریخی در سند Phase 2                                                                                   |
+| 3         | Concurrency + Idempotency | ✅ COMPLETE تا 3C؛ پیاده‌سازی نهایی `da7d5b4` / بستن رسمی `905622c`                                                        |
+| 4         | Crash Recovery + Backup   | 🔄 IN PROGRESS؛ checkpoint ها تا `4B-2A` (`59d0dfc`)؛ باقی‌مانده: تعویض DB/WAL/SHM و startup recovery (4B-2B+) و بقیهٔ DoD |
+| 5         | Audit + Security          | برنامه‌ریزی‌شده                                                                                                            |
+| 6         | Logging + Global Error    | برنامه‌ریزی‌شده                                                                                                            |
+| 7         | EF Core + Performance     | برنامه‌ریزی‌شده                                                                                                            |
+| 8         | Avalonia Reliability      | برنامه‌ریزی‌شده                                                                                                            |
+| 9         | Tests                     | توسعهٔ پوشش؛ وجود 246 تست در HEAD به معنی اتمام این Phase نیست                                                             |
+| 10        | Release Hardening         | برنامه‌ریزی‌شده                                                                                                            |
 
 **خلاصهٔ Phase 3 برای handoff:**
 
@@ -161,29 +163,40 @@ if (text.Length > N) { StatusText.Text = "..."; return; }
 
 **مرزهای باز:** pending فروش در حافظه است و پس از restart خودکار بازیابی نمی‌شود. انتقال idempotency عمومی ندارد؛ commit نامعلوم به‌صورت صریح گزارش می‌شود و retry خودکار ندارد. UI/چاپ فیزیکی، ماتریس مستقل WAL/DELETE/timeout، crash/restore و تضمین همهٔ writerهای خارجی جزو verification این closure نیستند. `EnsureCreated` و مسیرهای legacy، از جمله index ترکیبی Sales، هنوز وجود دارند؛ migrations/schema drift/backup در Phase 4 بازند. این وضعیت تناقضی با closure محدود Phase 3 نیست.
 
-مرحلهٔ بعد مطابق roadmap موجود **Phase 4 — Crash Recovery + Backup** است: بررسی `EnsureCreated → Migrate()`، schema drift، backup verification، restore امن، encryption، backup ثانویه و سناریوهای crash. این handoff مجوز اجرای خودکار آن تغییرات نیست.
+**خلاصهٔ Phase 4 (IN PROGRESS — تکمیل نشده):**
+
+- 4A-1، `0944a7e`: انتشار اتمیک بکاپ SQLite (staging + اعتبارسنجی + publish ایمن).
+- 4A-2، `05212da`: هویت canonical دیتابیس و توقف امن startup پیش از settings/backup/auth.
+- 4A-3، `3466604`: قرارداد دوام SQLite (WAL + synchronous=FULL با read-back روی هر اتصال).
+- 4A-4، `22ca6fa`: قابلیت اطمینان چرخهٔ حیات بکاپ (single-flight، generation، sweep staging یتیم، backup-error.log).
+- 4B-1، `461670c`: آماده‌سازی بازیابی امن و غیرمخرب (اعتبارسنجی روی کپی، اسنپ‌شات ایمنی WAL-سازگار، گارد hard-link)؛ دیتابیس زنده دست‌نخورده.
+- 4B-2A، `59d0dfc`: بنیاد intent بازیابی ماندگار (`RestoreRecoveryService`) و gate پذیرش دیتابیس در `DatabaseService.CreateContext`.
+
+**باقی‌مانده (pending):** تعویض واقعی `shop.db`/WAL/SHM، tombstone و بازیابی هنگام startup با مصرف intent (4B-2B+)؛ جایگزینی `BackupService.RestoreBackup` قدیمی و مسیر `SettingsWindow.axaml.cs:290` با `Environment.Exit(0)` (AR-4)؛ `EnsureCreated → Migrate()` (AR-2)؛ Schema Drift (S8)؛ Backup 3-2-1 + رمزنگاری (D1)؛ تست‌های crash/restore. جزئیات: [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
+
+مرحلهٔ بعد مطابق roadmap موجود **Phase 4 — Crash Recovery + Backup** است و تکمیل آن (4B-2B+ و بقیهٔ DoD) نیازمند scope و approval مستقل است. این handoff مجوز اجرای خودکار آن تغییرات نیست.
 
 <details>
 <summary>جدول تاریخی شماره‌گذاری قدیمی؛ snapshot مورخ 1405/07/07، دیگر وضعیت فعلی نیست</summary>
 
-| فاز | عنوان | وضعیت |
-|:---:|---|:---:|
-| ۰ | زیرساخت VS Code | ✅ |
-| ۱ | امنیت (XSS + API key + admin) | ✅ |
-| ۲ | پاک‌سازی کد مرده (`SaleWindow`) | ⏳ بعدی |
-| ۲.۵ | رفع `catch{}` خالی | ⏳ |
-| ۲.۷ | Structured Logging + Crash Reporting | ⏳ |
-| ۳ | بهینه‌سازی داده (N+1 + Pagination) | ⏳ |
-| ۳.۵ | بهینه‌سازی داشبورد | ⏳ |
-| ۴ | RestoreBackup + `SettingsWindow:290` | ⏳ |
-| ۴.۵ | Backup 3-2-1 + Encryption | ⏳ |
-| ۵ | Migrate + Race + Denormalized Stock | ⏳ |
-| ۵.۵ | Audit Trail | ⏳ |
-| ۶ | Code Signing | 🔒 نیاز گواهی |
-| ۷ | تست‌های واحد Domain | ⏳ |
-| ۸ | Archiving + Backup بهبود | ⏳ |
-| ۸.۵ | Alert System | ⏳ |
-| ۰.۵ | EULA + Privacy + License | ⏳ |
+| فاز | عنوان                                |     وضعیت     |
+| :-: | ------------------------------------ | :-----------: |
+|  ۰  | زیرساخت VS Code                      |      ✅       |
+|  ۱  | امنیت (XSS + API key + admin)        |      ✅       |
+|  ۲  | پاک‌سازی کد مرده (`SaleWindow`)      |    ⏳ بعدی    |
+| ۲.۵ | رفع `catch{}` خالی                   |      ⏳       |
+| ۲.۷ | Structured Logging + Crash Reporting |      ⏳       |
+|  ۳  | بهینه‌سازی داده (N+1 + Pagination)   |      ⏳       |
+| ۳.۵ | بهینه‌سازی داشبورد                   |      ⏳       |
+|  ۴  | RestoreBackup + `SettingsWindow:290` |      ⏳       |
+| ۴.۵ | Backup 3-2-1 + Encryption            |      ⏳       |
+|  ۵  | Migrate + Race + Denormalized Stock  |      ⏳       |
+| ۵.۵ | Audit Trail                          |      ⏳       |
+|  ۶  | Code Signing                         | 🔒 نیاز گواهی |
+|  ۷  | تست‌های واحد Domain                  |      ⏳       |
+|  ۸  | Archiving + Backup بهبود             |      ⏳       |
+| ۸.۵ | Alert System                         |      ⏳       |
+| ۰.۵ | EULA + Privacy + License             |      ⏳       |
 
 </details>
 
@@ -213,56 +226,63 @@ if (text.Length > N) { StatusText.Text = "..."; return; }
 این بخش برای حفظ سابقه نگه داشته شده است؛ unchecked بودن متن قدیمی به معنی بازبودن همان کار در HEAD نیست. حذف SaleWindow/Models و cleanupهای ثبت‌شده در reconciliation انجام شده‌اند. موارد دیگر این فهرست بدون audit تازه، تأییدشده یا بسته تلقی نمی‌شوند. برای اولویت و شمارهٔ Phase فقط [MASTER-BACKLOG.md](MASTER-BACKLOG.md) و reconciliation جاری ملاک‌اند؛ از این بخش scope جدید استخراج نکنید.
 
 ### فاز ۲ — پاک‌سازی
+
 - حذف `SaleWindow.axaml` + `.axaml.cs` (~۵۸۴ خط)
 - حذف پوشه‌ی خالی `Models`
 - حذف بسته‌های تکراری در `Desktop.csproj` (اگر در `Infrastructure` هستند)
 - حذف `Microsoft.Extensions.Hosting` (اگر بلااستفاده)
 
 ### فاز ۲.۵ — Server-side Validation
+
 - `PurchaseWindow` → `SupplierNote` (۵۰۰)
 - `TransferWindow` → `Note` (۵۰۰) — قبلاً انجام شد
 - `UserEditWindow` → `FullName` (۲۰۰) + `Username` (۵۰) — قبلاً انجام شد
 
 ### Excel Formula Injection (فاز ۲)
+
 - `TransferHistoryWindow.axaml.cs:299` → `t.Note`
 - `LoginHistoryWindow.axaml.cs:348,349,356` → `h.Username`, `h.FullName`, `h.Note`
 - `ExcelExportService.cs` → همه‌ی `.Value = string`
 
 ### فاز ۴ — RestoreBackup
+
 - `SettingsWindow.axaml.cs:290` → `Environment.Exit(0)` بعد از Restore → `Shutdown()`
 
 ### سیاست Legacy (بازبینی آینده)
+
 - کاربران با هش قدیمی روی ورود موفق **خودکار ارتقا** می‌یابند (گزینه A)
 - بدون اجبار تغییر رمز
 - اگر روزی سیاست سخت‌گیرانه‌تر خواستی: تعمیم `CheckLegacyAdminPassword` به همه‌ی `NeedsUpgrade`
 
 ### D4 — بازیابی از ReadOnly
+
 - بعد از هر `Copy-Item` از `masterbak`، `Set-ItemProperty IsReadOnly $false` **اجباری**
 
 ---
 
 ## ۱۰. فایل‌های کلیدی (نقشه سریع)
 
-| فایل | نقش |
-|---|---|
-| `Services/DatabaseService.cs` | ساخت DbContext، EnsureCreated، آماده‌سازی legacy و اعتبارسنجی SaleOperations؛ جایگزین کامل EF migrations نیست |
-| `Services/SaleRequest.cs` | snapshot/fingerprint و lifecycle PendingSale |
-| `Services/SalePersistenceService.cs` | تراکنش فروش، idempotency و کنترل authoritative موجودی |
-| `Services/SaleInvoiceNumberGenerator.cs` | پیشنهاد شمارهٔ تازه با خواندن Sales و SaleOperations |
-| `Services/TransferPersistenceService.cs` | تراکنش انتقال، نتیجهٔ commit و خطاهای پس از commit |
-| `Services/AuthService.cs` | Login + auto-upgrade hash |
-| `Services/AuthServiceInitializer.cs` | `HasAnyUser`, `CreateInitialAdmin`, `CheckLegacyAdminPassword` |
-| `Services/PasswordHasher.cs` | PBKDF2 v2 + SHA256 legacy |
-| `Services/BackupService.cs` | بکاپ خودکار + RestoreBackup |
-| `Services/HtmlEncoder.cs` | escape HTML |
-| `Services/SaleInvoiceHtmlBuilder.cs` | سازنده HTML فاکتور |
-| `Views/FirstRunSetupWindow.axaml.cs` | راه‌اندازی اولیه (جدید) |
-| `Views/POSWindow.axaml.cs` | guard پرداخت و مرز اجرای pending/UI |
-| `Views/TransferWindow.axaml.cs` | اعتبارسنجی ورودی و مرز persistence/UI انتقال |
-| `Views/DashboardWindow.axaml.cs` | داشبورد |
-| `ShopManager.Infrastructure/Persistence/AppDbContext.cs` | مدل EF و قیود SaleOperations |
-| `ShopManager.Domain.Tests/Integration/` | تست‌های schema، request، sale persistence و transfer persistence |
-| `App.axaml.cs` | سوییچ بین FirstRunSetup / Login |
+| فایل                                                     | نقش                                                                                                                        |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `Services/DatabaseService.cs`                            | ساخت DbContext، EnsureCreated، آماده‌سازی legacy و اعتبارسنجی SaleOperations؛ جایگزین کامل EF migrations نیست              |
+| `Services/SaleRequest.cs`                                | snapshot/fingerprint و lifecycle PendingSale                                                                               |
+| `Services/SalePersistenceService.cs`                     | تراکنش فروش، idempotency و کنترل authoritative موجودی                                                                      |
+| `Services/SaleInvoiceNumberGenerator.cs`                 | پیشنهاد شمارهٔ تازه با خواندن Sales و SaleOperations                                                                       |
+| `Services/TransferPersistenceService.cs`                 | تراکنش انتقال، نتیجهٔ commit و خطاهای پس از commit                                                                         |
+| `Services/AuthService.cs`                                | Login + auto-upgrade hash                                                                                                  |
+| `Services/AuthServiceInitializer.cs`                     | `HasAnyUser`, `CreateInitialAdmin`, `CheckLegacyAdminPassword`                                                             |
+| `Services/PasswordHasher.cs`                             | PBKDF2 v2 + SHA256 legacy                                                                                                  |
+| `Services/BackupService.cs`                              | بکاپ خودکار (staging + publish ایمن + single-flight) و آماده‌سازی بازیابی امن (4B-1)؛ `RestoreBackup` قدیمی هنوز موجود است |
+| `Services/RestoreRecoveryService.cs`                     | Phase 4B-2A: intent بازیابی ماندگار (`Arm`/`ReadIntent`/`IsArmed`) و gate پذیرش دیتابیس؛ تعویض واقعی DB در 4B-2B+          |
+| `Services/HtmlEncoder.cs`                                | escape HTML                                                                                                                |
+| `Services/SaleInvoiceHtmlBuilder.cs`                     | سازنده HTML فاکتور                                                                                                         |
+| `Views/FirstRunSetupWindow.axaml.cs`                     | راه‌اندازی اولیه (جدید)                                                                                                    |
+| `Views/POSWindow.axaml.cs`                               | guard پرداخت و مرز اجرای pending/UI                                                                                        |
+| `Views/TransferWindow.axaml.cs`                          | اعتبارسنجی ورودی و مرز persistence/UI انتقال                                                                               |
+| `Views/DashboardWindow.axaml.cs`                         | داشبورد                                                                                                                    |
+| `ShopManager.Infrastructure/Persistence/AppDbContext.cs` | مدل EF و قیود SaleOperations                                                                                               |
+| `ShopManager.Domain.Tests/Integration/`                  | تست‌های schema، request، sale persistence و transfer persistence                                                           |
+| `App.axaml.cs`                                           | سوییچ بین FirstRunSetup / Login                                                                                            |
 
 ---
 
@@ -280,21 +300,24 @@ if (text.Length > N) { StatusText.Text = "..."; return; }
 ## ۱۲. هشدارهای مهم
 
 ### ⚠️ قبل از هر تغییر
+
 - ابتدا scope کار و AGENTS.md؛ production در این task مستندسازی frozen است.
 - آخرین شواهد build/test را از اجرای واقعی گزارش کنید؛ read-only/docs-only به معنی اجرای مجدد برنامه یا دست‌کاری دیتابیس نیست.
 - اگر کار مجاز به دیتابیس/backup عملیاتی نیاز دارد، مسیر و پیش‌نیازهای آن باید جداگانه بررسی شوند؛ این closure چنین دسترسی‌ای ندارد.
 
 ### ⚠️ بعد از هر تغییر
+
 - verification متناسب با scope؛ برای این closure، `git diff --check`، کنترل فهرست فایل‌ها و self-review مستندات.
 - وضعیت را فقط پس از وجود شواهد به‌روز کنید؛ نتیجهٔ Phase 3 را به recovery/backup یا پوشش همهٔ مسیرهای موجودی تعمیم ندهید.
 
 ### ⚠️ ممنوع مطلق
+
 - `Remove-Item "shop.db*"` (wildcard)
 - `Move-Item` برای بازیابی از بکاپ
 - ویرایش `masterbak`
 - حذف بی‌تأیید فایل‌های کد
 - `Environment.Exit` در مسیرهایی که `ShutdownRequested` باید اجرا شود
 
-------
+---
 
-**پایان سند. Phase 3 تا 3C بسته است؛ مرحلهٔ بعد طبق roadmap: Phase 4 — Crash Recovery + Backup، با audit و scope مصوب مستقل.**
+**پایان سند. Phase 1–3 بسته‌اند؛ Phase 4 — Crash Recovery + Backup در حال انجام است (checkpoint تا `4B-2A`؛ `59d0dfc`) و تکمیل نشده. باقی‌ماندهٔ 4B-2B+ نیازمند scope و approval مستقل است.**

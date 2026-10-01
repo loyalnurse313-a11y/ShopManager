@@ -2,27 +2,28 @@
 
 > **هدف:** پل بین ممیزی، وضعیت فعلی، و Roadmap جدید (۱۰ Phase).
 > **اصل حاکم:** هیچ Phase بدون DoD اثبات‌شده Done نیست.
-> **آخرین به‌روزرسانی:** بستن مستندات Phase 3 در مبنای `da7d5b4`.
-> **آخرین Commit پیاده‌سازی:** `da7d5b4` — Phase 3C؛ Phase 3 تا 3C کامل است.
+> **آخرین به‌روزرسانی:** بستن مستندات Phase 3 در commit `905622c` (پیاده‌سازی نهایی 3C در `da7d5b4`)؛ به‌علاوهٔ به‌روزرسانی وضعیت Phase 4 تا checkpoint `4B-2A` (`59d0dfc`).
+> **آخرین Commit پیاده‌سازی:** `da7d5b4` — Phase 3C؛ Phase 3 تا 3C کامل است و commit بستن رسمی آن `905622c` (برچسب `phase-3-concurrency-idempotency-complete`) است. آخرین commit پیاده‌سازی Phase 4: `59d0dfc`.
 > **شواهد Phase 3C:** 134 Pass / 0 Fail / 0 Skip؛ build: 0 warnings / 0 errors؛ final adversarial review: PASS.
+> **وضعیت Phase 4 (IN PROGRESS):** checkpoint ها تا `4B-2A` پیاده شده‌اند؛ Phase 4 کامل نیست و باقی‌ماندهٔ 4B-2B+ باز است. جزئیات: [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
 > نتایج Phase 1/2 در بخش‌های خود، شواهد تاریخی‌اند. وضعیت فعلی این سند جایگزین نتیجه‌گیری‌های زمانی قدیمی می‌شود؛ متن `AUDIT-REPORT.md` و اسناد closure قبلی بازنویسی نشده است.
 
 ---
 
 ## ۱. Roadmap قطعی (۱۰ Phase)
 
-| # | Phase | Scope | DoD کوتاه |
-|:---:|---|---|---|
-| 1 | Business Correctness | Sale, Return, Cost, Profit, Discount, Rounding, Stock | تست عددی |
-| 2 | Transaction Boundary | Sale+Payment+Inventory+Cashbox+Rollback | Pre-Commit failure → Rollback؛ Post-Commit failure → حفظ Sale |
-| 3 | Concurrency+Idempotency | Payment guard، SaleOperations، Stock Race با تراکنش SQLite | درخواست یکسان → replay؛ دو برداشت مستقل از stock=1 → فقط یک برنده |
-| 4 | Crash Recovery+Backup | WAL, Migrate, Integrity, Restore, Encryption | Crash → بازیابی سالم |
-| 5 | Audit+Security | AuditLog, Authorization, Password | هر تغییر حساس → رکورد |
-| 6 | Logging+Global Error | Structured Log, Global Handler, Rolling | خطا → فایل log |
-| 7 | EF Core+Performance | N+1, AsNoTracking, Index, Pagination | 100K → سریع |
-| 8 | Avalonia Reliability | UI Thread, Async, Event Leak, Timer | 8 ساعت → بدون leak |
-| 9 | Tests | Unit, Integration, Regression | Coverage مشخص |
-| 10 | Release Hardening | Updater, Signing, Licenses, EULA | نصب تمیز |
+|  #  | Phase                   | Scope                                                      | DoD کوتاه                                                         |
+| :-: | ----------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------- |
+|  1  | Business Correctness    | Sale, Return, Cost, Profit, Discount, Rounding, Stock      | تست عددی                                                          |
+|  2  | Transaction Boundary    | Sale+Payment+Inventory+Cashbox+Rollback                    | Pre-Commit failure → Rollback؛ Post-Commit failure → حفظ Sale     |
+|  3  | Concurrency+Idempotency | Payment guard، SaleOperations، Stock Race با تراکنش SQLite | درخواست یکسان → replay؛ دو برداشت مستقل از stock=1 → فقط یک برنده |
+|  4  | Crash Recovery+Backup   | WAL, Migrate, Integrity, Restore, Encryption               | Crash → بازیابی سالم                                              |
+|  5  | Audit+Security          | AuditLog, Authorization, Password                          | هر تغییر حساس → رکورد                                             |
+|  6  | Logging+Global Error    | Structured Log, Global Handler, Rolling                    | خطا → فایل log                                                    |
+|  7  | EF Core+Performance     | N+1, AsNoTracking, Index, Pagination                       | 100K → سریع                                                       |
+|  8  | Avalonia Reliability    | UI Thread, Async, Event Leak, Timer                        | 8 ساعت → بدون leak                                                |
+|  9  | Tests                   | Unit, Integration, Regression                              | Coverage مشخص                                                     |
+| 10  | Release Hardening       | Updater, Signing, Licenses, EULA                           | نصب تمیز                                                          |
 
 **Scope Creep (خارج):** Cloud Sync، Multi-terminal، Multi-store، Mobile، Plugin، Telemetry، Feature Flags، API
 
@@ -32,60 +33,60 @@
 
 ### ۲.۱ جدول Master
 
-| # | یافته | Phase | وضعیت | DoD |
-|:---:|---|:---:|:---:|:---:|
-| F1 | نبود Transaction دور SaveSale | 2 | ✅ | ✅ |
-| F2 | EnsureCreated به جای Migrate | 4 | ❌ | ❌ |
-| F3 | XSS در ۴ پنجره | خارج | ✅ | ✅ |
-| F4 | RestoreBackup ناایمن | 4 | ❌ | ❌ |
-| F5 | Unique Index InvoiceNumber | 3 | ✅ SaleOperations | ✅ |
-| F6 | N+1 در CreateProductTile | 7 | ❌ | ❌ |
-| F7 | Race بررسی موجودی | 3 | ✅ فروش/انتقال عادی | ✅ |
-| F8 | Code Signing | 10 | ❌ | ❌ |
-| F9 | API key plaintext | خارج | ✅ | ✅ |
-| F10 | admin/admin | 5 | ✅ | ✅ |
-| F11 | SaleWindow کد مرده | خارج | ✅ | ✅ |
-| F12 | catch{} خالی | 6 | ❌ | ❌ |
-| P1-1 | PricingCalculator SalePrice=0 | 1 | ✅ | ✅ | رفع شد (B1) |
-| P1-2 | PricingCalculator ToEven rounding | 1 | ✅ | ✅ | رفع شد (B2) |
-| P1-3 | POSWindow Revenue خام | 1 | ✅ | ✅ | رفع شد (B3) |
-| P1-4 | POSWindow Profit invariant نقض | 1 | ✅ | ✅ | رفع شد (B4) |
-| P1-5 | Sale.DiscountAmount غایب | 1 | ✅ | ✅ | رفع شد (B5) |
+|  #   | یافته                             | Phase |        وضعیت        | DoD |
+| :--: | --------------------------------- | :---: | :-----------------: | :-: | ----------- |
+|  F1  | نبود Transaction دور SaveSale     |   2   |         ✅          | ✅  |
+|  F2  | EnsureCreated به جای Migrate      |   4   |         ❌          | ❌  |
+|  F3  | XSS در ۴ پنجره                    | خارج  |         ✅          | ✅  |
+|  F4  | RestoreBackup ناایمن              |   4   |         ❌          | ❌  |
+|  F5  | Unique Index InvoiceNumber        |   3   |  ✅ SaleOperations  | ✅  |
+|  F6  | N+1 در CreateProductTile          |   7   |         ❌          | ❌  |
+|  F7  | Race بررسی موجودی                 |   3   | ✅ فروش/انتقال عادی | ✅  |
+|  F8  | Code Signing                      |  10   |         ❌          | ❌  |
+|  F9  | API key plaintext                 | خارج  |         ✅          | ✅  |
+| F10  | admin/admin                       |   5   |         ✅          | ✅  |
+| F11  | SaleWindow کد مرده                | خارج  |         ✅          | ✅  |
+| F12  | catch{} خالی                      |   6   |         ❌          | ❌  |
+| P1-1 | PricingCalculator SalePrice=0     |   1   |         ✅          | ✅  | رفع شد (B1) |
+| P1-2 | PricingCalculator ToEven rounding |   1   |         ✅          | ✅  | رفع شد (B2) |
+| P1-3 | POSWindow Revenue خام             |   1   |         ✅          | ✅  | رفع شد (B3) |
+| P1-4 | POSWindow Profit invariant نقض    |   1   |         ✅          | ✅  | رفع شد (B4) |
+| P1-5 | Sale.DiscountAmount غایب          |   1   |         ✅          | ✅  | رفع شد (B5) |
 
 ### ۲.۲ نقاط کور ۱۲ بُعدی
 
-| # | بُعد | Phase | وضعیت |
-|:---:|---|:---:|:---:|
-| D1 | Backup 3-2-1 | 4 | ❌ |
-| D2 | Structured Logging | 6 | ❌ |
-| D3 | Alert System | Future | خارج |
-| D4 | Audit Trail | 5 | ❌ |
-| D5 | EULA/Privacy | 10 | ❌ |
-| D6 | Tax/Legal | Business Req | 🟡 |
-| D7 | Inventory Concurrency | 3 | ✅ فروش/انتقال عادی |
-| D8 | Sale Transaction Boundary | 2 | ✅ |
-| D9 | Idempotency | 3 | ✅ عملیات فروش |
-| D10 | Time/Date edge cases | 1 | ❌ |
-| D11 | UX Loading States | 8 | ❌ |
-| D12 | Future-Proofing | Future | خارج |
+|  #  | بُعد                      |    Phase     |        وضعیت        |
+| :-: | ------------------------- | :----------: | :-----------------: |
+| D1  | Backup 3-2-1              |      4       |         ❌          |
+| D2  | Structured Logging        |      6       |         ❌          |
+| D3  | Alert System              |    Future    |        خارج         |
+| D4  | Audit Trail               |      5       |         ❌          |
+| D5  | EULA/Privacy              |      10      |         ❌          |
+| D6  | Tax/Legal                 | Business Req |         🟡          |
+| D7  | Inventory Concurrency     |      3       | ✅ فروش/انتقال عادی |
+| D8  | Sale Transaction Boundary |      2       |         ✅          |
+| D9  | Idempotency               |      3       |   ✅ عملیات فروش    |
+| D10 | Time/Date edge cases      |      1       |         ❌          |
+| D11 | UX Loading States         |      8       |         ❌          |
+| D12 | Future-Proofing           |    Future    |        خارج         |
 
 ### ۲.۳ کارهای انجام‌شده (فاز قدیمی)
 
-| کار | Phase جدید | DoD |
-|---|:---:|:---:|
-| VS Code setup | خارج | ✅ |
-| XSS escape | خارج | ✅ |
-| MaxLength+Guard | خارج | ✅ |
-| حذف DeepSeek | خارج | ✅ |
-| admin/admin + FirstRun | 5 | ✅ |
-| CheckLegacyAdminPassword | 5 | ✅ |
-| Fix CS8602 | خارج | ✅ |
-| Fix ShowConfirmDialog | خارج | ✅ |
-| Fix const->readonly | خارج | ✅ |
-| Watermark->PlaceholderText | خارج | ✅ |
-| حذف SaleWindow | خارج | ✅ |
-| حذف Models خالی | خارج | ✅ |
-| حذف Hosting/Tools | خارج | ✅ |
+| کار                        | Phase جدید | DoD |
+| -------------------------- | :--------: | :-: |
+| VS Code setup              |    خارج    | ✅  |
+| XSS escape                 |    خارج    | ✅  |
+| MaxLength+Guard            |    خارج    | ✅  |
+| حذف DeepSeek               |    خارج    | ✅  |
+| admin/admin + FirstRun     |     5      | ✅  |
+| CheckLegacyAdminPassword   |     5      | ✅  |
+| Fix CS8602                 |    خارج    | ✅  |
+| Fix ShowConfirmDialog      |    خارج    | ✅  |
+| Fix const->readonly        |    خارج    | ✅  |
+| Watermark->PlaceholderText |    خارج    | ✅  |
+| حذف SaleWindow             |    خارج    | ✅  |
+| حذف Models خالی            |    خارج    | ✅  |
+| حذف Hosting/Tools          |    خارج    | ✅  |
 
 ---
 
@@ -146,6 +147,7 @@
 **Scope:** Sale, Return, Cost, Profit, Discount allocation, Rounding, Stock
 
 **DoD:**
+
 - [x] LockedCostCalculator — ۸ تست Pass
 - [x] CashboxCalculator — ۶ تست Pass
 - [x] PricingCalculator — ۵ تست Pass
@@ -169,6 +171,7 @@ Cleanup یک Pre-Phase است، نه Phase شماره‌دار. حذف S1 (`POSC
 **Scope:** Sale, Payment, Inventory, Cashbox, Cost/Profit, Rollback
 
 **DoD:**
+
 - [x] Sale persistence داخل یک Transaction صریح اجرا می‌شود.
 - [x] شکست Persistence پیش از Commit موفق وارد مسیر Rollback می‌شود.
 - [x] شکست پس از تغییرات Stageهای قبلی، فروش نیمه‌ثبت‌شده باقی نمی‌گذارد.
@@ -188,12 +191,12 @@ Cleanup یک Pre-Phase است، نه Phase شماره‌دار. حذف S1 (`POSC
 
 **Scope تکمیل‌شده:** جلوگیری از ورود مجدد پرداخت، idempotency فروش، بازیابی برخورد شمارهٔ فاکتور، کنترل مجموع ردیف‌های هم‌کالا و رقابت برداشت موجودی در فروش/انتقال عادی.
 
-| بخش | Commit | نتیجه |
-|---|---|---|
-| 3A | `45c6511` | `_isPaymentInProgress` و غیرفعال‌کردن دکمه در `OnPayClick`؛ آزادسازی در finally |
-| 3B-1 | `c3268af` | schema و اعتبارسنجی `SaleOperations` روی دیتابیس تازه و موجود |
+| بخش  | Commit    | نتیجه                                                                           |
+| ---- | --------- | ------------------------------------------------------------------------------- |
+| 3A   | `45c6511` | `_isPaymentInProgress` و غیرفعال‌کردن دکمه در `OnPayClick`؛ آزادسازی در finally |
+| 3B-1 | `c3268af` | schema و اعتبارسنجی `SaleOperations` روی دیتابیس تازه و موجود                   |
 | 3B-2 | `5ff9a68` | persistence idempotent، pending lifecycle، invoice recovery و stock aggregation |
-| 3C | `da7d5b4` | انتقال اتمی و تست رقابت مستقل فروش/انتقال؛ production فروش تغییر نکرد |
+| 3C   | `da7d5b4` | انتقال اتمی و تست رقابت مستقل فروش/انتقال؛ production فروش تغییر نکرد           |
 
 `50a5427` فقط checkpoint میانی 3B-2 بود؛ مبنای closure آن نیست.
 
@@ -214,26 +217,26 @@ Cleanup یک Pre-Phase است، نه Phase شماره‌دار. حذف S1 (`POSC
 
 **نگاشت شواهد به تست‌های موجود در HEAD:**
 
-| فایل تست | تست‌های مرتبط و آنچه اثبات می‌کنند |
-|---|---|
-| [SaleOperationSchemaTests.cs](../ShopManager.Domain.Tests/Integration/SaleOperationSchemaTests.cs) | `SqliteEnforcesRequiredIdentityConstraints`، `PreparationIsRepeatableAndPreservesOperations`، `HistoricalMultilineSalesNeedNoBackfillOrSchemaChanges`، تست‌های `Noncanonical*` و `TwoIndependentConnectionsPrepareTheSameDatabase`: قیود هویت، آماده‌سازی تکرارپذیر/هم‌زمان و حفظ تاریخچه |
-| [SaleRequestTests.cs](../ShopManager.Domain.Tests/Integration/SaleRequestTests.cs) | `EveryMeaningfulInputAndLineOrderAffectsFingerprint`، `FingerprintIsCultureIndependentAndNormalizesEquivalentInput`، `SnapshotDefensivelyCopiesLines`: snapshot/fingerprint؛ `UncertainAttemptCannotBeDiscardedAfterDefinitiveRetryFailure` و `CompletedSaleReleasesPendingBeforeFallibleUi`: lifecycle |
-| [SalePersistenceTests.cs](../ShopManager.Domain.Tests/Integration/SalePersistenceTests.cs) | `ReplayPreservesMultilineSaleCustomerAndNotifications`، `ReplayDoesNotRevalidateConsumedStockOrSaveChanges`، `ChangedRequestIsConflictBeforeAnyMutation` و `SameOperationOnIndependentConnectionsCreatesOnlyOneSale`: replay/conflict و عدم اثر تکراری |
-| همان فایل | `ActualCommitThenExceptionResolvesFromFreshContextAndRetryIsReplay`، `VerificationReadFailurePreservesOriginalErrorAndLaterRetryIsSafe`، `ConstraintResolutionUsesStoredIdentityWithoutExceptionMessage`: commit نامعلوم و بررسی رکورد واقعی |
-| همان فایل | `InvoiceCollisionReleasesPendingPreservesCartAndNextPaymentPersistsExactlyOnce`: شناسه و شمارهٔ تازه از مولد production، حفظ سبد و دقیقاً یک ثبت؛ `DuplicateItemLinesUseCombinedStockWithoutMergingPersistedLines`: کنترل مجموع موجودی |
-| همان فایل | `DifferentOperationsCompetingForLastUnitPersistOnlyTheWinner`: دو اتصال فایل‌محور مستقل، شناسه/فاکتور متفاوت، stock=1؛ صفرشدن stock و نبود اثر مالی/مشتری/SaleOperation بازنده؛ پیش از تغییر production انتقال اجرا و موفق شد |
-| [TransferPersistenceTests.cs](../ShopManager.Domain.Tests/Integration/TransferPersistenceTests.cs) | `IndependentTransfersCompetingForLastUnitPersistOnlyTheWinner`: warehouse=1، دو انتقال 1، دقیقاً یک ثبت، warehouse=0 و shop=1 |
-| همان فایل | `FailureAfterRealInsertRollsBackCompletelyAndDoesNotClearForm`: INSERT واقعی سپس شکست، rollback کامل و حفظ فرم، شامل شکست rollback صریح؛ `SuccessPreservesFieldsAndNotifiesOnceAfterVisibleCommit`: فیلدها و اعلان پس از commit قابل‌مشاهده از اتصال مستقل |
-| همان فایل | `PostCommitFailureDoesNotBecomePersistenceFailure` و `CommitExceptionReportsUncertaintyWithoutRetry`: جداسازی UI/cleanup/notification و گزارش commit نامعلوم بدون retry خودکار |
+| فایل تست                                                                                           | تست‌های مرتبط و آنچه اثبات می‌کنند                                                                                                                                                                                                                                                                      |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [SaleOperationSchemaTests.cs](../ShopManager.Domain.Tests/Integration/SaleOperationSchemaTests.cs) | `SqliteEnforcesRequiredIdentityConstraints`، `PreparationIsRepeatableAndPreservesOperations`، `HistoricalMultilineSalesNeedNoBackfillOrSchemaChanges`، تست‌های `Noncanonical*` و `TwoIndependentConnectionsPrepareTheSameDatabase`: قیود هویت، آماده‌سازی تکرارپذیر/هم‌زمان و حفظ تاریخچه               |
+| [SaleRequestTests.cs](../ShopManager.Domain.Tests/Integration/SaleRequestTests.cs)                 | `EveryMeaningfulInputAndLineOrderAffectsFingerprint`، `FingerprintIsCultureIndependentAndNormalizesEquivalentInput`، `SnapshotDefensivelyCopiesLines`: snapshot/fingerprint؛ `UncertainAttemptCannotBeDiscardedAfterDefinitiveRetryFailure` و `CompletedSaleReleasesPendingBeforeFallibleUi`: lifecycle |
+| [SalePersistenceTests.cs](../ShopManager.Domain.Tests/Integration/SalePersistenceTests.cs)         | `ReplayPreservesMultilineSaleCustomerAndNotifications`، `ReplayDoesNotRevalidateConsumedStockOrSaveChanges`، `ChangedRequestIsConflictBeforeAnyMutation` و `SameOperationOnIndependentConnectionsCreatesOnlyOneSale`: replay/conflict و عدم اثر تکراری                                                  |
+| همان فایل                                                                                          | `ActualCommitThenExceptionResolvesFromFreshContextAndRetryIsReplay`، `VerificationReadFailurePreservesOriginalErrorAndLaterRetryIsSafe`، `ConstraintResolutionUsesStoredIdentityWithoutExceptionMessage`: commit نامعلوم و بررسی رکورد واقعی                                                            |
+| همان فایل                                                                                          | `InvoiceCollisionReleasesPendingPreservesCartAndNextPaymentPersistsExactlyOnce`: شناسه و شمارهٔ تازه از مولد production، حفظ سبد و دقیقاً یک ثبت؛ `DuplicateItemLinesUseCombinedStockWithoutMergingPersistedLines`: کنترل مجموع موجودی                                                                  |
+| همان فایل                                                                                          | `DifferentOperationsCompetingForLastUnitPersistOnlyTheWinner`: دو اتصال فایل‌محور مستقل، شناسه/فاکتور متفاوت، stock=1؛ صفرشدن stock و نبود اثر مالی/مشتری/SaleOperation بازنده؛ پیش از تغییر production انتقال اجرا و موفق شد                                                                           |
+| [TransferPersistenceTests.cs](../ShopManager.Domain.Tests/Integration/TransferPersistenceTests.cs) | `IndependentTransfersCompetingForLastUnitPersistOnlyTheWinner`: warehouse=1، دو انتقال 1، دقیقاً یک ثبت، warehouse=0 و shop=1                                                                                                                                                                           |
+| همان فایل                                                                                          | `FailureAfterRealInsertRollsBackCompletelyAndDoesNotClearForm`: INSERT واقعی سپس شکست، rollback کامل و حفظ فرم، شامل شکست rollback صریح؛ `SuccessPreservesFieldsAndNotifiesOnceAfterVisibleCommit`: فیلدها و اعلان پس از commit قابل‌مشاهده از اتصال مستقل                                              |
+| همان فایل                                                                                          | `PostCommitFailureDoesNotBecomePersistenceFailure` و `CommitExceptionReportsUncertaintyWithoutRetry`: جداسازی UI/cleanup/notification و گزارش commit نامعلوم بدون retry خودکار                                                                                                                          |
 
 **ثبت verification در پایان Phase 3C:**
 
-| بررسی | نتیجه | منشأ شاهد |
-|---|---|---|
-| `dotnet build ShopManager.slnx --no-restore` | 0 errors / 0 warnings | خروجی اجرای Phase 3C ثبت‌شده در همین گفتگو؛ commit نهایی `da7d5b4` |
-| `dotnet test ShopManager.slnx --no-build --no-restore` | 134/134 passed؛ 0 failed / 0 skipped | خروجی اجرای کامل Phase 3C؛ شامل 10 مورد جدید نسبت به 124 تست پایان 3B-2 |
-| `git diff --check` | clean | بررسی پایان پیاده‌سازی Phase 3C؛ هشدار تبدیل LF/CRLF دو فایل جدید در بررسی جداگانه، خطای whitespace نبود |
-| Final adversarial review | PASS | تأیید صریح کاربر در درخواست Phase 3 Documentation Closure؛ فایل گزارش مستقل در مخزن این بررسی یافت نشد |
+| بررسی                                                  | نتیجه                                | منشأ شاهد                                                                                                |
+| ------------------------------------------------------ | ------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `dotnet build ShopManager.slnx --no-restore`           | 0 errors / 0 warnings                | خروجی اجرای Phase 3C ثبت‌شده در همین گفتگو؛ commit نهایی پیاده‌سازی 3C: `da7d5b4`                        |
+| `dotnet test ShopManager.slnx --no-build --no-restore` | 134/134 passed؛ 0 failed / 0 skipped | خروجی اجرای کامل Phase 3C؛ شامل 10 مورد جدید نسبت به 124 تست پایان 3B-2                                  |
+| `git diff --check`                                     | clean                                | بررسی پایان پیاده‌سازی Phase 3C؛ هشدار تبدیل LF/CRLF دو فایل جدید در بررسی جداگانه، خطای whitespace نبود |
+| Final adversarial review                               | PASS                                 | تأیید صریح کاربر در درخواست Phase 3 Documentation Closure؛ فایل گزارش مستقل در مخزن این بررسی یافت نشد   |
 
 در این کار documentation-only، build/test یا بازبینی adversarial دوباره اجرا نشده‌اند. تطبیق read-only کد و نام تست‌ها با HEAD و self-review مستندات انجام شد؛ ادعای screenshot دیتابیس یا تست دستی UI/چاپ نداریم.
 
@@ -246,27 +249,38 @@ Cleanup یک Pre-Phase است، نه Phase شماره‌دار. حذف S1 (`POSC
 - `EnsureCreated`، آماده‌سازی legacy و index ترکیبی legacy روی Sales همچنان وجود دارند؛ schema drift، migrations، crash recovery و backup/restore امن به Phase 4 تعلق دارند. ساخت SaleOperations در 3B-1 به معنی بسته‌شدن F2/S8 نیست.
 - Reversal implementation و ناسازگاری علامت آن همچنان Future Backlog هستند.
 
-### Phase 4 — Crash Recovery + Backup
+### Phase 4 — Crash Recovery + Backup 🔄 IN PROGRESS
 
 **Scope:** Migrate(), WAL, Backup verification, Encryption, External backup, Crash
 
-**DoD:**
+**Checkpoint های انجام‌شده (کد + تست در HEAD `59d0dfc`):**
+
+- [x] 4A-1 (`0944a7e`): انتشار اتمیک بکاپ SQLite — staging، اعتبارسنجی و publish ایمن.
+- [x] 4A-2 (`05212da`): هویت canonical دیتابیس و توقف امن startup.
+- [x] 4A-3 (`3466604`): قرارداد دوام SQLite (WAL + synchronous=FULL).
+- [x] 4A-4 (`22ca6fa`): قابلیت اطمینان چرخهٔ حیات بکاپ (single-flight، generation، پاک‌سازی staging یتیم، لاگ خطا).
+- [x] 4B-1 (`461670c`): آماده‌سازی بازیابی امن پیش از تعویض (اعتبارسنجی، اسنپ‌شات ایمنی WAL-سازگار، گارد hard-link)؛ دیتابیس زنده دست‌نخورده.
+- [x] 4B-2A (`59d0dfc`): بنیاد intent بازیابی ماندگار (flush → SHA-256 → انتشار اتمیک → مسلح‌سازی) و gate پذیرش دیتابیس.
+
+**DoD — موارد باقی‌مانده (Phase 4 کامل نیست):**
+
 - [ ] EnsureCreated → Migrate()
 - [ ] DB از صفر → همه Migrations اجرا
-- [ ] Backup: کپی + Integrity Check + Restore
+- [ ] Backup: کپی + Integrity Check + Restore (تولید/اعتبارسنجی: PARTIAL؛ تعویض واقعی بازیابی: pending در 4B-2B+)
 - [ ] Backup رمزنگاری (DPAPI/AES)
 - [ ] Backup ثانویه روی USB
 - [ ] تست: kill وسط SaveSale → DB سالم
 - [ ] تست: Restore از backup → همه داده
 - [ ] تست: DB خراب → از backup بازیابی
 
-**شواهد:** سناریوی Crash + Recovery کامل.
+**شواهد Phase 4 تا این مرحله:** build 0W/0E و 246/246 تست در اجرای کامل HEAD `59d0dfc`؛ مسیر بازگردانی قدیمی `BackupService.RestoreBackup` هنوز از `SettingsWindow.axaml.cs:290` با `Environment.Exit(0)` فراخوانی می‌شود. **شاهد سناریوی کامل Crash + Recovery هنوز تولید نشده است.** جزئیات: [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
 
 ### Phase 5 — Audit + Security
 
 **Scope:** AuditLog, Authorization, Sensitive operations, Password policy
 
 **DoD:**
+
 - [ ] جدول AuditLog (UserId, Timestamp, Action, EntityType, EntityId, OldValue, NewValue)
 - [ ] ثبت تغییر قیمت Item
 - [ ] ثبت تغییر موجودی
@@ -284,6 +298,7 @@ Cleanup یک Pre-Phase است، نه Phase شماره‌دار. حذف S1 (`POSC
 **Scope:** Structured Logging, Global Handler, Rolling File
 
 **DoD:**
+
 - [ ] Global AppDomain.UnhandledException handler
 - [ ] Global TaskScheduler.UnobservedTaskException handler
 - [ ] Log به فایل با rolling روزانه
@@ -299,6 +314,7 @@ Cleanup یک Pre-Phase است، نه Phase شماره‌دار. حذف S1 (`POSC
 **Scope:** N+1, AsNoTracking, DbContext, Index, Pagination
 
 **DoD:**
+
 - [ ] CreateProductTile → ۳ کوئری (نه ۹۰)
 - [ ] Historyها → Pagination (100 ردیف)
 - [ ] کوئری‌های read-only → AsNoTracking
@@ -314,6 +330,7 @@ Cleanup یک Pre-Phase است، نه Phase شماره‌دار. حذف S1 (`POSC
 **Scope:** UI Thread, Async, Event Leak, Timer Lifecycle
 
 **DoD:**
+
 - [ ] همه I/O روی background thread
 - [ ] هیچ async void خارج از event handler
 - [ ] همه Event Subscriptions → Unsubscribe در dispose
@@ -328,6 +345,7 @@ Cleanup یک Pre-Phase است، نه Phase شماره‌دار. حذف S1 (`POSC
 **Scope:** Unit, Integration, Regression
 
 **DoD:**
+
 - [ ] Coverage Domain.Services ≥ ۸۰٪
 - [ ] Coverage Domain.Entities ≥ ۵۰٪
 - [ ] Integration Test هر Service
@@ -341,6 +359,7 @@ Cleanup یک Pre-Phase است، نه Phase شماره‌دار. حذف S1 (`POSC
 **Scope:** Updater, Signing, Licenses, EULA, Privacy
 
 **DoD:**
+
 - [ ] EULA.md
 - [ ] PRIVACY.md
 - [ ] LICENSES.md
@@ -354,6 +373,7 @@ Cleanup یک Pre-Phase است، نه Phase شماره‌دار. حذف S1 (`POSC
 ---
 
 ## ۶. Workflow هر Phase
+
 AUDIT → وضعیت فعلی (CONFIRMED/POSSIBLE/NOT FOUND)
 ↓
 SCOPE → داخل/خارج
@@ -376,40 +396,42 @@ text
 
 ## ۷. وضعیت فعلی
 
-| مورد | مقدار |
-|---|---|
-| فازهای کامل (Framework جدید) | 3 (Phase 1, Phase 2, Phase 3 تا 3C) |
-| Unique Index / F5 | بسته‌شده در سطح SaleOperations؛ محدودیت legacy در بخش ۵ |
-| فاز بعدی | Phase 4 — Crash Recovery + Backup؛ شروع نشده |
-| فازهای حذف‌شده از Roadmap | Alert، Cloud، Multi-terminal |
-| کارهای قدیمی ثبت‌شده در بخش ۲.۳ | ۱۳؛ این عدد شمارندهٔ کل تغییرات جدید نیست |
-| آخرین مجموعهٔ تست تأییدشده | 134 Passed / 0 Failed / 0 Skipped |
-| Build | 0W / 0E |
-| Git | Phase 3 implementation at `da7d5b4`؛ ویرایش مستندات حاضر بدون commit/push |
+| مورد                            | مقدار                                                                                                         |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| فازهای کامل (Framework جدید)    | 3 (Phase 1, Phase 2, Phase 3 تا 3C)                                                                           |
+| Unique Index / F5               | بسته‌شده در سطح SaleOperations؛ محدودیت legacy در بخش ۵                                                       |
+| فاز بعدی                        | Phase 4 — Crash Recovery + Backup؛ **IN PROGRESS** تا checkpoint `4B-2A` (`59d0dfc`)؛ تکمیل نشده              |
+| فازهای حذف‌شده از Roadmap       | Alert، Cloud، Multi-terminal                                                                                  |
+| کارهای قدیمی ثبت‌شده در بخش ۲.۳ | ۱۳؛ این عدد شمارندهٔ کل تغییرات جدید نیست                                                                     |
+| آخرین مجموعهٔ تست تأییدشده      | 246 Passed / 0 Failed / 0 Skipped (اجرای کامل در HEAD `59d0dfc`)                                              |
+| Build                           | 0W / 0E (اجرای کامل در HEAD `59d0dfc`)                                                                        |
+| Git                             | Phase 3 implementation at `da7d5b4`؛ Phase 4 checkpoint ها تا `59d0dfc`؛ ویرایش مستندات حاضر بدون commit/push |
 
-**Phase 3 — Concurrency + Idempotency تا 3C کامل و تأیید شده است. نقطه شروع بعدی طبق roadmap موجود: Phase 4 — Crash Recovery + Backup؛ ابتدا AUDIT و تعیین scope.**
+**Phase 3 — Concurrency + Idempotency تا 3C کامل و تأیید شده است. Phase 4 — Crash Recovery + Backup در حال انجام است: checkpoint ها تا `4B-2A` (`59d0dfc`) پیاده شده‌اند و باقی‌ماندهٔ 4B-2B+ و سایر اقلام DoD باز است؛ جزئیات در [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).**
 
 ---
 
 ## ۸. Decision Log
 
-| تاریخ | تصمیم | دلیل |
-|---|---|---|
-| Closure در مبنای `da7d5b4` | Phase 3 تا 3C COMPLETE | build 0W/0E، 134/134 تست، diff check و تأیید final adversarial review؛ منشأ شواهد در بخش ۵ |
-| Closure در مبنای `da7d5b4` | جایگزینی الزام RowVersion با طراحی تراکنشی SQLite | خواندن authoritative پس از آغاز تراکنش writer و تست رقابت مستقل؛ token پیاده نشده |
-| Closure در مبنای `da7d5b4` | تفکیک هویت عملیات از ردیف‌های فاکتور | uniqueness در SaleOperations؛ حفظ فاکتور چندردیفی و تاریخچه؛ بدون ادعای اصلاح عمومی legacy schema |
-| 1405/07/08 | Phase 2 — Transaction Boundary COMPLETE | DoD، Build/Test، Production Review و Test Review تأیید شدند |
-| 1405/07/08 | تفکیک Cleanup به Pre-Phase (نه Phase شماره‌دار) | جلوگیری از تداخل شماره‌گذاری با Transaction Boundary |
-| 1405/07/07 | Framework جدید (۱۲ بُعد + Audit + Reconciliation + Roadmap) | جلوگیری از Scope Creep |
-| 1405/07/07 | Alert System حذف | معماری زود است |
-| 1405/07/07 | Logging در Phase 6 (نه 2.5) | Transaction خودش تست‌پذیر |
-| 1405/07/07 | EULA/Privacy در Phase 10 | Release فقط |
-| 1405/07/07 | Tax/Legal = Business Requirement | Scope question |
-| 1405/07/07 | DoD اجباری | جلوگیری از پیشرفت کاذب |
-| 1405/07/07 | Phase 1 COMPLETE | DoD 100% پاس شد |
-| 1405/07/07 | FluentAssertions استفاده نشود | لایسنس تجاری Xceed |
-| 1405/07/07 | Reversal خارج از Scope | فیچر پیاده نشده، Backlog |
-| 1405/07/07 | Customer TotalPurchasedAmount بدون تغییر | خط 1109 خالص بود |
+| تاریخ                      | تصمیم                                                       | دلیل                                                                                              |
+| -------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| مبنای `59d0dfc`            | Phase 4 checkpoint ها تا 4B-2A پیاده و در HEAD تأیید شدند   | build 0W/0E و اجرای کامل 246/246 تست در HEAD؛ Phase 4 همچنان IN PROGRESS است                      |
+| مبنای `59d0dfc`            | Restore intent ماندگار و gate پذیرش دیتابیس (4B-2A)         | fail-closed؛ تعویض واقعی DB/WAL/SHM و startup recovery به 4B-2B+ موکول شد                         |
+| Closure در مبنای `905622c` | Phase 3 تا 3C COMPLETE                                      | build 0W/0E، 134/134 تست، diff check و تأیید final adversarial review؛ منشأ شواهد در بخش ۵        |
+| Closure در مبنای `905622c` | جایگزینی الزام RowVersion با طراحی تراکنشی SQLite           | خواندن authoritative پس از آغاز تراکنش writer و تست رقابت مستقل؛ token پیاده نشده                 |
+| Closure در مبنای `905622c` | تفکیک هویت عملیات از ردیف‌های فاکتور                        | uniqueness در SaleOperations؛ حفظ فاکتور چندردیفی و تاریخچه؛ بدون ادعای اصلاح عمومی legacy schema |
+| 1405/07/08                 | Phase 2 — Transaction Boundary COMPLETE                     | DoD، Build/Test، Production Review و Test Review تأیید شدند                                       |
+| 1405/07/08                 | تفکیک Cleanup به Pre-Phase (نه Phase شماره‌دار)             | جلوگیری از تداخل شماره‌گذاری با Transaction Boundary                                              |
+| 1405/07/07                 | Framework جدید (۱۲ بُعد + Audit + Reconciliation + Roadmap) | جلوگیری از Scope Creep                                                                            |
+| 1405/07/07                 | Alert System حذف                                            | معماری زود است                                                                                    |
+| 1405/07/07                 | Logging در Phase 6 (نه 2.5)                                 | Transaction خودش تست‌پذیر                                                                         |
+| 1405/07/07                 | EULA/Privacy در Phase 10                                    | Release فقط                                                                                       |
+| 1405/07/07                 | Tax/Legal = Business Requirement                            | Scope question                                                                                    |
+| 1405/07/07                 | DoD اجباری                                                  | جلوگیری از پیشرفت کاذب                                                                            |
+| 1405/07/07                 | Phase 1 COMPLETE                                            | DoD 100% پاس شد                                                                                   |
+| 1405/07/07                 | FluentAssertions استفاده نشود                               | لایسنس تجاری Xceed                                                                                |
+| 1405/07/07                 | Reversal خارج از Scope                                      | فیچر پیاده نشده، Backlog                                                                          |
+| 1405/07/07                 | Customer TotalPurchasedAmount بدون تغییر                    | خط 1109 خالص بود                                                                                  |
 
 ---
 
@@ -432,4 +454,4 @@ text
 
 ---
 
-**پایان سند. Phase 3 بسته شد؛ نقطه شروع برنامه‌ریزی‌شده: Phase 4 — Crash Recovery + Backup.**
+**پایان سند. Phase 1–3 بسته‌اند؛ Phase 4 — Crash Recovery + Backup در حال انجام است (checkpoint تا `4B-2A`؛ `59d0dfc`) و تکمیل نشده.**
