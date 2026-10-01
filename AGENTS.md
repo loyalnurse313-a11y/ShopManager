@@ -97,9 +97,31 @@ If a Phase is incomplete, record only verified findings; never represent the Pha
 
 ## Agent Roles
 
-**Codex is the Repository Agent and the only AI agent authorized to modify repository code.**
+**ChatGPT is the Architect / Lead / Coordinator.**
 
-ChatGPT or another explicitly selected model may act as Architect or Independent Reviewer, but must not concurrently modify the same working tree.
+Responsibilities include defining scope and DoD, sequencing work, coordinating agents, reviewing evidence, and enforcing quality, documentation, and Git gates.
+
+**Claude Code is the Primary High-Value Repository Agent / Reviewer.**
+
+Use Claude Code selectively for difficult, sensitive, architectural, correctness-critical, or high-risk repository work, including approved implementation and deep repository review.
+
+**Codex is a High-Value Repository Agent / Independent Reviewer.**
+
+Use Codex selectively for difficult verification, sensitive-code review, second opinions, and independent adversarial review when justified.
+
+**DeepSeek is the General / Cost-Efficient Agent.**
+
+Use DeepSeek primarily for scoped audits, documentation work, targeted investigation, and approved implementations that do not require a high-value agent.
+
+**Work is the Independent Adversarial Reviewer.**
+
+Use Work at important quality gates when an independent review materially improves confidence.
+
+Claude Code and Codex are both high-value resources. Do not routinely duplicate the same work across both. Use independent cross-review when the risk or importance justifies the additional cost.
+
+Only one AI agent may modify the working tree at a time. Other agents may perform read-only review concurrently.
+
+No agent has automatic permission to modify repository code based on role alone. All agents remain subject to the approved Scope, Sensitive-Code Gate, explicit approval requirements, Quality Gate, Data and Git Safety rules, Documentation rules, and Stop Conditions.
 
 For substantial phases, use:
 
