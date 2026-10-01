@@ -1,7 +1,11 @@
 ﻿using System;
 using System.Data;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using ShopManager.Infrastructure.Persistence;
@@ -15,27 +19,44 @@ public static class DatabaseService
     /// <summary>مسیر اصلی داده‌ها روی درایو G (اولویت اول)</summary>
     private const string PrimaryDataPath = @"G:\ShopManager-Data";
 
+    // ─── فاز 4A-2: هویت canonical دیتابیس — فقط یک بار در هر پروسه ───
+    private static readonly object _resolutionLock = new();
+    private static bool _resolved;
+    private static string? _canonicalDataFolder;
+    private static string? _blockedReason;
+
+    /// <summary>فایل ثبت مسیر canonical — مکانی پایدار و مستقل از درایو G</summary>
+    private static string MarkerPath =>
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ShopManager",
+            "database-location.json");
+
+    /// <summary>مسیر جایگزین قدیمی: Documents\ShopManager</summary>
+    private static string FallbackDataFolder =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ShopManager");
+
+    /// <summary>
+    /// دلیل توقف راه‌اندازی (فاز 4A-2). null یعنی مسیر canonical سالم و در دسترس است.
+    /// اولین دسترسی، تعیین مسیر یک‌باره را اجرا می‌کند.
+    /// </summary>
+    public static string? BlockedReason
+    {
+        get
+        {
+            EnsureResolved();
+            return _blockedReason;
+        }
+    }
+
     public static string DataFolder
     {
         get
         {
-            try
-            {
-                // ─── بررسی وجود درایو G و استفاده از مسیر اصلی ───
-                var gDrive = Path.GetPathRoot(PrimaryDataPath);
-                if (!string.IsNullOrEmpty(gDrive) && Directory.Exists(gDrive))
-                {
-                    Directory.CreateDirectory(PrimaryDataPath);
-                    return PrimaryDataPath;
-                }
-            }
-            catch { }
-
-            // ─── جایگزین: پوشه Documents ───
-            var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            var folder = Path.Combine(documents, "ShopManager");
-            Directory.CreateDirectory(folder);
-            return folder;
+            EnsureResolved();
+            if (_blockedReason != null || _canonicalDataFolder == null)
+                throw new InvalidOperationException(_blockedReason ?? "مسیر داده تعیین نشده است.");
+            return _canonicalDataFolder;
         }
     }
 
@@ -54,11 +75,288 @@ public static class DatabaseService
     public static string WalPath => DatabasePath + "-wal";
     public static string ShmPath => DatabasePath + "-shm";
 
+    /// <summary>نتیجهٔ تعیین مسیر canonical (فاز 4A-2)</summary>
+    internal sealed record ResolutionResult(
+        string? DataFolder,
+        string? BlockReason,
+        bool ShouldPersistMarker,
+        bool IsFreshInstall)
+    {
+        public bool IsBlocked => BlockReason != null;
+    }
+
+    private sealed class DatabaseLocationMarker
+    {
+        public int Version { get; set; }
+        public string DataFolder { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Select the location without process state; only a fresh install may create a directory.
+    /// بدون marker: اگر دقیقاً یکی از دو candidate دیتابیس داشته باشد، همان انتخاب
+    /// می‌شود (اولویت با وجود دیتابیس است، نه وجود درایو)؛ اگر هر دو باشد → توقف؛
+    /// اگر هیچ‌کدام نباشد → نصب تازه با همان سیاست قدیمی (درایو G در صورت وجود).
+    /// با marker: marker تنها مرجع است؛ نبودن مسیر یا shop.db → توقف بدون fallback.
+    /// </summary>
+    internal static ResolutionResult ResolveDatabaseLocation(
+        string markerPath,
+        string primaryFolder,
+        string fallbackFolder,
+        Func<string, bool> directoryExists,
+        Action<string>? createDirectory = null)
+    {
+        if (File.Exists(markerPath))
+        {
+            string? recordedFolder = null;
+            try
+            {
+                var marker = JsonSerializer.Deserialize<DatabaseLocationMarker>(File.ReadAllText(markerPath));
+                if (marker?.Version != 1 || string.IsNullOrWhiteSpace(marker.DataFolder)
+                    || !Path.IsPathFullyQualified(marker.DataFolder))
+                    return Blocked("فایل ثبت مسیر دیتابیس نامعتبر است یا نسخهٔ آن پشتیبانی نمی‌شود.");
+                recordedFolder = Path.GetFullPath(marker.DataFolder);
+            }
+            catch { }
+
+            if (string.IsNullOrWhiteSpace(recordedFolder))
+                return Blocked("فایل ثبت مسیر دیتابیس خراب است؛ برنامه برای جلوگیری از استفادهٔ ناخواسته از دیتابیسی دیگر متوقف شد.");
+
+            if (!directoryExists(recordedFolder))
+                return Blocked($"مسیر ثبت‌شدهٔ دیتابیس در دسترس نیست: {recordedFolder}");
+
+            if (!File.Exists(Path.Combine(recordedFolder, "shop.db")))
+                return Blocked($"فایل shop.db در مسیر ثبت‌شده یافت نشد: {recordedFolder}");
+
+            return new ResolutionResult(recordedFolder, null, ShouldPersistMarker: false, IsFreshInstall: false);
+        }
+
+        primaryFolder = Path.GetFullPath(primaryFolder);
+        fallbackFolder = Path.GetFullPath(fallbackFolder);
+        var primaryDb = Path.Combine(primaryFolder, "shop.db");
+        var fallbackDb = Path.Combine(fallbackFolder, "shop.db");
+        var primaryHasDb = File.Exists(primaryDb);
+        var fallbackHasDb = File.Exists(fallbackDb);
+
+        if (primaryHasDb && fallbackHasDb)
+            return Blocked(
+                $"دو دیتابیس هم‌زمان وجود دارد و انتخاب خودکار امن نیست؛ برنامه متوقف شد. " +
+                $"مسیرها: «{primaryDb}» و «{fallbackDb}»");
+
+        if (primaryHasDb)
+            return new ResolutionResult(primaryFolder, null, ShouldPersistMarker: true, IsFreshInstall: false);
+
+        if (fallbackHasDb)
+            return new ResolutionResult(fallbackFolder, null, ShouldPersistMarker: true, IsFreshInstall: false);
+
+        // نصب تازه — سیاست قدیمی: درایو G اگر موجود باشد، وگرنه Documents
+        createDirectory ??= path => Directory.CreateDirectory(path);
+        var primaryRoot = Path.GetPathRoot(primaryFolder);
+        if (!string.IsNullOrEmpty(primaryRoot) && directoryExists(primaryRoot))
+        {
+            try
+            {
+                createDirectory(primaryFolder);
+                return new ResolutionResult(primaryFolder, null, ShouldPersistMarker: true, IsFreshInstall: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Only a proven fresh install may use this fallback.
+            }
+        }
+
+        createDirectory(fallbackFolder);
+        return new ResolutionResult(fallbackFolder, null, ShouldPersistMarker: true, IsFreshInstall: true);
+    }
+
+    private static ResolutionResult Blocked(string reason) =>
+        new(DataFolder: null, BlockReason: reason, ShouldPersistMarker: false, IsFreshInstall: false);
+
+    private static void EnsureResolved()
+    {
+        lock (_resolutionLock)
+        {
+            if (_resolved) return;
+            try
+            {
+                ApplyResolution(ResolveAndPublish(MarkerPath, PrimaryDataPath, FallbackDataFolder, Directory.Exists));
+            }
+            catch (Exception ex)
+            {
+                _resolved = true;
+                _blockedReason = "ثبت مسیر دیتابیس ناموفق بود؛ برنامه متوقف شد: " + ex.Message;
+                _canonicalDataFolder = null;
+            }
+        }
+    }
+
+    private static void ApplyResolution(ResolutionResult result)
+    {
+        _resolved = true;
+        if (result.IsBlocked)
+        {
+            _blockedReason = result.BlockReason;
+            _canonicalDataFolder = null;
+            return;
+        }
+
+        _canonicalDataFolder = result.DataFolder;
+    }
+
+    // The mutex covers selection, fresh creation and publication, including across processes.
+    // No marker is published until its database exists. A crash before publication leaves
+    // an existing candidate to adopt on restart, never a marker granting recreation rights.
+    internal static ResolutionResult ResolveAndPublish(
+        string markerPath, string primaryFolder, string fallbackFolder,
+        Func<string, bool> directoryExists, Action? beforePublication = null)
+    {
+        var key = Path.GetFullPath(markerPath);
+        if (OperatingSystem.IsWindows()) key = key.ToUpperInvariant();
+        var name = (OperatingSystem.IsWindows() ? @"Global\" : "")
+            + "ShopManager.DatabaseIdentity." + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
+        using var mutex = new Mutex(false, name);
+        var acquired = false;
+        try
+        {
+            try { acquired = mutex.WaitOne(TimeSpan.FromSeconds(30)); }
+            catch (AbandonedMutexException) { acquired = true; }
+            if (!acquired) return Blocked("تعیین مسیر دیتابیس در پروسهٔ دیگری در حال انجام است.");
+
+            var result = ResolveDatabaseLocation(markerPath, primaryFolder, fallbackFolder, directoryExists);
+            if (result.IsBlocked || !result.ShouldPersistMarker) return result;
+            if (result.IsFreshInstall) PrepareFreshDatabase(result.DataFolder!);
+            beforePublication?.Invoke();
+            WriteMarker(markerPath, result.DataFolder!);
+            // The publication winner is authoritative, including when a competing writer won.
+            return ResolveDatabaseLocation(markerPath, primaryFolder, fallbackFolder, directoryExists);
+        }
+        finally
+        {
+            if (acquired) mutex.ReleaseMutex();
+        }
+    }
+
+    private static void PrepareFreshDatabase(string folder)
+    {
+        var path = Path.Combine(folder, "shop.db");
+        try
+        {
+            // Exclusive creation consumes the only creation permission. SQLite itself
+            // always opens without CREATE, even if the file disappears immediately after this.
+            using var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            file.Flush(flushToDisk: true);
+        }
+        catch (IOException) when (File.Exists(path))
+        {
+            return; // Another creator established the file; never retain creation permission.
+        }
+        using var context = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(ExistingConnectionString(path)).Options);
+        context.Database.EnsureCreated();
+    }
+
+    private static string ExistingConnectionString(string path) => new SqliteConnectionStringBuilder
+    {
+        DataSource = path,
+        Mode = SqliteOpenMode.ReadWrite
+    }.ToString();
+
+    /// <summary>seam تست: تعیین مسیر با ورودی‌های تزریقی و همان قانون یک‌بار-در-پروسه</summary>
+    internal static void ResolveForTests(
+        string markerPath,
+        string primaryFolder,
+        string fallbackFolder,
+        Func<string, bool> directoryExists)
+    {
+        lock (_resolutionLock)
+        {
+            if (_resolved) return;
+            ApplyResolution(ResolveAndPublish(markerPath, primaryFolder, fallbackFolder, directoryExists));
+        }
+    }
+
+    /// <summary>seam تست: برگرداندن state پروسه به حالت اولیه</summary>
+    internal static void ResetForTests()
+    {
+        lock (_resolutionLock)
+        {
+            _resolved = false;
+            _canonicalDataFolder = null;
+            _blockedReason = null;
+            lock (_schemaLock) _schemaInitialized = false;
+            SqliteConnection.ClearAllPools();
+        }
+    }
+
+    /// <summary>Publish a flushed, unique staging file without replacing an existing winner.</summary>
+    internal static void WriteMarker(string markerPath, string dataFolder)
+    {
+        var directory = Path.GetDirectoryName(markerPath);
+        if (!string.IsNullOrEmpty(directory))
+            Directory.CreateDirectory(directory);
+
+        var json = JsonSerializer.Serialize(new DatabaseLocationMarker
+        {
+            Version = 1,
+            DataFolder = dataFolder
+        });
+        var temporary = markerPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            using (var file = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                var bytes = Encoding.UTF8.GetBytes(json);
+                file.Write(bytes);
+                file.Flush(flushToDisk: true);
+            }
+            try { File.Move(temporary, markerPath, overwrite: false); }
+            catch (IOException) when (File.Exists(markerPath))
+            {
+                // Leave the winner untouched. ResolveAndPublish validates it before pinning state.
+            }
+        }
+        finally
+        {
+            if (File.Exists(temporary)) File.Delete(temporary);
+        }
+    }
+
+    /// <summary>لاگ خطای راه‌اندازی در مکانی پایدار و مستقل از DataFolder (فاز 4A-2)</summary>
+    public static void LogStartupError(string message)
+    {
+        try
+        {
+            var folder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "ShopManager");
+            Directory.CreateDirectory(folder);
+            File.AppendAllText(
+                Path.Combine(folder, "startup-error.log"),
+                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} — {message}{Environment.NewLine}");
+        }
+        catch { }
+    }
+
     private static bool _schemaInitialized = false;
     private static readonly object _schemaLock = new();
 
-    public static AppDbContext CreateContext()
+    public static AppDbContext CreateContext() => CreateContextCore();
+
+    internal static AppDbContext CreateContextForTests(Action beforeOpen) => CreateContextCore(beforeOpen);
+
+    private static AppDbContext CreateContextCore(Action? beforeOpen = null)
     {
+        // ─── فاز 4A-2: توقف صریح پیش از هر کار با دیتابیس در حالت blocked ───
+        EnsureResolved();
+        if (_blockedReason != null)
+            throw new InvalidOperationException(_blockedReason);
+
+        var path = DatabasePath;
+        if (!File.Exists(path))
+            throw new InvalidOperationException(
+                "فایل دیتابیس یافت نشد و ساخت خودکار جایگزین ممنوع است (هویت دیتابیس ثبت شده): " + path);
+
+        beforeOpen?.Invoke();
+
         // ─── فقط یک بار اسکیما رو آپدیت کن (با ADO.NET خالص) ───
         if (!_schemaInitialized)
         {
@@ -73,7 +371,7 @@ public static class DatabaseService
         }
 
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
-        optionsBuilder.UseSqlite($"Data Source={DatabasePath}");
+        optionsBuilder.UseSqlite(ExistingConnectionString(path));
 
         var context = new AppDbContext(optionsBuilder.Options);
         try
@@ -223,7 +521,7 @@ public static class DatabaseService
                 return;
             }
 
-            using var conn = new SqliteConnection($"Data Source={DatabasePath}");
+            using var conn = new SqliteConnection(ExistingConnectionString(DatabasePath));
             conn.Open();
 
             // ─── چک و اضافه کردن ستون‌ها ───
@@ -351,19 +649,9 @@ public static class DatabaseService
         catch { }
     }
 
-    /// <summary>
-    /// متد اضطراری — همه داده‌ها پاک می‌شه!
-    /// </summary>
+    /// <summary>Disabled until an explicit, validated reset workflow exists.</summary>
     public static void ForceRecreateDatabase()
     {
-        try
-        {
-            if (File.Exists(DatabasePath)) File.Delete(DatabasePath);
-            if (File.Exists(WalPath)) File.Delete(WalPath);
-            if (File.Exists(ShmPath)) File.Delete(ShmPath);
-
-            _schemaInitialized = false;
-        }
-        catch { }
+        throw new InvalidOperationException("بازسازی دیتابیس فقط از طریق روند بازنشانی صریح و تأییدشده مجاز است.");
     }
 }
