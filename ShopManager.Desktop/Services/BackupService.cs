@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -19,6 +19,12 @@ public static class BackupService
 
     /// <summary>مسیر فایل دیتابیس اصلی</summary>
     public static string DatabasePath => DatabaseService.DatabasePath;
+
+    /// <summary>پیشوند نام بکاپ‌های معتبر — تنها الگویی که در لیست بکاپ‌ها دیده می‌شود</summary>
+    internal const string BackupFilePrefix = "shop-backup-";
+
+    /// <summary>پسوند نام بکاپ‌های معتبر</summary>
+    internal const string BackupFileExtension = ".db";
 
     private static bool _hasChangesSinceLastBackup = false;
     private static DateTime _lastBackupTime = DateTime.MinValue;
@@ -111,47 +117,221 @@ public static class BackupService
     /// <summary>بکاپ اجباری (حتی اگه تغییری نباشه)</summary>
     public static string CreateForcedBackup()
     {
-        var dbPath = DatabasePath;
-
-        if (!File.Exists(dbPath))
-        {
-            throw new FileNotFoundException("فایل دیتابیس پیدا نشد", dbPath);
-        }
-
-        // WAL checkpoint قبل از کپی
-        try
-        {
-            using var context = DatabaseService.CreateContext();
-            context.Database.ExecuteSqlRaw("PRAGMA wal_checkpoint(TRUNCATE);");
-        }
-        catch { }
-
-        var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
-        var backupFileName = $"shop-backup-{timestamp}.db";
-        var backupPath = Path.Combine(BackupFolder, backupFileName);
-
-        File.Copy(dbPath, backupPath, overwrite: true);
-
-        _hasChangesSinceLastBackup = false;
-        _lastBackupTime = DateTime.Now;
-        BackupCountThisSession++;
-
-        // پاک کردن بکاپ‌های قدیمی
         var keepCount = StoreSettingsService.Current.BackupKeepCount;
         if (keepCount < 5) keepCount = 5;
-        CleanOldBackups(keepCount);
 
-        return backupPath;
+        return CreateBackup(DatabasePath, BackupFolder, keepCount);
+    }
+
+    /// <summary>
+    /// ساخت بکاپ امن از یک دیتابیس SQLite با مسیرهای صریح.
+    /// اسنپ‌شات با مکانیزم رسمی SQLite (<c>BackupDatabase</c>) گرفته می‌شود، ابتدا در فایل staging
+    /// نوشته و اعتبارسنجی می‌شود و فقط پس از موفقیت به نام نهایی منتشر می‌شود.
+    /// </summary>
+    internal static string CreateBackup(string sourceDatabasePath, string backupFolder, int keepCount)
+    {
+        return CreateBackup(sourceDatabasePath, backupFolder, keepCount, PublishStagingFile);
+    }
+
+    /// <summary>
+    /// نسخهٔ overload با seam کوچکِ «انتشار فایل» برای تست‌های قطعی.
+    /// پیش‌فرض همان <see cref="PublishStagingFile"/> است؛ تست‌ها فقط همین یک عمل
+    /// را می‌توانند جایگزین کنند تا شکست‌های مرحلهٔ پس از اسنپ‌شات را بدون حالت
+    /// گلوبال و بدون وابستگی به زمان‌بندی شبیه‌سازی کنند.
+    /// </summary>
+    internal static string CreateBackup(
+        string sourceDatabasePath, string backupFolder, int keepCount, Action<string, string> publish)
+    {
+        if (string.IsNullOrWhiteSpace(sourceDatabasePath) || !File.Exists(sourceDatabasePath))
+        {
+            throw new FileNotFoundException("فایل دیتابیس پیدا نشد", sourceDatabasePath);
+        }
+
+        Directory.CreateDirectory(backupFolder);
+
+        var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+
+        // نام staging عمداً خارج از الگوی نام بکاپ‌های معتبر است تا هرگز در لیست بکاپ‌ها دیده نشود.
+        var stagingPath = Path.Combine(backupFolder, $"{timestamp}-{Guid.NewGuid():N}.staging.tmp");
+
+        var published = false;
+        try
+        {
+            CreateSnapshot(sourceDatabasePath, stagingPath);
+            ValidateSnapshot(stagingPath);
+
+            // sidecarهای احتمالیِ اعتبارسنجی نباید همراه بکاپ منتشر شوند.
+            TryDeleteSidecarFiles(stagingPath);
+
+            var finalPath = PublishStaging(stagingPath, backupFolder, timestamp, publish);
+            published = true;
+
+            _hasChangesSinceLastBackup = false;
+            _lastBackupTime = DateTime.Now;
+            BackupCountThisSession++;
+
+            // پاک‌سازی بکاپ‌های قدیمی فقط بعد از انتشار موفق انجام می‌شود.
+            CleanOldBackups(backupFolder, keepCount);
+
+            return finalPath;
+        }
+        finally
+        {
+            if (!published)
+            {
+                TryDeleteStagingArtifacts(stagingPath);
+            }
+        }
+    }
+
+    /// <summary>انتشار واقعی: انتقال staging به نام نهایی روی همان volume.</summary>
+    private static void PublishStagingFile(string stagingPath, string finalPath) => File.Move(stagingPath, finalPath);
+
+    /// <summary>
+    /// انتشار فایل staging با نام نهایی یکتا.
+    /// اگر مسیر نهایی بین <see cref="ResolveUniqueBackupPath"/> و انتشار توسط عملیات
+    /// بکاپ هم‌زمان اشغال شود، همان اسنپ‌شات معتبر staging با نام جدید دوباره منتشر
+    /// می‌شود. تنها همین حالت رقابت دوباره تلاش می‌شود؛ شکست‌های I/O نامرتبط منتشر
+    /// نمی‌شوند و هیچ بکاپ موجودی بازنویسی نمی‌شود.
+    /// </summary>
+    private static string PublishStaging(
+        string stagingPath, string backupFolder, string timestamp, Action<string, string> publish)
+    {
+        const int maxAttempts = 5;
+
+        for (var attempt = 1; ; attempt++)
+        {
+            var finalPath = ResolveUniqueBackupPath(backupFolder, timestamp);
+            try
+            {
+                publish(stagingPath, finalPath);
+                return finalPath;
+            }
+            // HRESULT_FROM_WIN32(ERROR_FILE_EXISTS / ERROR_ALREADY_EXISTS).
+            // Destination existence alone cannot identify the cause of an I/O failure.
+            catch (IOException error) when (attempt < maxAttempts
+                && (error.HResult == unchecked((int)0x80070050)
+                    || error.HResult == unchecked((int)0x800700B7))
+                && File.Exists(finalPath))
+            {
+                // مسیر نهایی توسط عملیات هم‌زمان اشغال شده؛ staging دست‌نخورده و معتبر است.
+            }
+        }
+    }
+
+    /// <summary>
+    /// گرفتن اسنپ‌شات commit-consistent با مکانیزم رسمی SQLite online backup API.
+    /// </summary>
+    private static void CreateSnapshot(string sourceDatabasePath, string stagingPath)
+    {
+        using var source = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = sourceDatabasePath,
+            Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false
+        }.ToString());
+        source.Open();
+
+        using var destination = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = stagingPath,
+            Mode = SqliteOpenMode.ReadWriteCreate,
+            Pooling = false
+        }.ToString());
+        destination.Open();
+
+        source.BackupDatabase(destination);
+    }
+
+    /// <summary>
+    /// اعتبارسنجی staging: یکپارچگی SQLite و خواندنی بودن آن به‌صورت یک دیتابیس مستقل
+    /// (بدون نیاز به WAL/SHM دیتابیس مبدأ).
+    /// </summary>
+    internal static void ValidateSnapshot(string snapshotPath)
+    {
+        if (!File.Exists(snapshotPath))
+        {
+            throw new InvalidDataException("فایل staging بکاپ ساخته نشد");
+        }
+
+        // اگر sidecar از مبدأ به staging سرایت کرده باشد، ابطال می‌شود.
+        TryDeleteSidecarFiles(snapshotPath);
+
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = snapshotPath,
+            Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false
+        }.ToString());
+        connection.Open();
+
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "PRAGMA integrity_check;";
+            var result = command.ExecuteScalar() as string;
+            if (!string.Equals(result, "ok", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException($"اعتبارسنجی یکپارچگی بکاپ ناموفق بود: {result ?? "بدون نتیجه"}");
+            }
+        }
+
+        // staging خالی یا بدون هیچ شیئی یک بکاپ قابل‌استفاده نیست.
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "SELECT count(*) FROM sqlite_master;";
+            var objects = Convert.ToInt64(command.ExecuteScalar() ?? 0L);
+            if (objects <= 0)
+            {
+                throw new InvalidDataException("اسنپ‌شات بکاپ هیچ شیء دیتابیسی ندارد");
+            }
+        }
+    }
+
+    /// <summary>
+    /// تعیین نام نهایی یکتا برای بکاپ. هرگز مسیر یک فایل موجود را برنمی‌گرداند.
+    /// </summary>
+    internal static string ResolveUniqueBackupPath(string backupFolder, string timestamp)
+    {
+        var candidate = Path.Combine(backupFolder, $"{BackupFilePrefix}{timestamp}{BackupFileExtension}");
+        if (!File.Exists(candidate)) return candidate;
+
+        for (var suffix = 2; suffix < 1000; suffix++)
+        {
+            candidate = Path.Combine(backupFolder, $"{BackupFilePrefix}{timestamp}-{suffix}{BackupFileExtension}");
+            if (!File.Exists(candidate)) return candidate;
+        }
+
+        throw new IOException("نام یکتای بکاپ پیدا نشد");
+    }
+
+    private static void TryDeleteStagingArtifacts(string stagingPath)
+    {
+        try { if (File.Exists(stagingPath)) File.Delete(stagingPath); } catch { }
+        TryDeleteSidecarFiles(stagingPath);
+    }
+
+    private static void TryDeleteSidecarFiles(string databasePath)
+    {
+        try { if (File.Exists(databasePath + "-wal")) File.Delete(databasePath + "-wal"); } catch { }
+        try { if (File.Exists(databasePath + "-shm")) File.Delete(databasePath + "-shm"); } catch { }
     }
 
     /// <summary>لیست بکاپ‌ها</summary>
-    public static List<BackupInfo> GetBackups()
+    public static List<BackupInfo> GetBackups() => GetBackups(BackupFolder);
+
+    /// <summary>لیست بکاپ‌های یک پوشه مشخص</summary>
+    internal static List<BackupInfo> GetBackups(string backupFolder)
     {
-        var folder = BackupFolder;
+        if (!Directory.Exists(backupFolder)) return new List<BackupInfo>();
 
-        if (!Directory.Exists(folder)) return new List<BackupInfo>();
-
-        var files = Directory.GetFiles(folder, "shop-backup-*.db");
+        var files = Directory.GetFiles(backupFolder, BackupFilePrefix + "*" + BackupFileExtension)
+            .Where(f =>
+            {
+                var name = Path.GetFileName(f);
+                // فیلتر صریح: فایل staging/ناقص هرگز به‌عنوان بکاپ معتبر دیده نمی‌شود.
+                return name.StartsWith(BackupFilePrefix, StringComparison.Ordinal)
+                       && name.EndsWith(BackupFileExtension, StringComparison.OrdinalIgnoreCase);
+            });
 
         return files
             .Select(f => new BackupInfo
@@ -203,11 +383,11 @@ public static class BackupService
     }
 
     /// <summary>پاک کردن بکاپ‌های قدیمی</summary>
-    private static void CleanOldBackups(int keepCount)
+    private static void CleanOldBackups(string backupFolder, int keepCount)
     {
         try
         {
-            var backups = GetBackups();
+            var backups = GetBackups(backupFolder);
             if (backups.Count <= keepCount) return;
 
             foreach (var backup in backups.Skip(keepCount))
