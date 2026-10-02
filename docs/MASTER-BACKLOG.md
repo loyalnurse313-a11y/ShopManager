@@ -1,7 +1,7 @@
 # MASTER-BACKLOG
 
 > **هدف:** مرجع واحد برای همه‌ی یافته‌های ممیزی.
-> **آخرین به‌روزرسانی:** به‌روزرسانی وضعیت Phase 4 تا checkpoint `4B-2A`؛ HEAD `59d0dfc`.
+> **آخرین به‌روزرسانی:** به‌روزرسانی وضعیت Phase 4 تا checkpoint `4B-2A`؛ checkpoint کد production: `59d0dfc`؛ commitهای بعدی تا `67453a2` فقط مستندات/قواعد عملیاتی مخزن (AGENTS.md) را تغییر داده‌اند.
 > **وضعیت:** Phase 1، Phase 2 و Phase 3 کامل‌اند؛ Phase 4 — Crash Recovery + Backup **IN PROGRESS** است و تکمیل نشده.
 > نام یافته‌ها و ارجاع‌های قدیمی، سابقهٔ ممیزی‌اند؛ ستون وضعیت و توضیحات closure، نتیجهٔ فعلی را مشخص می‌کنند.
 
@@ -130,7 +130,7 @@
 
 ### Phase 4 — Crash Recovery + Backup — IN PROGRESS (تکمیل‌نشده)
 
-**Checkpoint های انجام‌شده (کد + تست در HEAD `59d0dfc`):**
+**Checkpoint های انجام‌شده (کد + تست در commit `59d0dfc`):**
 
 - [x] 4A-1 (`0944a7e`): انتشار اتمیک بکاپ SQLite — staging، اعتبارسنجی و publish ایمن.
 - [x] 4A-2 (`05212da`): هویت canonical دیتابیس و توقف امن startup پیش از settings/backup/auth.

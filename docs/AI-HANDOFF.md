@@ -2,7 +2,7 @@
 
 > **هدف:** این فایل مرجع کامل برای هر AI است که وارد پروژه می‌شود. قبل از هر اقدامی، این سند را کامل بخوان.
 >
-> **آخرین به‌روزرسانی:** به‌روزرسانی وضعیت Phase 4 تا checkpoint `4B-2A`؛ HEAD `59d0dfc`.
+> **آخرین به‌روزرسانی:** به‌روزرسانی وضعیت Phase 4 تا checkpoint `4B-2A`؛ checkpoint کد production: `59d0dfc`؛ commitهای بعدی تا `67453a2` فقط مستندات/قواعد عملیاتی مخزن (AGENTS.md) را تغییر داده‌اند.
 > **وضعیت فعلی:** Phase 1، Phase 2 و Phase 3 تا 3C کامل‌اند. Phase 4 — Crash Recovery + Backup **IN PROGRESS** است و تکمیل نشده (checkpoint ها تا `4B-2A`).
 > **مرجع قواعد اجرایی:** ابتدا [AGENTS.md](../AGENTS.md). بخش‌های تاریخی این سند دستور اجرای کار یا مجوز دست‌کاری داده نیستند.
 
@@ -21,9 +21,9 @@
 | IDE                                  | VS Code + PowerShell                                                                                                                                                                                                                        |
 | گزارش ممیزی تاریخی                   | [AUDIT-REPORT.md](../AUDIT-REPORT.md)؛ برای وضعیت فعلی، [AUDIT-RECONCILIATION.md](AUDIT-RECONCILIATION.md) و [MASTER-BACKLOG.md](MASTER-BACKLOG.md)                                                                                         |
 | آخرین verification، Phase 3C         | build: 0 Warning / 0 Error؛ tests: 134/134 passed، 0 failed / 0 skipped؛ `git diff --check`: clean؛ final adversarial review: PASS                                                                                                          |
-| آخرین verification در HEAD `59d0dfc` | build: 0 Warning / 0 Error؛ tests: 246/246 passed، 0 failed / 0 skipped (اجرای کامل در همین کار مستندسازی)                                                                                                                                  |
+| آخرین verification کد production، commit `59d0dfc` | build: 0 Warning / 0 Error؛ tests: 246/246 passed، 0 failed / 0 skipped |
 
-نتایج build/test/check از اجرای ثبت‌شدهٔ Phase 3C هستند. PASS بازبینی adversarial نهایی طبق تأیید کاربر در درخواست Documentation Closure ثبت شده است؛ فایل مستقل آن در مخزن این بررسی یافت نشد. این کار فقط مستندسازی است و build/test را دوباره اجرا نمی‌کند. منشأ و نگاشت کامل شواهد در بخش Phase 3 سند [AUDIT-RECONCILIATION.md](AUDIT-RECONCILIATION.md) آمده است.
+این پاراگراف فقط به سطر «آخرین verification، Phase 3C» مربوط است: نتایج build/test/check آن سطر از اجرای ثبت‌شدهٔ Phase 3C هستند. PASS بازبینی adversarial نهایی طبق تأیید کاربر در درخواست Documentation Closure ثبت شده است؛ فایل مستقل آن در مخزن این بررسی یافت نشد. این کار فقط مستندسازی است و build/test را دوباره اجرا نمی‌کند. منشأ و نگاشت کامل شواهد در بخش Phase 3 سند [AUDIT-RECONCILIATION.md](AUDIT-RECONCILIATION.md) آمده است.
 
 ---
 
@@ -131,7 +131,7 @@ if (text.Length > N) { StatusText.Text = "..."; return; }
 
 ## ۶. روش ادامهٔ کار
 
-قواعد ارتباط و workflow از AGENTS.md پیروی می‌کنند: توضیح فنی فارسی، گزارش شواهد واقعی، تفکیک POSSIBLE / NOT FOUND / VERIFICATION PENDING و رعایت scope مصوب. ممیزی و بازبینی مستقل read-only هستند. Codex تنها Repository Agent مجاز به تغییر کد است؛ نقش Architect/Reviewer هم‌زمان همان working tree را ویرایش نمی‌کند.
+قواعد ارتباط و workflow از AGENTS.md پیروی می‌کنند: توضیح فنی فارسی، گزارش شواهد واقعی، تفکیک POSSIBLE / NOT FOUND / VERIFICATION PENDING و رعایت scope مصوب. ممیزی و بازبینی مستقل read-only هستند. نقش‌ها و مجوز agentها فقط در AGENTS.md تعریف می‌شوند؛ در هر لحظه فقط یک agent مجاز به تغییر working tree است و سایر agentها فقط بازبینی read-only انجام می‌دهند. هیچ نقشی به‌تنهایی، بدون scope و approval صریح، مجوز تغییر کد نمی‌دهد.
 
 ---
 

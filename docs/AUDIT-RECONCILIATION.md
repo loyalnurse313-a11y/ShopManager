@@ -253,7 +253,7 @@ Cleanup یک Pre-Phase است، نه Phase شماره‌دار. حذف S1 (`POSC
 
 **Scope:** Migrate(), WAL, Backup verification, Encryption, External backup, Crash
 
-**Checkpoint های انجام‌شده (کد + تست در HEAD `59d0dfc`):**
+**Checkpoint های انجام‌شده (کد + تست در commit `59d0dfc`):**
 
 - [x] 4A-1 (`0944a7e`): انتشار اتمیک بکاپ SQLite — staging، اعتبارسنجی و publish ایمن.
 - [x] 4A-2 (`05212da`): هویت canonical دیتابیس و توقف امن startup.
@@ -273,7 +273,7 @@ Cleanup یک Pre-Phase است، نه Phase شماره‌دار. حذف S1 (`POSC
 - [ ] تست: Restore از backup → همه داده
 - [ ] تست: DB خراب → از backup بازیابی
 
-**شواهد Phase 4 تا این مرحله:** build 0W/0E و 246/246 تست در اجرای کامل HEAD `59d0dfc`؛ مسیر بازگردانی قدیمی `BackupService.RestoreBackup` هنوز از `SettingsWindow.axaml.cs:290` با `Environment.Exit(0)` فراخوانی می‌شود. **شاهد سناریوی کامل Crash + Recovery هنوز تولید نشده است.** جزئیات: [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
+**شواهد Phase 4 تا این مرحله:** build 0W/0E و 246/246 تست در اجرای کامل commit `59d0dfc`؛ مسیر بازگردانی قدیمی `BackupService.RestoreBackup` هنوز از `SettingsWindow.axaml.cs:290` با `Environment.Exit(0)` فراخوانی می‌شود. **شاهد سناریوی کامل Crash + Recovery هنوز تولید نشده است.** جزئیات: [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
 
 ### Phase 5 — Audit + Security
 
@@ -403,9 +403,9 @@ text
 | فاز بعدی                        | Phase 4 — Crash Recovery + Backup؛ **IN PROGRESS** تا checkpoint `4B-2A` (`59d0dfc`)؛ تکمیل نشده              |
 | فازهای حذف‌شده از Roadmap       | Alert، Cloud، Multi-terminal                                                                                  |
 | کارهای قدیمی ثبت‌شده در بخش ۲.۳ | ۱۳؛ این عدد شمارندهٔ کل تغییرات جدید نیست                                                                     |
-| آخرین مجموعهٔ تست تأییدشده      | 246 Passed / 0 Failed / 0 Skipped (اجرای کامل در HEAD `59d0dfc`)                                              |
-| Build                           | 0W / 0E (اجرای کامل در HEAD `59d0dfc`)                                                                        |
-| Git                             | Phase 3 implementation at `da7d5b4`؛ Phase 4 checkpoint ها تا `59d0dfc`؛ ویرایش مستندات حاضر بدون commit/push |
+| آخرین مجموعهٔ تست تأییدشده      | 246 Passed / 0 Failed / 0 Skipped (اجرای کامل در commit `59d0dfc`)                                            |
+| Build                           | 0W / 0E (اجرای کامل در commit `59d0dfc`)                                                                      |
+| Git                             | Phase 3 implementation at `da7d5b4`؛ checkpoint کد production: `59d0dfc`؛ commitهای بعدی تا `67453a2` فقط مستندات/قواعد عملیاتی مخزن را تغییر داده‌اند |
 
 **Phase 3 — Concurrency + Idempotency تا 3C کامل و تأیید شده است. Phase 4 — Crash Recovery + Backup در حال انجام است: checkpoint ها تا `4B-2A` (`59d0dfc`) پیاده شده‌اند و باقی‌ماندهٔ 4B-2B+ و سایر اقلام DoD باز است؛ جزئیات در [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).**
 
@@ -415,7 +415,7 @@ text
 
 | تاریخ                      | تصمیم                                                       | دلیل                                                                                              |
 | -------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| مبنای `59d0dfc`            | Phase 4 checkpoint ها تا 4B-2A پیاده و در HEAD تأیید شدند   | build 0W/0E و اجرای کامل 246/246 تست در HEAD؛ Phase 4 همچنان IN PROGRESS است                      |
+| مبنای `59d0dfc`            | Phase 4 checkpoint ها تا 4B-2A پیاده و در commit `59d0dfc` تأیید شدند | build 0W/0E و اجرای کامل 246/246 تست در commit `59d0dfc`؛ Phase 4 همچنان IN PROGRESS است |
 | مبنای `59d0dfc`            | Restore intent ماندگار و gate پذیرش دیتابیس (4B-2A)         | fail-closed؛ تعویض واقعی DB/WAL/SHM و startup recovery به 4B-2B+ موکول شد                         |
 | Closure در مبنای `905622c` | Phase 3 تا 3C COMPLETE                                      | build 0W/0E، 134/134 تست، diff check و تأیید final adversarial review؛ منشأ شواهد در بخش ۵        |
 | Closure در مبنای `905622c` | جایگزینی الزام RowVersion با طراحی تراکنشی SQLite           | خواندن authoritative پس از آغاز تراکنش writer و تست رقابت مستقل؛ token پیاده نشده                 |

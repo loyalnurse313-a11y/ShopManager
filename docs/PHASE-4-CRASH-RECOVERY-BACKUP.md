@@ -5,21 +5,23 @@
 **Phase 4 — Crash Recovery + Backup: IN PROGRESS — NOT complete.**
 
 - Branch: `phase/4-crash-recovery-backup`.
-- HEAD: `59d0dfc` — `feat: add durable restore intent foundation`.
+- Production-code checkpoint: `59d0dfc` — `feat: add durable restore intent foundation`.
+  Subsequent commits through `67453a2` changed documentation and repository operating
+  rules only.
 - No Phase 4 completion tag exists. The last completion tag in the repository is
   `phase-3-concurrency-idempotency-complete`.
 - Documented checkpoints: **4A-1 through 4B-2A**.
 - Remaining work: **4B-2B+** and the rest of the Phase 4 DoD recorded below.
 
 This document records only checkpoints that are present in the committed source tree at
-HEAD. It does not claim Phase 4 completion.
+commit `59d0dfc`. It does not claim Phase 4 completion.
 
 ## Purpose and scope
 
 Roadmap scope: `Migrate()`, WAL, backup verification, encryption, external/secondary
 backup, crash recovery, and safe restore.
 
-## Checkpoints implemented (code + tests present at HEAD)
+## Checkpoints implemented (code + tests present at commit `59d0dfc`)
 
 | Checkpoint | Commit    | Change                                                                                                                                                                                                                                                                             | Tests                                                                 |
 | ---------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
@@ -37,14 +39,14 @@ several executed cases, so the total executed count is higher.
 
 ## What is verified now
 
-Evidence produced during this documentation task at HEAD `59d0dfc`:
+Verified evidence for production-code checkpoint `59d0dfc`:
 
 - `dotnet build ShopManager.slnx -v:m` → **Build succeeded. 0 Warning(s), 0 Error(s).**
 - `dotnet test ShopManager.slnx` → **Failed: 0, Passed: 246, Skipped: 0, Total: 246** (`net10.0`).
 
 Source-confirmed facts:
 
-- The checkpoint symbols above exist at HEAD: `BackupService.RunExclusive` /
+- The checkpoint symbols above exist at commit `59d0dfc`: `BackupService.RunExclusive` /
   `TryRunExclusive` / `CreateForcedBackup` / `CreateSmartBackup` / `TryCreateSmartBackup` /
   `PrepareRestore`; `DatabaseService.BlockedReason` / `EstablishDurability` /
   `DurabilityInterceptor`; `RestoreRecoveryService.Arm` / `ReadIntent` / `ValidateIntent` /

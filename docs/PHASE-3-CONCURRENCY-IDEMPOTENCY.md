@@ -90,7 +90,7 @@ migrations are not claimed.
 | `git diff --check`                                     | clean                                | End-of-implementation check (an LF/CRLF conversion warning on two new files was noted separately; no whitespace error).       |
 | Final adversarial review                               | PASS                                 | User confirmation in the Phase 3 documentation-closure request; no standalone review report file was found in the repository. |
 
-Post-closure note: at HEAD `59d0dfc` the full suite — which now also contains Phase 4 test
+Post-closure note: at commit `59d0dfc` the full suite — which now also contains Phase 4 test
 files — runs **246 passed / 0 failed / 0 skipped** with a **0 warning / 0 error** solution
 build (verified during the documentation reconciliation task). The 134 figure above remains
 the recorded Phase 3 closure evidence.
