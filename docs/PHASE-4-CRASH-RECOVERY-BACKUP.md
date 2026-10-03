@@ -5,19 +5,22 @@
 **Phase 4 — Crash Recovery + Backup: IN PROGRESS — NOT complete.**
 
 - Branch: `phase/4-crash-recovery-backup`.
-- Production-code checkpoint: `d472153` — `feat: implement crash-safe restore recovery engine`
+- Latest implemented checkpoint: **4B-3 — implemented, verified, checkpoint-ready; uncommitted**.
+- Latest committed production-code checkpoint: `d472153` — `feat: implement crash-safe restore recovery engine`
   (4B-2B). The previous production-code checkpoint was `59d0dfc` —
   `feat: add durable restore intent foundation` (4B-2A); the commits between `59d0dfc` and
   `d472153` changed documentation and repository operating rules only.
 - No Phase 4 completion tag exists. The last completion tag in the repository is
   `phase-3-concurrency-idempotency-complete`.
-- Documented checkpoints: **4A-1 through 4B-2B**. 4A-1 through 4B-2A are committed
+- Documented checkpoints: **4A-1 through 4B-3**. 4A-1 through 4B-2A are committed
   (last commit `59d0dfc`); **4B-2B is committed in `d472153`**.
-- Remaining work: the subsequent Phase 4 integration and the rest of the Phase 4 DoD
+- Remaining work: **4B-4 startup recovery wiring**, subsequent UI/shutdown/quiesce
+  integration and legacy restore removal, and the rest of the Phase 4 DoD
   recorded below.
 
 This document records checkpoints 4A-1 through 4B-2A as present in the committed source
-tree at commit `59d0dfc`, and 4B-2B as present at commit `d472153`. It does not claim
+tree at commit `59d0dfc`, 4B-2B at commit `d472153`, and verified 4B-3 in the
+uncommitted working tree. No commit hash is assigned to 4B-3. It does not claim
 Phase 4 completion.
 
 ## Purpose and scope
@@ -34,15 +37,23 @@ backup, crash recovery, and safe restore.
 - SHA-256 staging fingerprint remains authoritative;
 - after durable intent: **forward-complete or BLOCK — no rollback**.
 
-**Outside 4B-2B — subsequent Phase 4 integration (still future work, not implemented):**
-- app startup wiring/order and restore-intent consumption;
-- app-lifetime mutex;
+**4B-3 — app-lifetime Windows mutex (implemented, verified, checkpoint-ready; uncommitted):**
+- fixed identity `Global\ShopManager.ApplicationLifetime`;
+- acquired after `Velopack.Run()` returns and before `BuildAvaloniaApp()`;
+- Busy → exit code 2 with zero application startup admission;
+- acquisition Error → exit code 3, fail closed; no fallback, retry or waiting;
+- abandoned ownership is accepted, without implying database health;
+- successful guard is strongly rooted in `Program` for process lifetime;
+- real multi-process harness uses unique test mutex names and no production DB/mutex.
+
+**Still future work after 4B-3 (not implemented):**
+- **4B-4**: app startup recovery wiring/order and restore-intent consumption;
 - SettingsWindow/UI integration;
 - shutdown/quiesce integration;
 - removal of the legacy production restore path (`BackupService.RestoreBackup` and the
   `Environment.Exit(0)` path in `Views/SettingsWindow.axaml.cs`).
 
-## Checkpoints implemented (4A-1 through 4B-2A committed up to `59d0dfc`; 4B-2B at `d472153`)
+## Checkpoints implemented (4A-1 through 4B-2A committed up to `59d0dfc`; 4B-2B at `d472153`; 4B-3 uncommitted)
 
 | Checkpoint | Commit    | Change                                                                                                                                                                                                                                                                             | Tests                                                                 |
 | ---------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
@@ -53,8 +64,9 @@ backup, crash recovery, and safe restore.
 | 4B-1       | `461670c` | Safe, non-destructive restore preparation: validate on an operation-owned copy, WAL-consistent read-only safety snapshot, Windows file-identity/hard-link guard, staging construction, and operation-owned cleanup; the live DB and the selected backup source are never modified. | `ShopManager.Domain.Tests/Integration/RestorePreparationTests.cs`     |
 | 4B-2A      | `59d0dfc` | Durable restore-intent foundation: fixed app-owned `restore-intent.json`; pipeline flush → SHA-256 → atomic publish → process arm. `TransitionGate` admission lease is taken by `DatabaseService.CreateContext` so a new context cannot start while a restore owns the transition. | `ShopManager.Domain.Tests/Integration/RestoreRecoveryServiceTests.cs` |
 | 4B-2B      | `d472153` | Offline file-level recovery engine (`RestoreRecoveryService.Recover`). After a durable intent the engine is forward-only: it forward-completes or BLOCKs, never rolls back. The published state **V** is "the live DB has the expected SHA-256 **and** no live `-wal` / `-shm` / `-journal` sidecar exists". Cleanup touches exact operation-owned tombstone and incoming artifacts only (no wildcard cleanup) and is plan-then-execute. Ambiguous or unsafe states fail closed and the restore stays armed. Deleting the intent is the final successful disk mutation. A missing `SafetyBackupPath` does not prevent forward completion; the safety snapshot, when present, is retained. Crash/restart and blocked-state coverage was added. | `ShopManager.Domain.Tests/Integration/RestoreRecoveryServiceTests.cs` |
+| 4B-3 | Uncommitted | App-lifetime Windows mutex `Global\ShopManager.ApplicationLifetime`; startup admission before Avalonia; Busy/Error exit codes 2/3; abandoned ownership accepted; process-lifetime root. Implemented, verified, checkpoint-ready. | `ShopManager.Domain.Tests/Integration/ApplicationInstanceGuardTests.cs`; `ShopManager.InstanceGuard.TestHost` |
 
-Declared test-method counts per file: BackupPublication 16, DatabasePathResolution 31,
+Historical declared test-method counts through 4B-2B: BackupPublication 16, DatabasePathResolution 31,
 DatabaseDurability 10, BackupLifecycle 8, RestorePreparation 13, RestoreRecoveryService 42
 (18 at `59d0dfc`; 42 at `d472153` after 4B-2B).
 These are `[Fact]`/`[Theory]` attribute counts in the source; a `[Theory]` expands into
@@ -62,16 +74,30 @@ several executed cases, so the total executed count can be higher than the decla
 
 ## What is verified now
 
-Verified evidence for checkpoint 4B-2B (implementation commit `d472153`; current HEAD
-includes these 270 tests):
+Verified 4B-3 evidence for the uncommitted working tree after test hardening:
+
+- Targeted `ApplicationInstanceGuardTests` → **21 passed, 0 failed, 0 skipped**.
+- Full `ShopManager.Domain.Tests` → **291 passed, 0 failed, 0 skipped**.
+- `dotnet build ShopManager.slnx --no-incremental -v:m` → **0 warnings, 0 errors**.
+- `git diff --check` → **exit code 0**.
+- Adversarial review → **PASS WITH FINDINGS**, no Critical or High defect;
+  review disposition supplied by the user for this documentation sync.
+- Test-hardening follow-up completed without production changes: exact mutex identity,
+  Busy/Error exit-code mapping and contender proof after wrong-thread disposal.
+
+These are the recorded implementation/test results, not a new build/test run during
+documentation sync. Residual verification items below are not checkpoint blockers.
+
+Historical verified evidence for checkpoint 4B-2B (implementation commit `d472153`;
+270 tests in that committed source tree):
 
 - `RestoreRecoveryServiceTests` → **42 passed**.
 - Full `ShopManager.Domain.Tests` → **270 passed**.
 - Non-incremental solution build → **0 Warning(s), 0 Error(s)**.
 - Adversarial / final review → **PASS**, with no blocking Critical/High/Medium issue.
 
-Historical evidence for the earlier production-code checkpoint `59d0dfc` (4B-2A; superseded
-as the latest figure by the 4B-2B evidence above; kept as checkpoint evidence only):
+Historical evidence for the earlier production-code checkpoint `59d0dfc` (4B-2A;
+kept as checkpoint evidence only):
 
 - `dotnet build ShopManager.slnx -v:m` → **Build succeeded. 0 Warning(s), 0 Error(s).**
 - `dotnet test ShopManager.slnx` → **Failed: 0, Passed: 246, Skipped: 0, Total: 246** (`net10.0`).
@@ -91,7 +117,7 @@ Source-confirmed facts:
   admission lease.
 - At `59d0dfc`, `RestoreRecoveryService` documented the real database/WAL/SHM swap and
   tombstone as later work. Commit `d472153` (4B-2B) implements that file-level engine
-  (`Recover`); startup recovery wiring remains later Phase 4 integration.
+  (`Recover`); **4B-4 startup recovery wiring remains future work**.
 - The legacy `BackupService.RestoreBackup` (a `File.Copy`-based implementation) still
   exists and is still invoked from `Views/SettingsWindow.axaml.cs:290` together with
   `Environment.Exit(0)`.
@@ -102,8 +128,10 @@ Source-confirmed facts:
       `shop.db` / `-wal` / `-shm` with operation-owned tombstones. SHA-256 staging
       fingerprint remains authoritative; after durable intent, forward-complete or BLOCK,
       never rollback. Implemented and verified (evidence above); committed in `d472153`.
-- [ ] **Subsequent Phase 4 integration**: app startup wiring/order and consumption of the
-      restore intent; app-lifetime mutex; SettingsWindow/UI integration; shutdown/quiesce
+- [x] **4B-3**: app-lifetime mutex — implemented, verified, checkpoint-ready;
+      uncommitted, with the evidence and residual verification items recorded here.
+- [ ] **4B-4**: startup recovery wiring/order and consumption of restore intent.
+- [ ] **Subsequent Phase 4 integration**: SettingsWindow/UI integration; shutdown/quiesce
       integration; removal of the legacy production restore path.
 - [ ] **AR-4**: replace the legacy `BackupService.RestoreBackup` and the
       `SettingsWindow.axaml.cs:290` `Environment.Exit(0)` path with the safe restore flow.
@@ -130,6 +158,9 @@ Source-confirmed facts:
 
 ## Residual risks and limitations
 
+- **4B-3 — VERIFICATION PENDING (not checkpoint blockers):** cross-user / cross-session /
+  elevation behavior; installed GUI startup/shutdown smoke; Velopack update/restart
+  overlap behavior. None is represented as verified by the harness or review.
 - Restore is fail-closed but not yet executable end-to-end: the 4B-2B engine
   (`Recover`) can apply an armed intent at file level, but nothing in production startup,
   UI, or shutdown calls it, so a restore cannot complete in the running application.

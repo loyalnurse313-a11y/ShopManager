@@ -21,6 +21,17 @@
   <ItemGroup>
     <ProjectReference Include="..\ShopManager.Domain\ShopManager.Domain.csproj" />
     <ProjectReference Include="..\ShopManager.Desktop\ShopManager.Desktop.csproj" />
+    <ProjectReference Include="..\ShopManager.InstanceGuard.TestHost\ShopManager.InstanceGuard.TestHost.csproj"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
+
+  <Target Name="CopyInstanceGuardTestHost" AfterTargets="Build">
+    <ItemGroup>
+      <InstanceGuardTestHostFiles Include="$(MSBuildProjectDirectory)\..\ShopManager.InstanceGuard.TestHost\bin\$(Configuration)\$(TargetFramework)\ShopManager.InstanceGuard.TestHost.dll" />
+      <InstanceGuardTestHostFiles Include="$(MSBuildProjectDirectory)\..\ShopManager.InstanceGuard.TestHost\bin\$(Configuration)\$(TargetFramework)\ShopManager.InstanceGuard.TestHost.deps.json" />
+      <InstanceGuardTestHostFiles Include="$(MSBuildProjectDirectory)\..\ShopManager.InstanceGuard.TestHost\bin\$(Configuration)\$(TargetFramework)\ShopManager.InstanceGuard.TestHost.runtimeconfig.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(InstanceGuardTestHostFiles)" DestinationFolder="$(OutDir)InstanceGuardTestHost" />
+  </Target>
 
 </Project>

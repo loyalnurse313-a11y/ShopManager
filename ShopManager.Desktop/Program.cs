@@ -2,11 +2,16 @@
 using Avalonia.Controls;
 using System;
 using Velopack;
+using ShopManager.Desktop.Services;
 
 namespace ShopManager.Desktop;
 
 sealed class Program
 {
+    // Keep the handle rooted until process termination. Do not release it in a UI
+    // shutdown handler or when the Avalonia lifetime returns.
+    private static ApplicationInstanceGuard? _applicationInstanceGuard;
+
     [STAThread]
     public static void Main(string[] args)
     {
@@ -21,8 +26,9 @@ sealed class Program
             })
             .Run();
 
-        BuildAvaloniaApp()
-            .StartWithClassicDesktopLifetime(args);
+        Environment.ExitCode = ApplicationInstanceGuard.RunGuardedStartup(
+            () => BuildAvaloniaApp().StartWithClassicDesktopLifetime(args),
+            guard => _applicationInstanceGuard = guard);
     }
 
     public static AppBuilder BuildAvaloniaApp()
