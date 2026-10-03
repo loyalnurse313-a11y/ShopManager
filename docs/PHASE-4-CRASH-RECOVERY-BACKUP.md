@@ -11,7 +11,8 @@
 - No Phase 4 completion tag exists. The last completion tag in the repository is
   `phase-3-concurrency-idempotency-complete`.
 - Documented checkpoints: **4A-1 through 4B-2A**.
-- Remaining work: **4B-2B+** and the rest of the Phase 4 DoD recorded below.
+- Remaining work: **4B-2B**, the subsequent Phase 4 integration, and the rest of the
+  Phase 4 DoD recorded below.
 
 This document records only checkpoints that are present in the committed source tree at
 commit `59d0dfc`. It does not claim Phase 4 completion.
@@ -20,6 +21,23 @@ commit `59d0dfc`. It does not claim Phase 4 completion.
 
 Roadmap scope: `Migrate()`, WAL, backup verification, encryption, external/secondary
 backup, crash recovery, and safe restore.
+
+### Phase 4 checkpoint boundary (authoritative: `docs/PROJECT-CONTEXT.md`)
+
+**4B-2B** — offline recovery engine:
+- offline recovery engine;
+- file-level forward-completion/swap of the live DB (`shop.db` / `-wal` / `-shm`);
+- operation-owned tombstones;
+- SHA-256 staging fingerprint remains authoritative;
+- after durable intent: **forward-complete or BLOCK — no rollback**.
+
+**Outside 4B-2B — subsequent Phase 4 integration:**
+- app startup wiring/order and restore-intent consumption;
+- app-lifetime mutex;
+- SettingsWindow/UI integration;
+- shutdown/quiesce integration;
+- removal of the legacy production restore path (`BackupService.RestoreBackup` and the
+  `Environment.Exit(0)` path in `Views/SettingsWindow.axaml.cs`).
 
 ## Checkpoints implemented (code + tests present at commit `59d0dfc`)
 
@@ -64,8 +82,13 @@ Source-confirmed facts:
 
 ## Pending work (Phase 4 is NOT complete)
 
-- [ ] **4B-2B+**: perform the actual `shop.db` / `-wal` / `-shm` swap, write the tombstone,
-      and consume the restore intent during startup recovery.
+- [ ] **4B-2B**: offline recovery engine — file-level forward-completion/swap of
+      `shop.db` / `-wal` / `-shm` and write the operation-owned tombstone. SHA-256 staging
+      fingerprint remains authoritative; after durable intent, forward-complete or BLOCK,
+      never rollback.
+- [ ] **Subsequent Phase 4 integration**: app startup wiring/order and consumption of the
+      restore intent; app-lifetime mutex; SettingsWindow/UI integration; shutdown/quiesce
+      integration; removal of the legacy production restore path.
 - [ ] **AR-4**: replace the legacy `BackupService.RestoreBackup` and the
       `SettingsWindow.axaml.cs:290` `Environment.Exit(0)` path with the safe restore flow.
 - [ ] **AR-2**: `EnsureCreated` → a real `Migrate()`.
@@ -80,7 +103,7 @@ Source-confirmed facts:
 | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `EnsureCreated` → `Migrate()`             | **PENDING**                                                                                                |
 | DB from zero → all migrations run         | **PENDING**                                                                                                |
-| Backup: copy + integrity check + restore  | **PARTIAL** — publication and validation exist (4A-1); the actual restore application is pending (4B-2B+). |
+| Backup: copy + integrity check + restore  | **PARTIAL** — publication and validation exist (4A-1); the actual restore application is pending (4B-2B offline engine + subsequent Phase 4 integration). |
 | Backup encryption (DPAPI/AES)             | **PENDING**                                                                                                |
 | Secondary backup on USB                   | **PENDING**                                                                                                |
 | Test: kill during `SaveSale` → DB healthy | **PENDING**                                                                                                |
@@ -101,5 +124,5 @@ Source-confirmed facts:
 
 ## Closure
 
-**Phase 4: IN PROGRESS — do not mark complete.** Update this document as 4B-2B+ and the
-remaining DoD items are implemented and verified.
+**Phase 4: IN PROGRESS — do not mark complete.** Update this document as 4B-2B, the
+subsequent Phase 4 integration, and the remaining DoD items are implemented and verified.

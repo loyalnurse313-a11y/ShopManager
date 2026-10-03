@@ -5,7 +5,7 @@
 > **آخرین به‌روزرسانی:** بستن مستندات Phase 3 در commit `905622c` (پیاده‌سازی نهایی 3C در `da7d5b4`)؛ به‌علاوهٔ به‌روزرسانی وضعیت Phase 4 تا checkpoint `4B-2A` (`59d0dfc`).
 > **آخرین Commit پیاده‌سازی:** `da7d5b4` — Phase 3C؛ Phase 3 تا 3C کامل است و commit بستن رسمی آن `905622c` (برچسب `phase-3-concurrency-idempotency-complete`) است. آخرین commit پیاده‌سازی Phase 4: `59d0dfc`.
 > **شواهد Phase 3C:** 134 Pass / 0 Fail / 0 Skip؛ build: 0 warnings / 0 errors؛ final adversarial review: PASS.
-> **وضعیت Phase 4 (IN PROGRESS):** checkpoint ها تا `4B-2A` پیاده شده‌اند؛ Phase 4 کامل نیست و باقی‌ماندهٔ 4B-2B+ باز است. جزئیات: [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
+> **وضعیت Phase 4 (IN PROGRESS):** checkpoint ها تا `4B-2A` پیاده شده‌اند؛ Phase 4 کامل نیست و 4B-2B و integration بعدی Phase 4 باز است. مرزبندی checkpoint: [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
 > نتایج Phase 1/2 در بخش‌های خود، شواهد تاریخی‌اند. وضعیت فعلی این سند جایگزین نتیجه‌گیری‌های زمانی قدیمی می‌شود؛ متن `AUDIT-REPORT.md` و اسناد closure قبلی بازنویسی نشده است.
 
 ---
@@ -266,7 +266,7 @@ Cleanup یک Pre-Phase است، نه Phase شماره‌دار. حذف S1 (`POSC
 
 - [ ] EnsureCreated → Migrate()
 - [ ] DB از صفر → همه Migrations اجرا
-- [ ] Backup: کپی + Integrity Check + Restore (تولید/اعتبارسنجی: PARTIAL؛ تعویض واقعی بازیابی: pending در 4B-2B+)
+- [ ] Backup: کپی + Integrity Check + Restore (تولید/اعتبارسنجی: PARTIAL؛ تعویض واقعی بازیابی: pending در 4B-2B و integration بعدی Phase 4)
 - [ ] Backup رمزنگاری (DPAPI/AES)
 - [ ] Backup ثانویه روی USB
 - [ ] تست: kill وسط SaveSale → DB سالم
@@ -407,7 +407,7 @@ text
 | Build                           | 0W / 0E (اجرای کامل در commit `59d0dfc`)                                                                      |
 | Git                             | Phase 3 implementation at `da7d5b4`؛ checkpoint کد production: `59d0dfc`؛ commitهای بعدی تا `67453a2` فقط مستندات/قواعد عملیاتی مخزن را تغییر داده‌اند |
 
-**Phase 3 — Concurrency + Idempotency تا 3C کامل و تأیید شده است. Phase 4 — Crash Recovery + Backup در حال انجام است: checkpoint ها تا `4B-2A` (`59d0dfc`) پیاده شده‌اند و باقی‌ماندهٔ 4B-2B+ و سایر اقلام DoD باز است؛ جزئیات در [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).**
+**Phase 3 — Concurrency + Idempotency تا 3C کامل و تأیید شده است. Phase 4 — Crash Recovery + Backup در حال انجام است: checkpoint ها تا `4B-2A` (`59d0dfc`) پیاده شده‌اند و 4B-2B، integration بعدی Phase 4، و سایر اقلام DoD باز است؛ جزئیات در [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).**
 
 ---
 
@@ -416,7 +416,7 @@ text
 | تاریخ                      | تصمیم                                                       | دلیل                                                                                              |
 | -------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | مبنای `59d0dfc`            | Phase 4 checkpoint ها تا 4B-2A پیاده و در commit `59d0dfc` تأیید شدند | build 0W/0E و اجرای کامل 246/246 تست در commit `59d0dfc`؛ Phase 4 همچنان IN PROGRESS است |
-| مبنای `59d0dfc`            | Restore intent ماندگار و gate پذیرش دیتابیس (4B-2A)         | fail-closed؛ تعویض واقعی DB/WAL/SHM و startup recovery به 4B-2B+ موکول شد                         |
+| مبنای `59d0dfc`            | Restore intent ماندگار و gate پذیرش دیتابیس (4B-2A)         | fail-closed؛ تعویض واقعی DB/WAL/SHM و tombstone به 4B-2B و startup recovery به integration بعدی Phase 4 موکول شد |
 | Closure در مبنای `905622c` | Phase 3 تا 3C COMPLETE                                      | build 0W/0E، 134/134 تست، diff check و تأیید final adversarial review؛ منشأ شواهد در بخش ۵        |
 | Closure در مبنای `905622c` | جایگزینی الزام RowVersion با طراحی تراکنشی SQLite           | خواندن authoritative پس از آغاز تراکنش writer و تست رقابت مستقل؛ token پیاده نشده                 |
 | Closure در مبنای `905622c` | تفکیک هویت عملیات از ردیف‌های فاکتور                        | uniqueness در SaleOperations؛ حفظ فاکتور چندردیفی و تاریخچه؛ بدون ادعای اصلاح عمومی legacy schema |

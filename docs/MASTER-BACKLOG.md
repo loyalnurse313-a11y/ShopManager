@@ -141,7 +141,8 @@
 
 **باقی‌مانده (pending) — Phase 4 کامل نیست:**
 
-- [ ] 4B-2B+: تعویض واقعی `shop.db`/WAL/SHM، tombstone و بازیابی هنگام startup با مصرف intent.
+- [ ] 4B-2B: offline recovery engine — تعویض واقعی `shop.db`/WAL/SHM در سطح فایل، tombstoneهای operation-owned، و forward-complete یا BLOCK پس از intent (SHA-256 staging fingerprint مرجع).
+- [ ] Subsequent Phase 4 integration: اتصال recovery به startup و مصرف restore intent، app-lifetime mutex، UI، shutdown/quiesce، و حذف legacy restore path.
 - [ ] [AR-4] جایگزینی `BackupService.RestoreBackup` قدیمی و مسیر `SettingsWindow.axaml.cs:290` با `Environment.Exit(0)`.
 - [ ] [AR-2] EnsureCreated → Migrate().
 - [ ] [S8] Schema Drift / migrations.

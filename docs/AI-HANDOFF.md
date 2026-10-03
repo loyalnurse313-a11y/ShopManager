@@ -145,7 +145,7 @@ if (text.Length > N) { StatusText.Text = "..."; return; }
 | Pre-Phase | Cleanup محدود S1/S2/S3    | ✅؛ مرحلهٔ شماره‌دار نیست                                                                                                  |
 | 2         | Transaction Boundary      | ✅ COMPLETE؛ شواهد تاریخی در سند Phase 2                                                                                   |
 | 3         | Concurrency + Idempotency | ✅ COMPLETE تا 3C؛ پیاده‌سازی نهایی `da7d5b4` / بستن رسمی `905622c`                                                        |
-| 4         | Crash Recovery + Backup   | 🔄 IN PROGRESS؛ checkpoint ها تا `4B-2A` (`59d0dfc`)؛ باقی‌مانده: تعویض DB/WAL/SHM و startup recovery (4B-2B+) و بقیهٔ DoD |
+| 4         | Crash Recovery + Backup   | 🔄 IN PROGRESS؛ checkpoint ها تا `4B-2A` (`59d0dfc`)؛ باقی‌مانده: 4B-2B (موتور بازیابی آفلاین و تعویض DB) و integration بعدی Phase 4 و بقیهٔ DoD |
 | 5         | Audit + Security          | برنامه‌ریزی‌شده                                                                                                            |
 | 6         | Logging + Global Error    | برنامه‌ریزی‌شده                                                                                                            |
 | 7         | EF Core + Performance     | برنامه‌ریزی‌شده                                                                                                            |
@@ -172,9 +172,9 @@ if (text.Length > N) { StatusText.Text = "..."; return; }
 - 4B-1، `461670c`: آماده‌سازی بازیابی امن و غیرمخرب (اعتبارسنجی روی کپی، اسنپ‌شات ایمنی WAL-سازگار، گارد hard-link)؛ دیتابیس زنده دست‌نخورده.
 - 4B-2A، `59d0dfc`: بنیاد intent بازیابی ماندگار (`RestoreRecoveryService`) و gate پذیرش دیتابیس در `DatabaseService.CreateContext`.
 
-**باقی‌مانده (pending):** تعویض واقعی `shop.db`/WAL/SHM، tombstone و بازیابی هنگام startup با مصرف intent (4B-2B+)؛ جایگزینی `BackupService.RestoreBackup` قدیمی و مسیر `SettingsWindow.axaml.cs:290` با `Environment.Exit(0)` (AR-4)؛ `EnsureCreated → Migrate()` (AR-2)؛ Schema Drift (S8)؛ Backup 3-2-1 + رمزنگاری (D1)؛ تست‌های crash/restore. جزئیات: [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
+**باقی‌مانده (pending):** 4B-2B — موتور بازیابی آفلاین: تعویض/forward-completion در سطح فایل `shop.db`/WAL/SHM، tombstoneهای operation-owned، و پس از intent ماندگار forward-complete یا BLOCK (هرگز rollback؛ SHA-256 staging fingerprint مرجع). **خارج از 4B-2B:** startup wiring و مصرف intent، app-lifetime mutex، UI، shutdown/quiesce، و حذف legacy restore path (همگی integration بعدی Phase 4). سپس: جایگزینی `BackupService.RestoreBackup` قدیمی و مسیر `SettingsWindow.axaml.cs:290` با `Environment.Exit(0)` (AR-4)؛ `EnsureCreated → Migrate()` (AR-2)؛ Schema Drift (S8)؛ Backup 3-2-1 + رمزنگاری (D1)؛ تست‌های crash/restore. جزئیات و مرزبندی کامل: [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
 
-مرحلهٔ بعد مطابق roadmap موجود **Phase 4 — Crash Recovery + Backup** است و تکمیل آن (4B-2B+ و بقیهٔ DoD) نیازمند scope و approval مستقل است. این handoff مجوز اجرای خودکار آن تغییرات نیست.
+مرحلهٔ بعد مطابق roadmap موجود **Phase 4 — Crash Recovery + Backup** است و تکمیل آن (4B-2B و integration بعدی Phase 4 و بقیهٔ DoD) نیازمند scope و approval مستقل است. این handoff مجوز اجرای خودکار آن تغییرات نیست.
 
 <details>
 <summary>جدول تاریخی شماره‌گذاری قدیمی؛ snapshot مورخ 1405/07/07، دیگر وضعیت فعلی نیست</summary>
@@ -273,7 +273,7 @@ if (text.Length > N) { StatusText.Text = "..."; return; }
 | `Services/AuthServiceInitializer.cs`                     | `HasAnyUser`, `CreateInitialAdmin`, `CheckLegacyAdminPassword`                                                             |
 | `Services/PasswordHasher.cs`                             | PBKDF2 v2 + SHA256 legacy                                                                                                  |
 | `Services/BackupService.cs`                              | بکاپ خودکار (staging + publish ایمن + single-flight) و آماده‌سازی بازیابی امن (4B-1)؛ `RestoreBackup` قدیمی هنوز موجود است |
-| `Services/RestoreRecoveryService.cs`                     | Phase 4B-2A: intent بازیابی ماندگار (`Arm`/`ReadIntent`/`IsArmed`) و gate پذیرش دیتابیس؛ تعویض واقعی DB در 4B-2B+          |
+| `Services/RestoreRecoveryService.cs`                     | Phase 4B-2A: intent بازیابی ماندگار (`Arm`/`ReadIntent`/`IsArmed`) و gate پذیرش دیتابیس؛ تعویض واقعی DB و tombstone در 4B-2B          |
 | `Services/HtmlEncoder.cs`                                | escape HTML                                                                                                                |
 | `Services/SaleInvoiceHtmlBuilder.cs`                     | سازنده HTML فاکتور                                                                                                         |
 | `Views/FirstRunSetupWindow.axaml.cs`                     | راه‌اندازی اولیه (جدید)                                                                                                    |
@@ -320,4 +320,4 @@ if (text.Length > N) { StatusText.Text = "..."; return; }
 
 ---
 
-**پایان سند. Phase 1–3 بسته‌اند؛ Phase 4 — Crash Recovery + Backup در حال انجام است (checkpoint تا `4B-2A`؛ `59d0dfc`) و تکمیل نشده. باقی‌ماندهٔ 4B-2B+ نیازمند scope و approval مستقل است.**
+**پایان سند. Phase 1–3 بسته‌اند؛ Phase 4 — Crash Recovery + Backup در حال انجام است (checkpoint تا `4B-2A`؛ `59d0dfc`) و تکمیل نشده. باقی‌ماندهٔ 4B-2B و integration بعدی Phase 4 نیازمند scope و approval مستقل است.**
