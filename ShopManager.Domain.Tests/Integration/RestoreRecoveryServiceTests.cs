@@ -638,6 +638,60 @@ public sealed class RestoreRecoveryServiceTests : IDisposable
     }
 
     [Fact]
+    public void Recover_IdentityRejection_IsArmedBeforeCallback_AndPrecedesAllMutation()
+    {
+        var s = ArmScenario("identity-rejected");
+        var before = DirectorySnapshot(s.DataDir);
+        var intentBefore = File.ReadAllBytes(RestoreRecoveryService.IntentPath);
+        var callbackCalls = 0;
+        var result = RestoreRecoveryService.Recover(
+            stepReached: _ => throw new Xunit.Sdk.XunitException("Recovery core must not run"),
+            validateRegisteredIdentity: intent =>
+            {
+                callbackCalls++;
+                Assert.Equal(s.Intent, intent);
+                Assert.True(RestoreRecoveryService.IsArmed);
+                var admissionAvailable = true;
+                var probe = new Thread(() => admissionAvailable = RestoreRecoveryService.TryEnterDatabaseAdmissionForTests());
+                probe.Start();
+                Assert.True(probe.Join(TimeSpan.FromSeconds(10)));
+                Assert.False(admissionAvailable);
+                return "identity rejected";
+            });
+
+        Assert.Equal(1, callbackCalls);
+        Assert.Equal(RestoreRecoveryOutcome.Blocked, result.Outcome);
+        Assert.Equal(s.Intent.OperationId, result.OperationId);
+        Assert.Equal("identity rejected", result.Reason);
+        Assert.Equal(before, DirectorySnapshot(s.DataDir));
+        Assert.Equal(intentBefore, File.ReadAllBytes(RestoreRecoveryService.IntentPath));
+        Assert.True(RestoreRecoveryService.IsArmed);
+    }
+
+    [Fact]
+    public void Recover_CoreConsumesTheValidatedIntent_WithoutASecondIntentRead()
+    {
+        var s = ArmScenario("identity-same-read");
+        RestoreIntent? validated = null;
+        var result = RestoreRecoveryService.Recover(validateRegisteredIdentity: intent =>
+        {
+            validated = intent;
+            // Change the isolated persisted input after validation. The core must
+            // consume the already validated object, not a second deserialization.
+            File.WriteAllText(RestoreRecoveryService.IntentPath,
+                System.Text.Json.JsonSerializer.Serialize(intent with
+                {
+                    StagingSha256 = RestoreRecoveryService.StagingFingerprintPrefix + new string('0', 64)
+                }));
+            return null;
+        });
+
+        Assert.Equal(s.Intent, validated);
+        Assert.Equal(RestoreRecoveryOutcome.Completed, result.Outcome);
+        AssertCompletedFinalState(s);
+    }
+
+    [Fact]
     public void Recover_InvalidOrUnreadableIntent_BlocksAndStaysArmed()
     {
         var intentPath = RestoreRecoveryService.IntentPath;

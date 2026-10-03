@@ -410,7 +410,9 @@ internal static class RestoreRecoveryService
     /// بدون intent هیچ کاری نمی‌کند؛ روی Completed مسلح‌بودن را برمی‌دارد و روی Blocked مسلح می‌ماند.
     /// <paramref name="stepReached"/> فقط seam تست (شبیه‌سازی crash) است.
     /// </summary>
-    internal static RestoreRecoveryResult Recover(Action<RestoreRecoveryStep>? stepReached = null)
+    internal static RestoreRecoveryResult Recover(
+        Action<RestoreRecoveryStep>? stepReached = null,
+        Func<RestoreIntent, string?>? validateRegisteredIdentity = null)
     {
         TransitionGate.EnterWriteLock();
         try
@@ -423,6 +425,12 @@ internal static class RestoreRecoveryService
 
             if (read.State != RestoreIntentState.Valid || read.Intent is null)
                 return BlockedResult(null, "قصد بازیابی نامعتبر است: " + read.Reason);
+
+            // Production identity admission observes the exact intent consumed below,
+            // while armed and before any recovery artifact can be mutated.
+            var identityReason = validateRegisteredIdentity?.Invoke(read.Intent);
+            if (identityReason is not null)
+                return BlockedResult(read.Intent.OperationId, identityReason);
 
             RestoreRecoveryResult result;
             try

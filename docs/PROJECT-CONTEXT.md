@@ -23,10 +23,10 @@ ShopManager یک POS و سامانهٔ مدیریت فروشگاه است.
 
 اگر این سند با evidence معتبر (source، tests، Git) ناسازگار بود، **آن ناسازگاری را گزارش کنید**؛ حدس نزنید. اصلاح فقط در scope صریح مجاز است.
 
-آخرین checkpoint پیاده‌شده: **4B-3 — implemented / verified / checkpoint-ready؛ هنوز commit نشده و hash ندارد**.
-آخرین checkpoint کد production که commit شده: `d472153` — `feat: implement crash-safe restore recovery engine` (4B-2B).
-checkpoint قبلی: `59d0dfc` — `feat: add durable restore intent foundation` (4B-2A).
-دستور زیر فقط تغییرات commit‌شده را نشان می‌دهد؛ برای 4B-3 که هنوز commit نشده، `git status --short` و working-tree diff را نیز بررسی کنید:
+آخرین checkpoint پیاده‌شده: **4B-4 — implemented / verified / independently reviewed / checkpoint-ready؛ UNCOMMITTED و بدون hash**.
+آخرین checkpoint کد production که commit شده: `583a7b8` — `feat: add app-lifetime instance guard` (4B-3).
+checkpointهای قبلی: `d472153` (4B-2B) و `59d0dfc` (4B-2A).
+دستور زیر فقط تغییرات commit‌شده را نشان می‌دهد؛ برای 4B-4 که هنوز commit نشده، `git status --short` و working-tree diff را نیز بررسی کنید:
 `git diff --stat d472153 HEAD -- . ':!docs' ':!AGENTS.md'`
 
 ## 3. invariantهای حیاتی
@@ -73,7 +73,7 @@ Scope خارج از roadmap فعلی: Cloud Sync، Multi-terminal، Multi-store�
 - Phase 3 closure: commit `905622c`; آخرین completion tag: `phase-3-concurrency-idempotency-complete`.
 - Phase 4 completion tag وجود ندارد.
 
-## 6. Phase 4 — وضعیت فعلی تا 4B-3 (هنوز commit نشده)
+## 6. Phase 4 — وضعیت فعلی تا 4B-4 (UNCOMMITTED)
 
 Phase 4 همچنان **IN PROGRESS — NOT complete** است.
 
@@ -86,16 +86,20 @@ Phase 4 همچنان **IN PROGRESS — NOT complete** است.
 | 4B-1 | `461670c` | non-destructive restore preparation و safety snapshot |
 | 4B-2A | `59d0dfc` | durable restore intent و database admission gate |
 | 4B-2B | `d472153` | offline file-level recovery engine (`RestoreRecoveryService.Recover`) |
-| 4B-3 | Uncommitted | app-lifetime Windows mutex؛ implemented / verified / checkpoint-ready |
+| 4B-3 | `583a7b8` | app-lifetime Windows mutex؛ implemented / verified / committed |
+| 4B-4 | UNCOMMITTED | startup recovery integration؛ implemented / verified / independently reviewed / checkpoint-ready |
 
 evidence تاریخی برای checkpoint قبلی `59d0dfc` (4B-2A): build با 0 errors / 0 warnings؛ tests با 246/246 passed، 0 failed، 0 skipped.
 
 evidence تاریخی verify‌شده برای 4B-2B (commit `d472153`؛ 270 تست در آن source tree commit‌شده): `RestoreRecoveryServiceTests` 42 passed؛ کل `ShopManager.Domain.Tests` 270 passed؛ build غیرافزایشی solution با 0 warnings / 0 errors؛ adversarial/final review: PASS بدون issue مسدودکنندهٔ Critical/High/Medium.
 
-evidence 4B-3 پس از test hardening در working tree commit‌نشده: `ApplicationInstanceGuardTests` **21 passed / 0 failed / 0 skipped**؛ کل `ShopManager.Domain.Tests` **291 passed / 0 failed / 0 skipped**؛ build غیرافزایشی solution **0 warnings / 0 errors**؛ `git diff --check` **exit code 0**؛ adversarial review طبق تأیید کاربر: **PASS WITH FINDINGS، بدون Critical یا High**. follow-up تست بدون تغییر production تکمیل شد. این نتایج مربوط به اجرای پیاده‌سازی/تست‌اند؛ در documentation sync دوباره build/test اجرا نشده است.
+evidence تاریخی 4B-3 پس از test hardening و پیش از commit `583a7b8`: `ApplicationInstanceGuardTests` **21 passed / 0 failed / 0 skipped**؛ کل `ShopManager.Domain.Tests` **291 passed / 0 failed / 0 skipped**؛ build غیرافزایشی solution **0 warnings / 0 errors**؛ `git diff --check` **exit code 0**؛ adversarial review طبق تأیید کاربر: **PASS WITH FINDINGS، بدون Critical یا High**. follow-up تست بدون تغییر production تکمیل شد. این نتایج مربوط به اجرای پیاده‌سازی/تست‌اند؛ در documentation sync دوباره build/test اجرا نشده است.
+
+evidence 4B-4 (UNCOMMITTED): `StartupRecoveryIntegrationTests` **29 passed**؛ `RestoreRecoveryServiceTests` **44 passed**؛ `ApplicationInstanceGuardTests` **21 passed**؛ کل `ShopManager.Domain.Tests` **322 passed**؛ همگی 0 failed / 0 skipped؛ build غیرافزایشی solution **0 warnings / 0 errors**؛ `git diff --check` **exit code 0**. independent adversarial review طبق تأیید کاربر: **PASS WITH FINDINGS، بدون Critical یا High و بدون checkpoint-blocking finding**. نتایج متعلق به implementation/test و review تکمیل‌شده‌اند؛ build/test و review در documentation sync تکرار نشده‌اند.
 این evidence‌ها به معنی تکمیل Phase 4 یا اجرای end-to-end crash/recovery نیست.
 
 **قراردادهای حیاتی Phase 4 برای کار بعدی:**
+- **Startup recovery (4B-4):** پس از mutex و Avalonia، نخستین gate در startupِ desktop پیش از resolver/SQLite اجرا می‌شود. فقط `NoIntent` یا `Completed` در حالت unarmed اجازهٔ ادامه می‌دهد؛ `Blocked` و خطاهای غیرمنتظره بدون resolver/context/settings/theme/backup/timer/auth/session/normal window/normal shutdown registration متوقف می‌شوند. registered identity روی همان intent مصرف‌شدهٔ `Recover`، پس از arming و پیش از mutation بررسی می‌شود؛ validator از DatabaseService یا SQLite استفاده نمی‌کند و live مفقود پس از tombstone می‌تواند پیش از resolver بازیابی شود. invariantهای 4B-2B و رفتار 4B-3 حفظ شده‌اند.
 - **App-lifetime mutex (4B-3):** نام ثابت `Global\ShopManager.ApplicationLifetime`؛ acquisition پس از `Velopack.Run()` و پیش از `BuildAvaloniaApp()`؛ Busy → exit code 2 با صفر startup admission؛ acquisition Error → exit code 3 و fail-closed؛ abandoned ownership پذیرفته می‌شود بدون ادعای سلامت DB؛ guard موفق در `Program` برای عمر process strongly rooted است. harness چندprocess واقعی فقط از mutexهای یکتای تست استفاده می‌کند و production DB/mutex را مصرف نمی‌کند.
 - **Startup fail-closed:** اگر marker نامعتبر/خراب باشد، مسیر ثبت‌شده در دسترس نباشد، `shop.db` در مسیر ثبت‌شده نباشد، یا چند دیتابیس هم‌زمان و نامشخص وجود داشته باشد، `DatabaseService.BlockedReason` startup را پیش از settings/backup/auth متوقف می‌کند. نصب تازه بدون marker (که سیاست قدیمی را دنبال می‌کند) در این محدوده نیست.
 - **Admission gate:** `DatabaseService.CreateContext` قفل خواندن `RestoreRecoveryService.EnterDatabaseAdmission` را می‌گیرد؛ اگر restore مسلح باشد، ساخت context تازه fail-closed مسدود می‌شود.
@@ -116,7 +120,7 @@ evidence 4B-3 پس از test hardening در working tree commit‌نشده: `App
 - نبودن `SafetyBackupPath` مانع forward completion نیست؛ اسنپ‌شات ایمنی در صورت وجود حفظ می‌شود؛
 - پوشش crash/restart و blocked-state اضافه شده است.
 
-**خارج از 4B-2B:** app-lifetime mutex در **4B-3** پیاده و verify شده ولی هنوز commit نشده است. **هنوز کار آینده و پیاده‌نشده:** 4B-4 startup recovery wiring/order و مصرف intent؛ SettingsWindow/UI integration؛ shutdown/quiesce integration؛ حذف legacy production restore path.
+**خارج از 4B-2B:** app-lifetime mutex در **4B-3 (`583a7b8`)** commit شده و startup recovery در **4B-4 (UNCOMMITTED)** پیاده، verify و independently reviewed شده است. **4B-5 و بعد — آینده و پیاده‌نشده:** restore UI wiring؛ quiesce/drain؛ shutdown redesign؛ حذف legacy production restore path.
 
 ### Phase 4 — remaining DoD (هنوز باز)
 
@@ -127,10 +131,10 @@ evidence 4B-3 پس از test hardening در working tree commit‌نشده: `App
 - تست: restore کامل از backup → همهٔ داده؛
 - تست: DB خراب → بازیابی از backup.
 
-### Phase 4 — subsequent integration (پس از 4B-3؛ هنوز باز)
+### Phase 4 — subsequent integration (4B-5 و بعد؛ هنوز باز)
 
-- **4B-4 — future work:** اتصال recovery به startup و مصرف restore intent؛ هنوز هیچ startup recovery integration وجود ندارد.
-- فراخوانی موتور swap آفلاین از restore flow برنامه (خود موتور در 4B-2B پیاده شده است؛ فراخوانی آن از برنامه در این بخش و هنوز باز است).
+- **4B-5 — future work:** checkpoint بعدی نیازمند scope و approval مستقل است؛ restore UI wiring، quiesce/drain و shutdown redesign هنوز پیاده نشده‌اند.
+- فراخوانی موتور swap آفلاین از restore UI/flow برنامه همچنان باز است؛ مصرف intent موجود در startup از 4B-4 وجود دارد.
 - جایگزینی مسیر legacy `BackupService.RestoreBackup` و مسیر `Environment.Exit(0)` در `Views/SettingsWindow.axaml.cs`.
 - رفع محدودیت‌های Phase 4 شناخته‌شده در بخش ۹.
 
@@ -141,7 +145,8 @@ Audit Trail، structured logging، performance، UX reliability و release harde
 ## 8. ریسک‌ها و مرزهای باز
 
 - **4B-3 — VERIFICATION PENDING، غیرمسدودکنندهٔ checkpoint:** رفتار cross-user / cross-session / elevation؛ installed GUI startup/shutdown smoke؛ رفتار overlap در Velopack update/restart. هیچ‌کدام verified گزارش نمی‌شوند.
-- restore intent در production هنوز end-to-end مصرف نمی‌شود: موتور 4B-2B (`Recover`) وجود دارد اما هیچ caller production (startup/UI/shutdown) آن را فراخوانی نمی‌کند؛ مسیر legacy restore هنوز در UI است.
+- **4B-4 — VERIFICATION PENDING، غیرمسدودکنندهٔ checkpoint:** direct automated coverage مسیر واقعی `App.OnFrameworkInitializationCompleted` / `InitializeNormalDesktopStartup`؛ پوشش بیشتر path canonicalization/alias؛ installed GUI blocked-window startup/shutdown smoke؛ startup latency/UX برای stagingهای بزرگ. پوشش entry مشترک `App.RunDesktopStartup` معادل پوشش مستقیم callback و بدنهٔ عادی نیست.
+- startup اکنون intent موجود را مصرف می‌کند؛ restore end-to-end، UI wiring، quiesce/drain، shutdown redesign و حذف legacy restore هنوز پیاده نشده‌اند و مربوط به 4B-5 و بعد هستند.
 - pending فروش فقط در حافظه است و recovery خودکار پس از restart ندارد؛ انتقال در حال حاضر هیچ ثبت idempotency بر اساس OperationId/Fingerprint ندارد — و commit نامعلوم retry خودکار نمی‌گیرد.
 - crash/restore کامل، UI/چاپ فیزیکی و writerهای خارجی در evidence فعلی ادعا نشده‌اند.
 - **Reversal:** جریان ساخت reversal پیاده نشده و قرارداد sign آن حل‌نشده/موکول‌شده است. محاسبات پشتیبان آن می‌توانند روی علامت‌های اثبات‌نشده تکیه کنند؛ **پیش از تکیه بر رفتار reversal، آن را در source verify کنید.**

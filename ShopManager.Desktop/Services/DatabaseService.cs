@@ -212,6 +212,7 @@ public static class DatabaseService
         string markerPath, string primaryFolder, string fallbackFolder,
         Func<string, bool> directoryExists, Action? beforePublication = null)
     {
+        ResolutionStartingForTests?.Invoke();
         var key = Path.GetFullPath(markerPath);
         if (OperatingSystem.IsWindows()) key = key.ToUpperInvariant();
         var name = (OperatingSystem.IsWindows() ? @"Global\" : "")
@@ -331,11 +332,15 @@ public static class DatabaseService
         }
     }
 
+    /// <summary>Passive observation only; production never sets this test seam.</summary>
+    internal static Action? ResolutionStartingForTests { get; set; }
+
     /// <summary>seam تست: برگرداندن state پروسه به حالت اولیه</summary>
     internal static void ResetForTests()
     {
         lock (_resolutionLock)
         {
+            ResolutionStartingForTests = null;
             _resolved = false;
             _canonicalDataFolder = null;
             _blockedReason = null;
