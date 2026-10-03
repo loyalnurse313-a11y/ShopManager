@@ -599,6 +599,638 @@ public sealed class RestoreRecoveryServiceTests : IDisposable
         Assert.True(RestoreRecoveryService.IsArmed);
     }
 
+    // ═══════════ فاز 4B-2B — موتور بازیابی آفلاین ═══════════
+
+    private static readonly byte[] OldDatabaseBytes = Encoding.UTF8.GetBytes("old-live-database-not-sqlite");
+    private static readonly byte[] NewDatabaseBytes = Encoding.UTF8.GetBytes("restored-database-not-sqlite");
+    private static readonly byte[] SafetyBytes = Encoding.UTF8.GetBytes("safety-snapshot-bytes");
+    private static readonly byte[] OldWalBytes = Encoding.UTF8.GetBytes("old-wal");
+    private static readonly byte[] OldShmBytes = Encoding.UTF8.GetBytes("old-shm");
+    private static readonly byte[] OldJournalBytes = Encoding.UTF8.GetBytes("old-journal");
+
+    private sealed class SimulatedCrash : Exception { }
+
+    private sealed record RecoveryScenario(
+        string DataDir,
+        string BackupDir,
+        string Live,
+        string Staging,
+        string Safety,
+        RestoreIntent Intent,
+        Dictionary<string, byte[]> Foreign);
+
+    [Fact]
+    public void Recover_WithoutIntent_DoesNothing()
+    {
+        var data = Sub("data");
+        var live = Path.Combine(data, "shop.db");
+        File.WriteAllBytes(live, OldDatabaseBytes);
+        File.WriteAllBytes(live + "-wal", OldWalBytes);
+
+        var result = RestoreRecoveryService.Recover();
+
+        Assert.Equal(RestoreRecoveryOutcome.NoIntent, result.Outcome);
+        Assert.Null(result.OperationId);
+        Assert.Equal(OldDatabaseBytes, File.ReadAllBytes(live));
+        Assert.Equal(OldWalBytes, File.ReadAllBytes(live + "-wal"));
+        Assert.Equal(new[] { "shop.db", "shop.db-wal" }, Names(data));
+        Assert.False(RestoreRecoveryService.IsArmed);
+    }
+
+    [Fact]
+    public void Recover_InvalidOrUnreadableIntent_BlocksAndStaysArmed()
+    {
+        var intentPath = RestoreRecoveryService.IntentPath;
+        var data = Sub("data");
+        var live = Path.Combine(data, "shop.db");
+        File.WriteAllBytes(live, OldDatabaseBytes);
+
+        File.WriteAllText(intentPath, "not json");
+        var before = File.ReadAllBytes(intentPath);
+
+        var corrupt = RestoreRecoveryService.Recover();
+
+        Assert.Equal(RestoreRecoveryOutcome.Blocked, corrupt.Outcome);
+        Assert.Null(corrupt.OperationId);
+        Assert.Contains("قصد بازیابی نامعتبر", corrupt.Reason);
+        Assert.Equal(before, File.ReadAllBytes(intentPath));
+        Assert.True(RestoreRecoveryService.IsArmed);
+        Assert.Throws<InvalidOperationException>(() => RestoreRecoveryService.EnterDatabaseAdmission());
+
+        RestartProcess();
+        using (var locked = new FileStream(intentPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            var unreadable = RestoreRecoveryService.Recover();
+            Assert.Equal(RestoreRecoveryOutcome.Blocked, unreadable.Outcome);
+            Assert.Null(unreadable.OperationId);
+            Assert.Contains("قصد بازیابی نامعتبر", unreadable.Reason);
+            Assert.True(RestoreRecoveryService.IsArmed);
+        }
+
+        Assert.Equal(before, File.ReadAllBytes(intentPath));
+        Assert.Equal(OldDatabaseBytes, File.ReadAllBytes(live));
+        Assert.Equal(new[] { "shop.db" }, Names(data));
+    }
+
+    [Fact]
+    public void Recover_Success_LeavesExactFinalState_AndDeletesIntentLast()
+    {
+        // staging/live are arbitrary non-SQLite bytes: success proves recovery never opens SQLite.
+        var s = ArmScenario("ok");
+        var paths = RestoreRecoveryService.DeriveArtifactPaths(s.Intent);
+        var intentBefore = File.ReadAllBytes(RestoreRecoveryService.IntentPath);
+        var steps = new List<RestoreRecoveryStep>();
+
+        var result = RestoreRecoveryService.Recover(step =>
+        {
+            steps.Add(step);
+            if (step == RestoreRecoveryStep.Verified)
+            {
+                Assert.Equal(OldDatabaseBytes, File.ReadAllBytes(paths.TombstoneDb));
+                Assert.Equal(OldWalBytes, File.ReadAllBytes(paths.TombstoneWal));
+                Assert.Equal(OldShmBytes, File.ReadAllBytes(paths.TombstoneShm));
+                Assert.Equal(OldJournalBytes, File.ReadAllBytes(paths.TombstoneJournal));
+                Assert.True(File.Exists(paths.Staging));
+            }
+
+            if (step == RestoreRecoveryStep.FinalVerified)
+            {
+                Assert.Equal(intentBefore, File.ReadAllBytes(RestoreRecoveryService.IntentPath));
+                foreach (var owned in paths.OwnedTransient) Assert.False(File.Exists(owned), owned);
+            }
+        });
+
+        Assert.Equal(RestoreRecoveryOutcome.Completed, result.Outcome);
+        Assert.Equal(s.Intent.OperationId, result.OperationId);
+        Assert.Null(result.Reason);
+        Assert.Equal(RestoreRecoveryStep.IntentDeleted, steps[^1]);
+        Assert.True(steps.IndexOf(RestoreRecoveryStep.Published) < steps.IndexOf(RestoreRecoveryStep.Verified));
+        Assert.True(steps.IndexOf(RestoreRecoveryStep.Verified) < steps.IndexOf(RestoreRecoveryStep.LiveTombstoneDeleted));
+        Assert.True(steps.IndexOf(RestoreRecoveryStep.LiveTombstoneDeleted) < steps.IndexOf(RestoreRecoveryStep.StagingDeleted));
+        Assert.True(steps.IndexOf(RestoreRecoveryStep.StagingDeleted) < steps.IndexOf(RestoreRecoveryStep.FinalVerified));
+        AssertCompletedFinalState(s);
+    }
+
+    [Fact]
+    public void Recover_CrashAtAnyStep_RestartsToTheSameFinalState_Idempotently()
+    {
+        var recorded = new List<RestoreRecoveryStep>();
+        var reference = ArmScenario("ref");
+        Assert.Equal(RestoreRecoveryOutcome.Completed, RestoreRecoveryService.Recover(recorded.Add).Outcome);
+        AssertCompletedFinalState(reference);
+        var total = recorded.Count;
+        Assert.True(total >= 18, "expected the full step sequence, saw " + total);
+
+        for (var crashAt = 1; crashAt <= total; crashAt++)
+        {
+            var s = ArmScenario("crash" + crashAt);
+            var seen = 0;
+            Assert.Throws<SimulatedCrash>(() => RestoreRecoveryService.Recover(_ =>
+            {
+                if (++seen == crashAt) throw new SimulatedCrash();
+            }));
+
+            RestartProcess();
+            var again = RestoreRecoveryService.Recover();
+            Assert.Equal(
+                crashAt == total ? RestoreRecoveryOutcome.NoIntent : RestoreRecoveryOutcome.Completed,
+                again.Outcome);
+            AssertCompletedFinalState(s);
+
+            Assert.Equal(RestoreRecoveryOutcome.NoIntent, RestoreRecoveryService.Recover().Outcome);
+            AssertCompletedFinalState(s);
+        }
+    }
+
+    [Fact]
+    public void Recover_PartialIncoming_IsReplacedFromStaging()
+    {
+        var s = ArmScenario("partial");
+        var paths = RestoreRecoveryService.DeriveArtifactPaths(s.Intent);
+        CrashAt(RestoreRecoveryStep.LiveTombstoned);
+        RestartProcess();
+        File.WriteAllBytes(paths.Incoming, new byte[] { 1, 2 });
+
+        Assert.Equal(RestoreRecoveryOutcome.Completed, RestoreRecoveryService.Recover().Outcome);
+        AssertCompletedFinalState(s);
+    }
+
+    [Fact]
+    public void Recover_StagingHashMismatchBeforeSwap_BlocksWithoutTouchingLive()
+    {
+        var s = ArmScenario("stagehash");
+        File.WriteAllBytes(s.Staging, Encoding.UTF8.GetBytes("tampered staging"));
+        var before = DirectorySnapshot(s.DataDir);
+
+        var result = RestoreRecoveryService.Recover();
+
+        AssertBlockedWith(result, s.Intent, "اثرانگشت staging با intent برابر نیست.");
+        Assert.Equal(before, DirectorySnapshot(s.DataDir));
+        Assert.Equal(OldDatabaseBytes, File.ReadAllBytes(s.Live));
+    }
+
+    [Fact]
+    public void Recover_StagingMissingBeforeSwap_Blocks()
+    {
+        var s = ArmScenario("nostage");
+        File.Delete(s.Staging);
+        var before = DirectorySnapshot(s.DataDir);
+
+        var result = RestoreRecoveryService.Recover();
+
+        AssertBlockedWith(result, s.Intent, "staging موجود نیست");
+        Assert.Equal(before, DirectorySnapshot(s.DataDir));
+        Assert.Equal(OldDatabaseBytes, File.ReadAllBytes(s.Live));
+    }
+
+    [Fact]
+    public void Recover_LiveAbsentWithoutTombstone_BlocksAndCreatesNothing()
+    {
+        var s = ArmScenario("nolive");
+        foreach (var path in new[] { s.Live, s.Live + "-wal", s.Live + "-shm", s.Live + "-journal" })
+            File.Delete(path);
+        var before = DirectorySnapshot(s.DataDir);
+
+        var result = RestoreRecoveryService.Recover();
+
+        AssertBlockedWith(result, s.Intent, "tombstone اثبات");
+        Assert.Equal(before, DirectorySnapshot(s.DataDir));
+        Assert.False(File.Exists(s.Live));
+    }
+
+    [Fact]
+    public void Recover_SidecarAndItsTombstoneBothPresent_BlocksWithoutOverwriting()
+    {
+        var s = ArmScenario("both");
+        var paths = RestoreRecoveryService.DeriveArtifactPaths(s.Intent);
+        File.WriteAllBytes(paths.TombstoneWal, Encoding.UTF8.GetBytes("pre-existing tombstone"));
+        var before = DirectorySnapshot(s.DataDir);
+
+        var result = RestoreRecoveryService.Recover();
+
+        AssertBlockedWith(result, s.Intent, "sidecar و tombstone همان");
+        Assert.Contains(s.Live + "-wal", result.Reason);
+        Assert.Equal(before, DirectorySnapshot(s.DataDir));
+        Assert.Equal(OldWalBytes, File.ReadAllBytes(s.Live + "-wal"));
+        Assert.Equal(OldDatabaseBytes, File.ReadAllBytes(s.Live));
+    }
+
+    [Fact]
+    public void Recover_LiveEqualsExpectedButStraySidecarPresent_Blocks()
+    {
+        // (الف) پیش از swap و بدون tombstone: مبهم، fail-closed.
+        var s = ArmScenario("ambig1");
+        File.WriteAllBytes(s.Live, NewDatabaseBytes);
+        var before = DirectorySnapshot(s.DataDir);
+        AssertBlockedWith(RestoreRecoveryService.Recover(), s.Intent, "sidecar قدیمی");
+        Assert.Equal(before, DirectorySnapshot(s.DataDir));
+
+        // (ب) پس از انتشار با tombstone: sidecar بیگانه در مسیر live.
+        var t = ArmScenario("ambig2");
+        CrashAt(RestoreRecoveryStep.Published);
+        RestartProcess();
+        File.WriteAllBytes(t.Live + "-wal", Encoding.UTF8.GetBytes("stray"));
+        var beforeT = DirectorySnapshot(t.DataDir);
+        AssertBlockedWith(RestoreRecoveryService.Recover(), t.Intent, "sidecar قدیمی");
+        Assert.Equal(beforeT, DirectorySnapshot(t.DataDir));
+    }
+
+    [Fact]
+    public void Recover_LiveTamperedAfterPublish_BlocksWithoutDeletingAnything()
+    {
+        var s = ArmScenario("tamper");
+        var paths = RestoreRecoveryService.DeriveArtifactPaths(s.Intent);
+        CrashAt(RestoreRecoveryStep.Published);
+        RestartProcess();
+        File.WriteAllBytes(s.Live, Encoding.UTF8.GetBytes("modified after swap"));
+        var before = DirectorySnapshot(s.DataDir);
+
+        var result = RestoreRecoveryService.Recover();
+
+        AssertBlockedWith(result, s.Intent, "شواهد تعویض");
+        Assert.Equal(before, DirectorySnapshot(s.DataDir));
+        Assert.Equal(OldDatabaseBytes, File.ReadAllBytes(paths.TombstoneDb));
+    }
+
+    [Fact]
+    public void Recover_StagingHashMismatchAtCleanup_BlocksWithZeroDeletions()
+    {
+        var s = ArmScenario("cleanupstage");
+        var paths = RestoreRecoveryService.DeriveArtifactPaths(s.Intent);
+        CrashAt(RestoreRecoveryStep.Published);
+        RestartProcess();
+        File.WriteAllBytes(s.Staging, Encoding.UTF8.GetBytes("tampered staging"));
+        var before = DirectorySnapshot(s.DataDir);
+
+        var result = RestoreRecoveryService.Recover();
+
+        AssertBlockedWith(result, s.Intent, "اثرانگشت staging با intent برابر نیست؛");
+        Assert.Equal(before, DirectorySnapshot(s.DataDir));
+        Assert.Equal(NewDatabaseBytes, File.ReadAllBytes(s.Live));
+        Assert.Equal(OldDatabaseBytes, File.ReadAllBytes(paths.TombstoneDb));
+    }
+
+    // ── حالت پس از tombstone: live نیست، tomb-db هست؛ فقط forward-complete یا BLOCK، هرگز rollback ──
+
+    [Fact]
+    public void Recover_PostTombstone_StagingMissingAndNoIncoming_BlocksPreservingTombstone()
+    {
+        var (s, paths) = PostTombstoneScenario("posttomb-nostage");
+        File.Delete(s.Staging);
+        Assert.False(File.Exists(s.Live));
+        Assert.False(File.Exists(paths.Incoming));
+        Assert.Equal(OldDatabaseBytes, File.ReadAllBytes(paths.TombstoneDb));
+        var before = DirectorySnapshot(s.DataDir);
+
+        var result = RestoreRecoveryService.Recover();
+
+        AssertBlockedWith(result, s.Intent, "هیچ منبع");
+        Assert.Equal(before, DirectorySnapshot(s.DataDir));
+        Assert.False(File.Exists(s.Live), "a blocked recovery must never roll back or fabricate the live database");
+        Assert.False(File.Exists(paths.Incoming));
+        Assert.Equal(OldDatabaseBytes, File.ReadAllBytes(paths.TombstoneDb));
+        Assert.Equal(OldWalBytes, File.ReadAllBytes(paths.TombstoneWal));
+
+        // پس از ترمیم دستی staging، همان intent فقط به جلو کامل می‌شود.
+        File.WriteAllBytes(s.Staging, NewDatabaseBytes);
+        Assert.Equal(RestoreRecoveryOutcome.Completed, RestoreRecoveryService.Recover().Outcome);
+        AssertCompletedFinalState(s);
+    }
+
+    [Fact]
+    public void Recover_PostTombstone_StagingHashMismatch_BlocksPreservingTombstone()
+    {
+        var (s, paths) = PostTombstoneScenario("posttomb-stagehash");
+        File.WriteAllBytes(s.Staging, Encoding.UTF8.GetBytes("tampered staging"));
+        Assert.False(File.Exists(s.Live));
+        Assert.False(File.Exists(paths.Incoming));
+        Assert.Equal(OldDatabaseBytes, File.ReadAllBytes(paths.TombstoneDb));
+        var before = DirectorySnapshot(s.DataDir);
+
+        var result = RestoreRecoveryService.Recover();
+
+        AssertBlockedWith(result, s.Intent, "اثرانگشت staging با intent برابر نیست.");
+        Assert.Equal(before, DirectorySnapshot(s.DataDir));
+        Assert.False(File.Exists(s.Live), "a blocked recovery must never roll back or fabricate the live database");
+        Assert.False(File.Exists(paths.Incoming), "no incoming may be created from an unverified staging");
+        Assert.Equal(OldDatabaseBytes, File.ReadAllBytes(paths.TombstoneDb));
+        Assert.Equal(OldWalBytes, File.ReadAllBytes(paths.TombstoneWal));
+
+        File.WriteAllBytes(s.Staging, NewDatabaseBytes);
+        Assert.Equal(RestoreRecoveryOutcome.Completed, RestoreRecoveryService.Recover().Outcome);
+        AssertCompletedFinalState(s);
+    }
+
+    [Fact]
+    public void Recover_PostTombstone_InvalidIncomingAndNoStaging_DiscardsOnlyTheInvalidIncoming_ThenBlocks()
+    {
+        var (s, paths) = PostTombstoneScenario("posttomb-badincoming");
+        File.Delete(s.Staging);
+        File.WriteAllBytes(paths.Incoming, new byte[] { 1, 2 });
+
+        var result = RestoreRecoveryService.Recover();
+
+        AssertBlockedWith(result, s.Intent, "هیچ منبع");
+        Assert.False(File.Exists(paths.Incoming), "an owned incoming that fails the fingerprint must be discarded");
+        Assert.False(File.Exists(s.Live));
+        Assert.Equal(OldDatabaseBytes, File.ReadAllBytes(paths.TombstoneDb));
+        Assert.Equal(OldWalBytes, File.ReadAllBytes(paths.TombstoneWal));
+        Assert.Equal(OldShmBytes, File.ReadAllBytes(paths.TombstoneShm));
+        Assert.Equal(OldJournalBytes, File.ReadAllBytes(paths.TombstoneJournal));
+    }
+
+    [Fact]
+    public void Recover_PostTombstone_StrayLiveSidecarWithoutLive_BlocksWithoutDeleting()
+    {
+        var (s, paths) = PostTombstoneScenario("posttomb-straysidecar");
+        File.WriteAllBytes(s.Live + "-wal", Encoding.UTF8.GetBytes("stray"));
+        var before = DirectorySnapshot(s.DataDir);
+
+        var result = RestoreRecoveryService.Recover();
+
+        AssertBlockedWith(result, s.Intent, "sidecar بدون دیتابیس زنده");
+        Assert.Contains(s.Live + "-wal", result.Reason);
+        Assert.Equal(before, DirectorySnapshot(s.DataDir));
+        Assert.False(File.Exists(s.Live));
+        Assert.Equal(OldDatabaseBytes, File.ReadAllBytes(paths.TombstoneDb));
+    }
+
+    [Fact]
+    public void Recover_OnlyExactOwnedArtifactsAreDeleted_ForeignArtifactsSurvive()
+    {
+        var s = ArmScenario("foreign");
+        Assert.NotEmpty(s.Foreign);
+
+        Assert.Equal(RestoreRecoveryOutcome.Completed, RestoreRecoveryService.Recover().Outcome);
+
+        AssertCompletedFinalState(s);
+    }
+
+    [Fact]
+    public void Recover_DirectoryAtAnOwnedPath_FailsClosedWithoutDeleting()
+    {
+        var s = ArmScenario("dir1");
+        var paths = RestoreRecoveryService.DeriveArtifactPaths(s.Intent);
+        Directory.CreateDirectory(paths.TombstoneDb);
+        var before = DirectorySnapshot(s.DataDir);
+        var result = RestoreRecoveryService.Recover();
+        AssertBlockedWith(result, s.Intent, "reparse point");
+        Assert.Contains(paths.TombstoneDb, result.Reason);
+        Assert.Equal(before, DirectorySnapshot(s.DataDir));
+        Assert.True(Directory.Exists(paths.TombstoneDb));
+
+        var t = ArmScenario("dir2");
+        var tPaths = RestoreRecoveryService.DeriveArtifactPaths(t.Intent);
+        CrashAt(RestoreRecoveryStep.Published);
+        RestartProcess();
+        Directory.CreateDirectory(tPaths.Incoming);
+        var beforeT = DirectorySnapshot(t.DataDir);
+        var resultT = RestoreRecoveryService.Recover();
+        AssertBlockedWith(resultT, t.Intent, "reparse point");
+        Assert.Contains(tPaths.Incoming, resultT.Reason);
+        Assert.Equal(beforeT, DirectorySnapshot(t.DataDir));
+        Assert.True(Directory.Exists(tPaths.Incoming));
+    }
+
+    [Fact]
+    public void Recover_DirectoryAtTheLiveDatabasePath_FailsClosedWithoutTouchingAnything()
+    {
+        var s = ArmScenario("dirlive");
+        File.Delete(s.Live);
+        Directory.CreateDirectory(s.Live);
+        var before = DirectorySnapshot(s.DataDir);
+
+        var result = RestoreRecoveryService.Recover();
+
+        AssertBlockedWith(result, s.Intent, "reparse point");
+        Assert.Contains(s.Live, result.Reason);
+        Assert.Equal(before, DirectorySnapshot(s.DataDir));
+        Assert.True(Directory.Exists(s.Live));
+        Assert.Equal(OldWalBytes, File.ReadAllBytes(s.Live + "-wal"));
+    }
+
+    [Fact]
+    public void Recover_TombstoneDeletionFailure_BlocksThenRetryCompletes()
+    {
+        var s = ArmScenario("tombfail");
+        var paths = RestoreRecoveryService.DeriveArtifactPaths(s.Intent);
+        CrashAt(RestoreRecoveryStep.Published);
+        RestartProcess();
+
+        using (var held = new FileStream(paths.TombstoneDb, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            var blocked = RestoreRecoveryService.Recover();
+            AssertBlockedWith(blocked, s.Intent, "خطای I/O در بازیابی");
+            Assert.Equal(NewDatabaseBytes, File.ReadAllBytes(s.Live));
+        }
+
+        Assert.Equal(RestoreRecoveryOutcome.Completed, RestoreRecoveryService.Recover().Outcome);
+        AssertCompletedFinalState(s);
+    }
+
+    [Fact]
+    public void Recover_IntentDeletionFailure_IsTheOnlyRemainingArtifact_ThenRetryCompletes()
+    {
+        var s = ArmScenario("intentfail");
+        var paths = RestoreRecoveryService.DeriveArtifactPaths(s.Intent);
+
+        using (var held = new FileStream(
+                   RestoreRecoveryService.IntentPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+        {
+            var blocked = RestoreRecoveryService.Recover();
+            AssertBlockedWith(blocked, s.Intent, "خطای I/O در بازیابی");
+            foreach (var owned in paths.OwnedTransient) Assert.False(File.Exists(owned), owned);
+        }
+
+        Assert.Equal(RestoreRecoveryOutcome.Completed, RestoreRecoveryService.Recover().Outcome);
+        AssertCompletedFinalState(s);
+    }
+
+    [Fact]
+    public void Recover_MissingSafetySnapshot_DoesNotPreventCompletion()
+    {
+        var s = ArmScenario("nosafety");
+        File.Delete(s.Safety);
+
+        Assert.Equal(RestoreRecoveryOutcome.Completed, RestoreRecoveryService.Recover().Outcome);
+        AssertCompletedFinalState(s, safetyPresent: false);
+    }
+
+    [Fact]
+    public void Recover_PathsOutsideRecoveryPolicy_BlockWithoutTouchingAnything()
+    {
+        var data = Sub("data");
+
+        var otherDb = Path.Combine(data, "other.db");
+        File.WriteAllBytes(otherDb, OldDatabaseBytes);
+        File.WriteAllText(RestoreRecoveryService.IntentPath, IntentJson(live: otherDb));
+        var wrongLive = RestoreRecoveryService.Recover();
+        Assert.Equal(RestoreRecoveryOutcome.Blocked, wrongLive.Outcome);
+        Assert.Contains("نام دیتابیس زنده در intent", wrongLive.Reason);
+        Assert.True(RestoreRecoveryService.IsArmed);
+        Assert.Equal(OldDatabaseBytes, File.ReadAllBytes(otherDb));
+        Assert.Equal(new[] { "other.db" }, Names(data));
+
+        RestartProcess();
+        File.Delete(otherDb);
+        var live = Path.Combine(data, "shop.db");
+        File.WriteAllBytes(live, OldDatabaseBytes);
+        File.WriteAllText(
+            RestoreRecoveryService.IntentPath, IntentJson(staging: Path.Combine(data, "restore-abc.tmp")));
+        var wrongStaging = RestoreRecoveryService.Recover();
+        Assert.Equal(RestoreRecoveryOutcome.Blocked, wrongStaging.Outcome);
+        Assert.Contains("نام staging در intent", wrongStaging.Reason);
+        Assert.True(RestoreRecoveryService.IsArmed);
+        Assert.Equal(OldDatabaseBytes, File.ReadAllBytes(live));
+        Assert.Equal(new[] { "shop.db" }, Names(data));
+    }
+
+    [Fact]
+    public void Recover_OwnsTheTransition_AndDisarmsOnlyOnCompletion()
+    {
+        var s = ArmScenario("gate");
+        using var atValidated = new ManualResetEventSlim(false);
+        using var mayContinue = new ManualResetEventSlim(false);
+        RestoreRecoveryResult? result = null;
+        Exception? failure = null;
+        var worker = new Thread(() =>
+        {
+            try
+            {
+                result = RestoreRecoveryService.Recover(step =>
+                {
+                    if (step != RestoreRecoveryStep.IntentValidated) return;
+                    atValidated.Set();
+                    if (!mayContinue.Wait(TimeSpan.FromSeconds(10)))
+                        throw new TimeoutException("test did not release Recover");
+                });
+            }
+            catch (Exception ex) { failure = ex; }
+        });
+        worker.Start();
+        Assert.True(atValidated.Wait(TimeSpan.FromSeconds(5)), "Recover never reached validation");
+
+        Assert.False(RestoreRecoveryService.TryEnterDatabaseAdmissionForTests(),
+            "an admission crossed while Recover owned the transition");
+
+        mayContinue.Set();
+        Assert.True(worker.Join(TimeSpan.FromSeconds(10)), "Recover did not finish");
+        Assert.Null(failure);
+        Assert.Equal(RestoreRecoveryOutcome.Completed, result!.Outcome);
+        Assert.False(RestoreRecoveryService.IsArmed);
+        using var lease = RestoreRecoveryService.EnterDatabaseAdmission();
+        AssertCompletedFinalState(s);
+    }
+
+    private void CrashAt(RestoreRecoveryStep step) =>
+        Assert.Throws<SimulatedCrash>(() => RestoreRecoveryService.Recover(reached =>
+        {
+            if (reached == step) throw new SimulatedCrash();
+        }));
+
+    private void RestartProcess()
+    {
+        RestoreRecoveryService.ResetForTests();
+        RestoreRecoveryService.OverrideAppOwnedRootForTests(_root);
+    }
+
+    /// <summary>Armed scenario crashed right after the live DB moved to its tombstone, then "restarted".</summary>
+    private (RecoveryScenario Scenario, RestoreArtifactPaths Paths) PostTombstoneScenario(string tag)
+    {
+        var s = ArmScenario(tag);
+        var paths = RestoreRecoveryService.DeriveArtifactPaths(s.Intent);
+        CrashAt(RestoreRecoveryStep.LiveTombstoned);
+        RestartProcess();
+        return (s, paths);
+    }
+
+    /// <summary>A Blocked result must carry the intent's operation, the expected reason branch, stay armed and keep the intent untouched.</summary>
+    private static void AssertBlockedWith(RestoreRecoveryResult result, RestoreIntent intent, string reasonFragment)
+    {
+        Assert.Equal(RestoreRecoveryOutcome.Blocked, result.Outcome);
+        Assert.Equal(intent.OperationId, result.OperationId);
+        Assert.NotNull(result.Reason);
+        Assert.Contains(reasonFragment, result.Reason);
+        Assert.True(RestoreRecoveryService.IsArmed);
+
+        var persisted = RestoreRecoveryService.ReadIntent(RestoreRecoveryService.IntentPath);
+        Assert.Equal(RestoreIntentState.Valid, persisted.State);
+        Assert.Equal(intent, persisted.Intent);
+    }
+
+    /// <summary>می‌سازد live قدیمی با sidecarها، staging، safety و artifactهای بیگانه؛ Arm؛ سپس «restart».</summary>
+    private RecoveryScenario ArmScenario(string tag)
+    {
+        RestartProcess();
+        // Test-only: drop a previous scenario's intent (isolated temp root) so Arm may publish a new one.
+        if (File.Exists(RestoreRecoveryService.IntentPath)) File.Delete(RestoreRecoveryService.IntentPath);
+        var data = Sub("data-" + tag);
+        var backups = Sub("backups-" + tag);
+        var live = Path.Combine(data, "shop.db");
+        var staging = Path.Combine(data, "restore-" + tag + ".restore.tmp");
+        var safety = Path.Combine(backups, "safety.db");
+
+        File.WriteAllBytes(live, OldDatabaseBytes);
+        File.WriteAllBytes(live + "-wal", OldWalBytes);
+        File.WriteAllBytes(live + "-shm", OldShmBytes);
+        File.WriteAllBytes(live + "-journal", OldJournalBytes);
+        File.WriteAllBytes(staging, NewDatabaseBytes);
+        File.WriteAllBytes(safety, SafetyBytes);
+
+        var intent = RestoreRecoveryService.Arm(live, staging, safety);
+        RestartProcess();
+
+        File.WriteAllBytes(staging + "-wal", Encoding.UTF8.GetBytes("staging-wal"));
+        File.WriteAllBytes(staging + "-shm", Encoding.UTF8.GetBytes("staging-shm"));
+        File.WriteAllBytes(staging + "-journal", Encoding.UTF8.GetBytes("staging-journal"));
+
+        var op = intent.OperationId;
+        var foreign = new Dictionary<string, byte[]>
+        {
+            ["shop.db.restore-" + Guid.NewGuid().ToString("N") + ".tomb"] = Encoding.UTF8.GetBytes("other-op-tomb"),
+            ["shop.db.restore-" + op + ".tomb.bak"] = Encoding.UTF8.GetBytes("lookalike-tomb"),
+            ["shop.db.restore-" + op + ".incoming.old"] = Encoding.UTF8.GetBytes("lookalike-incoming"),
+            ["shop.db.other"] = Encoding.UTF8.GetBytes("foreign-db"),
+            ["foreign-other.restore.tmp"] = Encoding.UTF8.GetBytes("foreign-staging"),
+            ["restore-intent.json." + Guid.NewGuid().ToString("N") + ".tmp"] = Encoding.UTF8.GetBytes("foreign-intent-tmp"),
+        };
+        foreach (var (name, bytes) in foreign) File.WriteAllBytes(Path.Combine(data, name), bytes);
+
+        return new RecoveryScenario(data, backups, live, staging, safety, intent, foreign);
+    }
+
+    private void AssertCompletedFinalState(RecoveryScenario s, bool safetyPresent = true)
+    {
+        Assert.Equal(s.Intent.StagingSha256, RestoreRecoveryService.FingerprintFile(s.Live));
+        Assert.Equal(NewDatabaseBytes, File.ReadAllBytes(s.Live));
+
+        var expectedData = s.Foreign.Keys.Append("shop.db").OrderBy(n => n, StringComparer.Ordinal).ToArray();
+        Assert.Equal(expectedData, Names(s.DataDir));
+        Assert.Empty(Directory.GetDirectories(s.DataDir));
+        foreach (var (name, bytes) in s.Foreign)
+            Assert.Equal(bytes, File.ReadAllBytes(Path.Combine(s.DataDir, name)));
+
+        Assert.Equal(safetyPresent ? new[] { "safety.db" } : Array.Empty<string>(), Names(s.BackupDir));
+        if (safetyPresent) Assert.Equal(SafetyBytes, File.ReadAllBytes(s.Safety));
+
+        Assert.Equal(RestoreIntentState.Missing,
+            RestoreRecoveryService.ReadIntent(RestoreRecoveryService.IntentPath).State);
+        Assert.False(RestoreRecoveryService.IsArmed);
+    }
+
+    private static string[] Names(string directory) =>
+        Directory.GetFiles(directory)
+            .Select(p => Path.GetFileName(p)!)
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToArray();
+
+    private static string[] DirectorySnapshot(string directory) =>
+        Directory.GetFileSystemEntries(directory)
+            .Select(p => Path.GetFileName(p)! + ":" +
+                (File.Exists(p) ? Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(p))) : "dir"))
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToArray();
+
     // ═══════════ ابزارها ═══════════
 
     private string Sub(string name)

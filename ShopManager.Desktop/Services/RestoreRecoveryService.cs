@@ -22,7 +22,8 @@ namespace ShopManager.Desktop.Services;
 ///  ۴) مسلح‌شدنِ فرایندی (IsArmed) که از این پس هرگونه دسترسی به دیتابیس را
 ///     fail-closed می‌کند.
 ///
-/// تعویض واقعی دیتابیس/WAL/SHM، tombstone و بازیابی هنگام startup در فازهای بعدی هستند.
+/// موتور بازیابی آفلاین (فاز 4B-2B) در <see cref="Recover"/> است؛ اتصال آن به startup و UI
+/// در فازهای بعدی است.
 /// </summary>
 internal static class RestoreRecoveryService
 {
@@ -396,6 +397,304 @@ internal static class RestoreRecoveryService
     private static StringComparison PathComparison =>
         OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
+    // ═══════════ موتور بازیابی آفلاین (فاز 4B-2B) ═══════════
+
+    /// <summary>نام ثابت فایل دیتابیس زنده؛ intent با نام دیگر پذیرفته نمی‌شود.</summary>
+    private const string LiveDatabaseFileName = "shop.db";
+
+    /// <summary>
+    /// بازیابی آفلاین در سطح فایل (بدون SQLite): پس از intent ماندگار فقط forward-complete یا
+    /// BLOCK؛ هرگز rollback. ترتیب: انتقال sidecarها و دیتابیس قدیمی به tombstone، کپی staging به
+    /// incoming (flush + hash)، انتشار، تأیید SHA-256 مرجع، حذف فقط artifactهای اثبات‌شدهٔ همین
+    /// عملیات، و در پایان حذف intent به‌عنوان آخرین قدم موفق. هر مرحله idempotent و restartable است.
+    /// بدون intent هیچ کاری نمی‌کند؛ روی Completed مسلح‌بودن را برمی‌دارد و روی Blocked مسلح می‌ماند.
+    /// <paramref name="stepReached"/> فقط seam تست (شبیه‌سازی crash) است.
+    /// </summary>
+    internal static RestoreRecoveryResult Recover(Action<RestoreRecoveryStep>? stepReached = null)
+    {
+        TransitionGate.EnterWriteLock();
+        try
+        {
+            var read = ReadIntent(IntentPath);
+            if (read.State == RestoreIntentState.Missing)
+                return new RestoreRecoveryResult(RestoreRecoveryOutcome.NoIntent, null, null);
+
+            Interlocked.Exchange(ref _armed, 1);
+
+            if (read.State != RestoreIntentState.Valid || read.Intent is null)
+                return BlockedResult(null, "قصد بازیابی نامعتبر است: " + read.Reason);
+
+            RestoreRecoveryResult result;
+            try
+            {
+                result = RecoverCore(read.Intent, stepReached);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                result = BlockedResult(read.Intent.OperationId, "خطای I/O در بازیابی: " + ex.Message);
+            }
+
+            if (result.Outcome == RestoreRecoveryOutcome.Completed)
+                Interlocked.Exchange(ref _armed, 0);
+            return result;
+        }
+        finally
+        {
+            TransitionGate.ExitWriteLock();
+        }
+    }
+
+    private static RestoreRecoveryResult RecoverCore(RestoreIntent intent, Action<RestoreRecoveryStep>? hook)
+    {
+        var operationId = intent.OperationId;
+
+        var policyReason = ValidateRecoveryPolicy(intent);
+        if (policyReason is not null) return BlockedResult(operationId, policyReason);
+
+        var paths = DeriveArtifactPaths(intent);
+        foreach (var path in paths.All)
+        {
+            if (Probe(path) == PathKind.Unsafe)
+                return BlockedResult(operationId, "artifact مبهم (پوشه یا reparse point) در مسیر مالکیت‌شده: " + path);
+        }
+
+        hook?.Invoke(RestoreRecoveryStep.IntentValidated);
+
+        var expected = intent.StagingSha256;
+        if (!IsPublished(paths, expected))
+        {
+            var blocked = ForwardComplete(intent, paths, hook);
+            if (blocked is not null) return blocked;
+
+            if (!IsPublished(paths, expected))
+                return BlockedResult(operationId, "دیتابیس زنده پس از تعویض با اثرانگشت مرجع تأیید نشد.");
+        }
+
+        hook?.Invoke(RestoreRecoveryStep.Verified);
+
+        var cleanupBlocked = Cleanup(intent, paths, hook);
+        if (cleanupBlocked is not null) return cleanupBlocked;
+
+        if (!IsPublished(paths, expected) || OwnedArtifactsRemain(paths))
+            return BlockedResult(operationId, "تأیید نهایی پیش از حذف intent ناموفق بود.");
+        hook?.Invoke(RestoreRecoveryStep.FinalVerified);
+
+        File.Delete(IntentPath);
+        if (ReadIntent(IntentPath).State != RestoreIntentState.Missing)
+            return BlockedResult(operationId, "حذف intent تأیید نشد.");
+        hook?.Invoke(RestoreRecoveryStep.IntentDeleted);
+
+        return new RestoreRecoveryResult(RestoreRecoveryOutcome.Completed, operationId, null);
+    }
+
+    private static RestoreRecoveryResult? ForwardComplete(
+        RestoreIntent intent, RestoreArtifactPaths paths, Action<RestoreRecoveryStep>? hook)
+    {
+        var operationId = intent.OperationId;
+        var expected = intent.StagingSha256;
+        var liveKind = Probe(paths.Live);
+        var tombstoneDb = Probe(paths.TombstoneDb);
+
+        if (liveKind == PathKind.Regular)
+        {
+            if (HashLocked(paths.Live) == expected)
+                return BlockedResult(operationId,
+                    "دیتابیس زنده با اثرانگشت مرجع برابر است اما sidecar قدیمی کنار آن هست؛ مبهم.");
+
+            if (tombstoneDb != PathKind.Absent)
+                return BlockedResult(operationId, "دیتابیس زنده پس از شواهد تعویض با اثرانگشت مرجع متفاوت است.");
+
+            if (Probe(paths.Staging) != PathKind.Regular)
+                return BlockedResult(operationId, "staging موجود نیست و تعویض قابل تکمیل نیست.");
+            if (HashLocked(paths.Staging) != expected)
+                return BlockedResult(operationId, "اثرانگشت staging با intent برابر نیست.");
+
+            foreach (var (sidecar, tombstone, step) in SidecarMoves(paths))
+            {
+                if (Probe(sidecar) != PathKind.Regular) continue;
+                if (Probe(tombstone) != PathKind.Absent)
+                    return BlockedResult(operationId, "sidecar و tombstone همان هم‌زمان موجودند: " + sidecar);
+
+                File.Move(sidecar, tombstone, overwrite: false);
+                hook?.Invoke(step);
+            }
+
+            File.Move(paths.Live, paths.TombstoneDb, overwrite: false);
+            hook?.Invoke(RestoreRecoveryStep.LiveTombstoned);
+        }
+        else if (liveKind == PathKind.Absent)
+        {
+            if (tombstoneDb != PathKind.Regular)
+                return BlockedResult(operationId, "دیتابیس زنده نیست و tombstone اثبات‌کننده‌ای وجود ندارد.");
+
+            foreach (var sidecar in paths.LiveSidecars)
+            {
+                if (Probe(sidecar) == PathKind.Regular)
+                    return BlockedResult(operationId, "sidecar بدون دیتابیس زنده موجود است: " + sidecar);
+            }
+        }
+        else
+        {
+            return BlockedResult(operationId, "مسیر دیتابیس زنده مبهم است.");
+        }
+
+        return PublishIncoming(intent, paths, hook);
+    }
+
+    private static RestoreRecoveryResult? PublishIncoming(
+        RestoreIntent intent, RestoreArtifactPaths paths, Action<RestoreRecoveryStep>? hook)
+    {
+        var operationId = intent.OperationId;
+        var expected = intent.StagingSha256;
+        var reuseIncoming = false;
+
+        if (Probe(paths.Incoming) == PathKind.Regular)
+        {
+            if (HashLocked(paths.Incoming) == expected) reuseIncoming = true;
+            else File.Delete(paths.Incoming);
+        }
+
+        if (!reuseIncoming)
+        {
+            if (Probe(paths.Staging) != PathKind.Regular)
+                return BlockedResult(operationId, "هیچ منبع تأییدشده‌ای برای تکمیل تعویض وجود ندارد.");
+
+            using (var source = new FileStream(paths.Staging, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                if (FingerprintStabilized(source) != expected)
+                    return BlockedResult(operationId, "اثرانگشت staging با intent برابر نیست.");
+
+                source.Seek(0, SeekOrigin.Begin);
+                using var destination = new FileStream(
+                    paths.Incoming, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                source.CopyTo(destination);
+                destination.Flush(flushToDisk: true);
+            }
+
+            if (HashLocked(paths.Incoming) != expected)
+                return BlockedResult(operationId, "اثرانگشت incoming پس از کپی با intent برابر نیست.");
+            hook?.Invoke(RestoreRecoveryStep.IncomingCopied);
+        }
+
+        if (Probe(paths.Live) != PathKind.Absent)
+            return BlockedResult(operationId, "مسیر دیتابیس زنده پیش از انتشار اشغال است.");
+
+        File.Move(paths.Incoming, paths.Live, overwrite: false);
+        hook?.Invoke(RestoreRecoveryStep.Published);
+        return null;
+    }
+
+    private static RestoreRecoveryResult? Cleanup(
+        RestoreIntent intent, RestoreArtifactPaths paths, Action<RestoreRecoveryStep>? hook)
+    {
+        var plan = new List<(string Target, RestoreRecoveryStep Step)>();
+
+        void Plan(string target, RestoreRecoveryStep step)
+        {
+            if (Probe(target) == PathKind.Regular) plan.Add((target, step));
+        }
+
+        Plan(paths.Incoming, RestoreRecoveryStep.IncomingCleaned);
+        Plan(paths.TombstoneWal, RestoreRecoveryStep.WalTombstoneDeleted);
+        Plan(paths.TombstoneShm, RestoreRecoveryStep.ShmTombstoneDeleted);
+        Plan(paths.TombstoneJournal, RestoreRecoveryStep.JournalTombstoneDeleted);
+        Plan(paths.TombstoneDb, RestoreRecoveryStep.LiveTombstoneDeleted);
+
+        if (Probe(paths.Staging) == PathKind.Regular && HashLocked(paths.Staging) != intent.StagingSha256)
+            return BlockedResult(intent.OperationId, "اثرانگشت staging با intent برابر نیست؛ هیچ artifactی حذف نشد.");
+
+        Plan(paths.Staging, RestoreRecoveryStep.StagingDeleted);
+        Plan(paths.StagingWal, RestoreRecoveryStep.StagingSidecarDeleted);
+        Plan(paths.StagingShm, RestoreRecoveryStep.StagingSidecarDeleted);
+        Plan(paths.StagingJournal, RestoreRecoveryStep.StagingSidecarDeleted);
+
+        foreach (var (target, step) in plan)
+        {
+            File.Delete(target);
+            hook?.Invoke(step);
+        }
+
+        return null;
+    }
+
+    /// <summary>منتشرشده = live وجود دارد، اثرانگشت مرجع را دارد و هیچ sidecarی کنار آن نیست.</summary>
+    private static bool IsPublished(RestoreArtifactPaths paths, string expected)
+    {
+        if (Probe(paths.Live) != PathKind.Regular) return false;
+        foreach (var sidecar in paths.LiveSidecars)
+        {
+            if (Probe(sidecar) != PathKind.Absent) return false;
+        }
+        return HashLocked(paths.Live) == expected;
+    }
+
+    private static bool OwnedArtifactsRemain(RestoreArtifactPaths paths)
+    {
+        foreach (var path in paths.OwnedTransient)
+        {
+            if (Probe(path) != PathKind.Absent) return true;
+        }
+        return false;
+    }
+
+    private static (string Sidecar, string Tombstone, RestoreRecoveryStep Step)[] SidecarMoves(
+        RestoreArtifactPaths paths) => new[]
+    {
+        (paths.LiveWal, paths.TombstoneWal, RestoreRecoveryStep.WalTombstoned),
+        (paths.LiveShm, paths.TombstoneShm, RestoreRecoveryStep.ShmTombstoned),
+        (paths.LiveJournal, paths.TombstoneJournal, RestoreRecoveryStep.JournalTombstoned),
+    };
+
+    /// <summary>سیاست مسیر مخصوص بازیابی: شناسایی دیتابیس زنده و مصنوع staging ساخته‌شدهٔ 4B-1.</summary>
+    private static string? ValidateRecoveryPolicy(RestoreIntent intent)
+    {
+        if (!string.Equals(Path.GetFileName(intent.LiveDatabasePath), LiveDatabaseFileName, PathComparison))
+            return "نام دیتابیس زنده در intent باید " + LiveDatabaseFileName + " باشد.";
+        if (!Path.GetFileName(intent.StagingPath).EndsWith(BackupService.RestoreTemporaryMarker, PathComparison))
+            return "نام staging در intent نشانهٔ مصنوع بازیابی را ندارد.";
+        return null;
+    }
+
+    /// <summary>مسیرهای دقیق و مشتق‌شده از intent؛ هیچ الگوی wildcard/پیشوندی وجود ندارد.</summary>
+    internal static RestoreArtifactPaths DeriveArtifactPaths(RestoreIntent intent)
+    {
+        var live = intent.LiveDatabasePath;
+        var staging = intent.StagingPath;
+        var suffix = ".restore-" + intent.OperationId;
+        return new RestoreArtifactPaths(
+            live, live + "-wal", live + "-shm", live + "-journal",
+            live + suffix + ".tomb",
+            live + "-wal" + suffix + ".tomb",
+            live + "-shm" + suffix + ".tomb",
+            live + "-journal" + suffix + ".tomb",
+            live + suffix + ".incoming",
+            staging, staging + "-wal", staging + "-shm", staging + "-journal");
+    }
+
+    private static RestoreRecoveryResult BlockedResult(string? operationId, string reason) =>
+        new(RestoreRecoveryOutcome.Blocked, operationId, reason);
+
+    private enum PathKind { Absent, Regular, Unsafe }
+
+    /// <summary>نبودِ قطعی = Absent؛ پوشه یا reparse point = Unsafe؛ دیگر خطاهای I/O بالا می‌آیند.</summary>
+    private static PathKind Probe(string path)
+    {
+        FileAttributes attributes;
+        try { attributes = File.GetAttributes(path); }
+        catch (FileNotFoundException) { return PathKind.Absent; }
+        catch (DirectoryNotFoundException) { return PathKind.Absent; }
+
+        return (attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0
+            ? PathKind.Unsafe
+            : PathKind.Regular;
+    }
+
+    private static string HashLocked(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        return FingerprintStabilized(stream);
+    }
+
     /// <summary>seam تست: برگرداندن وضعیت فرایند و ریشهٔ app-owned به حالت اولیه.</summary>
     internal static void ResetForTests()
     {
@@ -441,3 +740,73 @@ internal sealed record RestoreIntent(
     string SafetyBackupPath,
     string StagingSha256,
     DateTimeOffset Timestamp);
+
+/// <summary>نتیجهٔ کلی موتور بازیابی آفلاین.</summary>
+internal enum RestoreRecoveryOutcome
+{
+    /// <summary>intent وجود ندارد؛ هیچ کاری انجام نشد.</summary>
+    NoIntent,
+
+    /// <summary>بازیابی کامل و تأییدشده؛ intent حذف و مسلح‌بودن برداشته شد.</summary>
+    Completed,
+
+    /// <summary>بازیابی قابل تکمیل نیست؛ fail-closed و فرایند مسلح می‌ماند.</summary>
+    Blocked,
+}
+
+/// <summary>نتیجهٔ <see cref="RestoreRecoveryService.Recover"/>؛ <see cref="Reason"/> فقط برای Blocked پر است.</summary>
+internal sealed record RestoreRecoveryResult(RestoreRecoveryOutcome Outcome, string? OperationId, string? Reason);
+
+/// <summary>نقاط مشاهدهٔ موتور بازیابی (seam تست)؛ هر مورد پس از انجام واقعی همان کار اعلام می‌شود.</summary>
+internal enum RestoreRecoveryStep
+{
+    IntentValidated,
+    WalTombstoned,
+    ShmTombstoned,
+    JournalTombstoned,
+    LiveTombstoned,
+    IncomingCopied,
+    Published,
+    Verified,
+    IncomingCleaned,
+    WalTombstoneDeleted,
+    ShmTombstoneDeleted,
+    JournalTombstoneDeleted,
+    LiveTombstoneDeleted,
+    StagingDeleted,
+    StagingSidecarDeleted,
+    FinalVerified,
+    IntentDeleted,
+}
+
+/// <summary>مسیرهای دقیق live، tombstone، incoming و staging مشتق‌شده از یک intent.</summary>
+internal sealed record RestoreArtifactPaths(
+    string Live,
+    string LiveWal,
+    string LiveShm,
+    string LiveJournal,
+    string TombstoneDb,
+    string TombstoneWal,
+    string TombstoneShm,
+    string TombstoneJournal,
+    string Incoming,
+    string Staging,
+    string StagingWal,
+    string StagingShm,
+    string StagingJournal)
+{
+    internal string[] LiveSidecars => new[] { LiveWal, LiveShm, LiveJournal };
+
+    internal string[] OwnedTransient => new[]
+    {
+        TombstoneDb, TombstoneWal, TombstoneShm, TombstoneJournal,
+        Incoming, Staging, StagingWal, StagingShm, StagingJournal,
+    };
+
+    internal string[] All => new[]
+    {
+        Live, LiveWal, LiveShm, LiveJournal,
+        TombstoneDb, TombstoneWal, TombstoneShm, TombstoneJournal,
+        Incoming, Staging, StagingWal, StagingShm, StagingJournal,
+    };
+}

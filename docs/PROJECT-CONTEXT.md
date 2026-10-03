@@ -23,7 +23,8 @@ ShopManager یک POS و سامانهٔ مدیریت فروشگاه است.
 
 اگر این سند با evidence معتبر (source، tests، Git) ناسازگار بود، **آن ناسازگاری را گزارش کنید**؛ حدس نزنید. اصلاح فقط در scope صریح مجاز است.
 
-Production-code checkpoint فعلی این context: `59d0dfc` — `feat: add durable restore intent foundation`.
+آخرین production-code checkpoint ثبت‌شده (committed) در این context: `59d0dfc` — `feat: add durable restore intent foundation`.
+checkpoint `4B-2B` در working tree پیاده‌سازی و verify شده است ولی هنوز commit نشده؛ تا commit شدن، HEAD محسوب نمی‌شود و hash ندارد.
 برای بررسی اینکه پس از آن چه چیزی غیر از docs/AGENTS.md تغییر کرده است، از Git verify کنید:
 `git diff --stat 59d0dfc HEAD -- . ':!docs' ':!AGENTS.md'`
 
@@ -71,7 +72,7 @@ Scope خارج از roadmap فعلی: Cloud Sync، Multi-terminal، Multi-store�
 - Phase 3 closure: commit `905622c`; آخرین completion tag: `phase-3-concurrency-idempotency-complete`.
 - Phase 4 completion tag وجود ندارد.
 
-## 6. Phase 4 — وضعیت فعلی تا 4B-2A
+## 6. Phase 4 — وضعیت فعلی تا 4B-2B
 
 Phase 4 همچنان **IN PROGRESS — NOT complete** است.
 
@@ -83,26 +84,34 @@ Phase 4 همچنان **IN PROGRESS — NOT complete** است.
 | 4A-4 | `22ca6fa` | backup single-flight، generation و orphan sweep |
 | 4B-1 | `461670c` | non-destructive restore preparation و safety snapshot |
 | 4B-2A | `59d0dfc` | durable restore intent و database admission gate |
+| 4B-2B | _(commit نشده؛ hash ثبت نشده)_ | offline file-level recovery engine (`RestoreRecoveryService.Recover`)؛ پیاده‌سازی و verify شده در working tree |
 
-آخرین evidence ثبت‌شده برای production-code checkpoint `59d0dfc`: build با 0 errors / 0 warnings؛ tests با 246/246 passed، 0 failed، 0 skipped.
-این evidence به معنی تکمیل Phase 4 یا اجرای end-to-end crash/recovery نیست.
+evidence تاریخی برای production-code checkpoint `59d0dfc` (commit شده): build با 0 errors / 0 warnings؛ tests با 246/246 passed، 0 failed، 0 skipped.
+
+evidence verify‌شدهٔ working tree برای 4B-2B (تا commit شدن، HEAD نیست): `RestoreRecoveryServiceTests` 42 passed؛ کل `ShopManager.Domain.Tests` 270 passed؛ build غیرافزایشی solution با 0 warnings / 0 errors؛ adversarial/final review: PASS بدون issue مسدودکنندهٔ Critical/High/Medium.
+این evidence‌ها به معنی تکمیل Phase 4 یا اجرای end-to-end crash/recovery نیست.
 
 **قراردادهای حیاتی Phase 4 برای کار بعدی:**
 - **Startup fail-closed:** اگر marker نامعتبر/خراب باشد، مسیر ثبت‌شده در دسترس نباشد، `shop.db` در مسیر ثبت‌شده نباشد، یا چند دیتابیس هم‌زمان و نامشخص وجود داشته باشد، `DatabaseService.BlockedReason` startup را پیش از settings/backup/auth متوقف می‌کند. نصب تازه بدون marker (که سیاست قدیمی را دنبال می‌کند) در این محدوده نیست.
 - **Admission gate:** `DatabaseService.CreateContext` قفل خواندن `RestoreRecoveryService.EnterDatabaseAdmission` را می‌گیرد؛ اگر restore مسلح باشد، ساخت context تازه fail-closed مسدود می‌شود.
 - **Durability:** شکست `journal_mode=WAL` یا `synchronous=FULL` از `DurabilityInterceptor` باید propagate شود؛ نباید silently نادیده گرفته شود.
+- **Recovery engine (4B-2B، working tree):** `RestoreRecoveryService.Recover` پس از intent ماندگار فقط forward-only است. وضعیت منتشرشده (V) یعنی SHA-256 مورد انتظار دیتابیس زنده **و** نبودن sidecarهای زندهٔ `-wal` / `-shm` / `-journal`. وضعیت مبهم یا ناایمن fail-closed می‌شود و restore مسلح می‌ماند.
 
 ## 7. کار بعدی Phase 4
 
-### 4B-2B — immediate next checkpoint
+### 4B-2B — پیاده‌سازی و verify شده در working tree (commit نشده)
 
-- offline recovery engine؛
+- offline recovery engine (`RestoreRecoveryService.Recover`)؛
 - file-level forward-completion/swap وضعیت زندهٔ DB؛
-- operation-owned tombstones؛
+- tombstoneها و incoming artifactهای دقیقاً operation-owned؛ بدون wildcard cleanup؛
+- cleanup به‌صورت plan-then-execute؛
 - **SHA-256 staging fingerprint** مرجع باقی می‌ماند؛
-- پس از intent ماندگار: **forward-complete یا BLOCK — هرگز rollback**.
+- پس از intent ماندگار: **forward-complete یا BLOCK — هرگز rollback**؛
+- حذف intent آخرین mutation موفق روی disk است؛
+- نبودن `SafetyBackupPath` مانع forward completion نیست؛ اسنپ‌شات ایمنی در صورت وجود حفظ می‌شود؛
+- پوشش crash/restart و blocked-state اضافه شده است.
 
-**عمداً خارج از 4B-2B** (این‌ها integration بعدی Phase 4 هستند): App startup wiring/order؛ app-lifetime mutex؛ SettingsWindow/UI integration؛ shutdown/quiesce integration؛ حذف legacy production restore path.
+**عمداً خارج از 4B-2B و هنوز کار آینده** (این‌ها integration بعدی Phase 4 هستند و پیاده نشده‌اند): App startup wiring/order و مصرف intent؛ app-lifetime mutex؛ SettingsWindow/UI integration؛ shutdown/quiesce integration؛ حذف legacy production restore path.
 
 ### Phase 4 — remaining DoD (هنوز باز)
 
@@ -113,10 +122,10 @@ Phase 4 همچنان **IN PROGRESS — NOT complete** است.
 - تست: restore کامل از backup → همهٔ داده؛
 - تست: DB خراب → بازیابی از backup.
 
-### Phase 4 — subsequent integration (پس از 4B-2B)
+### Phase 4 — subsequent integration (پس از 4B-2B؛ هنوز باز)
 
 - اتصال recovery به startup و مصرف restore intent.
-- فراخوانی موتور swap آفلاین از restore flow برنامه (پیاده‌سازی خود موتور swap در 4B-2B است، نه در این بخش).
+- فراخوانی موتور swap آفلاین از restore flow برنامه (خود موتور در 4B-2B پیاده شده است؛ فراخوانی آن از برنامه در این بخش و هنوز باز است).
 - جایگزینی مسیر legacy `BackupService.RestoreBackup` و مسیر `Environment.Exit(0)` در `Views/SettingsWindow.axaml.cs`.
 - رفع محدودیت‌های Phase 4 شناخته‌شده در بخش ۹.
 
@@ -126,7 +135,7 @@ Audit Trail، structured logging، performance، UX reliability و release harde
 
 ## 8. ریسک‌ها و مرزهای باز
 
-- restore intent در production هنوز end-to-end مصرف نمی‌شود؛ مسیر legacy restore هنوز در UI است.
+- restore intent در production هنوز end-to-end مصرف نمی‌شود: موتور 4B-2B (`Recover`) وجود دارد اما هیچ caller production (startup/UI/shutdown) آن را فراخوانی نمی‌کند؛ مسیر legacy restore هنوز در UI است.
 - pending فروش فقط در حافظه است و recovery خودکار پس از restart ندارد؛ انتقال در حال حاضر هیچ ثبت idempotency بر اساس OperationId/Fingerprint ندارد — و commit نامعلوم retry خودکار نمی‌گیرد.
 - crash/restore کامل، UI/چاپ فیزیکی و writerهای خارجی در evidence فعلی ادعا نشده‌اند.
 - **Reversal:** جریان ساخت reversal پیاده نشده و قرارداد sign آن حل‌نشده/موکول‌شده است. محاسبات پشتیبان آن می‌توانند روی علامت‌های اثبات‌نشده تکیه کنند؛ **پیش از تکیه بر رفتار reversal، آن را در source verify کنید.**
