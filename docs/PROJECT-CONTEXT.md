@@ -23,10 +23,10 @@ ShopManager یک POS و سامانهٔ مدیریت فروشگاه است.
 
 اگر این سند با evidence معتبر (source، tests، Git) ناسازگار بود، **آن ناسازگاری را گزارش کنید**؛ حدس نزنید. اصلاح فقط در scope صریح مجاز است.
 
-آخرین production-code checkpoint ثبت‌شده (committed) در این context: `59d0dfc` — `feat: add durable restore intent foundation`.
-checkpoint `4B-2B` در working tree پیاده‌سازی و verify شده است ولی هنوز commit نشده؛ تا commit شدن، HEAD محسوب نمی‌شود و hash ندارد.
+Production-code checkpoint فعلی این context: `d472153` — `feat: implement crash-safe restore recovery engine` (4B-2B).
+checkpoint قبلی: `59d0dfc` — `feat: add durable restore intent foundation` (4B-2A).
 برای بررسی اینکه پس از آن چه چیزی غیر از docs/AGENTS.md تغییر کرده است، از Git verify کنید:
-`git diff --stat 59d0dfc HEAD -- . ':!docs' ':!AGENTS.md'`
+`git diff --stat d472153 HEAD -- . ':!docs' ':!AGENTS.md'`
 
 ## 3. invariantهای حیاتی
 
@@ -84,22 +84,22 @@ Phase 4 همچنان **IN PROGRESS — NOT complete** است.
 | 4A-4 | `22ca6fa` | backup single-flight، generation و orphan sweep |
 | 4B-1 | `461670c` | non-destructive restore preparation و safety snapshot |
 | 4B-2A | `59d0dfc` | durable restore intent و database admission gate |
-| 4B-2B | _(commit نشده؛ hash ثبت نشده)_ | offline file-level recovery engine (`RestoreRecoveryService.Recover`)؛ پیاده‌سازی و verify شده در working tree |
+| 4B-2B | `d472153` | offline file-level recovery engine (`RestoreRecoveryService.Recover`) |
 
-evidence تاریخی برای production-code checkpoint `59d0dfc` (commit شده): build با 0 errors / 0 warnings؛ tests با 246/246 passed، 0 failed، 0 skipped.
+evidence تاریخی برای checkpoint قبلی `59d0dfc` (4B-2A): build با 0 errors / 0 warnings؛ tests با 246/246 passed، 0 failed، 0 skipped.
 
-evidence verify‌شدهٔ working tree برای 4B-2B (تا commit شدن، HEAD نیست): `RestoreRecoveryServiceTests` 42 passed؛ کل `ShopManager.Domain.Tests` 270 passed؛ build غیرافزایشی solution با 0 warnings / 0 errors؛ adversarial/final review: PASS بدون issue مسدودکنندهٔ Critical/High/Medium.
+evidence verify‌شده برای 4B-2B (commit `d472153`؛ HEAD فعلی شامل این 270 تست است): `RestoreRecoveryServiceTests` 42 passed؛ کل `ShopManager.Domain.Tests` 270 passed؛ build غیرافزایشی solution با 0 warnings / 0 errors؛ adversarial/final review: PASS بدون issue مسدودکنندهٔ Critical/High/Medium.
 این evidence‌ها به معنی تکمیل Phase 4 یا اجرای end-to-end crash/recovery نیست.
 
 **قراردادهای حیاتی Phase 4 برای کار بعدی:**
 - **Startup fail-closed:** اگر marker نامعتبر/خراب باشد، مسیر ثبت‌شده در دسترس نباشد، `shop.db` در مسیر ثبت‌شده نباشد، یا چند دیتابیس هم‌زمان و نامشخص وجود داشته باشد، `DatabaseService.BlockedReason` startup را پیش از settings/backup/auth متوقف می‌کند. نصب تازه بدون marker (که سیاست قدیمی را دنبال می‌کند) در این محدوده نیست.
 - **Admission gate:** `DatabaseService.CreateContext` قفل خواندن `RestoreRecoveryService.EnterDatabaseAdmission` را می‌گیرد؛ اگر restore مسلح باشد، ساخت context تازه fail-closed مسدود می‌شود.
 - **Durability:** شکست `journal_mode=WAL` یا `synchronous=FULL` از `DurabilityInterceptor` باید propagate شود؛ نباید silently نادیده گرفته شود.
-- **Recovery engine (4B-2B، working tree):** `RestoreRecoveryService.Recover` پس از intent ماندگار فقط forward-only است. وضعیت منتشرشده (V) یعنی SHA-256 مورد انتظار دیتابیس زنده **و** نبودن sidecarهای زندهٔ `-wal` / `-shm` / `-journal`. وضعیت مبهم یا ناایمن fail-closed می‌شود و restore مسلح می‌ماند.
+- **Recovery engine (4B-2B، `d472153`):** `RestoreRecoveryService.Recover` پس از intent ماندگار فقط forward-only است. وضعیت منتشرشده (V) یعنی SHA-256 مورد انتظار دیتابیس زنده **و** نبودن sidecarهای زندهٔ `-wal` / `-shm` / `-journal`. وضعیت مبهم یا ناایمن fail-closed می‌شود و restore مسلح می‌ماند.
 
 ## 7. کار بعدی Phase 4
 
-### 4B-2B — پیاده‌سازی و verify شده در working tree (commit نشده)
+### 4B-2B — پیاده‌سازی و verify شده؛ commit `d472153`
 
 - offline recovery engine (`RestoreRecoveryService.Recover`)؛
 - file-level forward-completion/swap وضعیت زندهٔ DB؛

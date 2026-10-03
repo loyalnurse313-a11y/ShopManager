@@ -1,7 +1,7 @@
 # MASTER-BACKLOG
 
 > **هدف:** مرجع واحد برای همه‌ی یافته‌های ممیزی.
-> **آخرین به‌روزرسانی:** به‌روزرسانی وضعیت Phase 4 تا checkpoint `4B-2B` (پیاده‌سازی و verify شده در working tree؛ هنوز commit نشده و hash ندارد)؛ آخرین checkpoint کد production در commit: `59d0dfc`؛ commitهای بعدی تا `67453a2` فقط مستندات/قواعد عملیاتی مخزن (AGENTS.md) را تغییر داده‌اند.
+> **آخرین به‌روزرسانی:** به‌روزرسانی وضعیت Phase 4 تا checkpoint `4B-2B`؛ checkpoint کد production: `d472153`؛ checkpoint قبلی: `59d0dfc`؛ commitهای بین `59d0dfc` و `d472153` فقط مستندات/قواعد عملیاتی مخزن (AGENTS.md) را تغییر داده‌اند.
 > **وضعیت:** Phase 1، Phase 2 و Phase 3 کامل‌اند؛ Phase 4 — Crash Recovery + Backup **IN PROGRESS** است و تکمیل نشده.
 > نام یافته‌ها و ارجاع‌های قدیمی، سابقهٔ ممیزی‌اند؛ ستون وضعیت و توضیحات closure، نتیجهٔ فعلی را مشخص می‌کنند.
 
@@ -130,7 +130,7 @@
 
 ### Phase 4 — Crash Recovery + Backup — IN PROGRESS (تکمیل‌نشده)
 
-**Checkpoint های انجام‌شده (کد + تست در commit `59d0dfc`):**
+**Checkpoint های انجام‌شده (4A-1 تا 4B-2A: کد + تست در commit `59d0dfc`؛ 4B-2B: commit `d472153`):**
 
 - [x] 4A-1 (`0944a7e`): انتشار اتمیک بکاپ SQLite — staging، اعتبارسنجی و publish ایمن.
 - [x] 4A-2 (`05212da`): هویت canonical دیتابیس و توقف امن startup پیش از settings/backup/auth.
@@ -138,9 +138,9 @@
 - [x] 4A-4 (`22ca6fa`): قابلیت اطمینان چرخهٔ حیات بکاپ — single-flight، ردیابی نسل تغییرات، پاک‌سازی staging یتیم و لاگ خطا.
 - [x] 4B-1 (`461670c`): آماده‌سازی بازیابی امن پیش از تعویض — اعتبارسنجی، اسنپ‌شات ایمنی WAL-سازگار و گارد هویت فایل/hard-link؛ دیتابیس زنده دست‌نخورده می‌ماند.
 - [x] 4B-2A (`59d0dfc`): بنیاد intent بازیابی ماندگار — flush → SHA-256 → انتشار اتمیک intent → مسلح‌سازی؛ gate پذیرش دیتابیس.
-- [x] 4B-2B (commit نشده؛ hash ثبت نشده): offline file-level recovery engine (`RestoreRecoveryService.Recover`) — پس از intent ماندگار forward-only (forward-complete یا BLOCK، هرگز rollback)؛ وضعیت منتشرشده با SHA-256 مورد انتظار دیتابیس زنده و نبودن sidecarهای زندهٔ `-wal`/`-shm`/`-journal` تأیید می‌شود؛ فقط tombstone/incoming artifactهای دقیقاً operation-owned (بدون wildcard)؛ cleanup plan-then-execute؛ وضعیت مبهم/ناایمن fail-closed و مسلح؛ حذف intent آخرین mutation موفق؛ نبودن `SafetyBackupPath` مانع forward completion نیست.
+- [x] 4B-2B (`d472153`): offline file-level recovery engine (`RestoreRecoveryService.Recover`) — پس از intent ماندگار forward-only (forward-complete یا BLOCK، هرگز rollback)؛ وضعیت منتشرشده با SHA-256 مورد انتظار دیتابیس زنده و نبودن sidecarهای زندهٔ `-wal`/`-shm`/`-journal` تأیید می‌شود؛ فقط tombstone/incoming artifactهای دقیقاً operation-owned (بدون wildcard)؛ cleanup plan-then-execute؛ وضعیت مبهم/ناایمن fail-closed و مسلح؛ حذف intent آخرین mutation موفق؛ نبودن `SafetyBackupPath` مانع forward completion نیست.
 
-**شواهد 4B-2B (working tree؛ تا commit شدن HEAD نیست):** `RestoreRecoveryServiceTests` 42 passed؛ کل `ShopManager.Domain.Tests` 270 passed؛ build غیرافزایشی solution با 0 warnings / 0 errors؛ adversarial/final review: PASS بدون issue مسدودکنندهٔ Critical/High/Medium. این evidence تکمیل Phase 4 را ادعا نمی‌کند.
+**شواهد 4B-2B (commit `d472153`؛ HEAD فعلی شامل این 270 تست است؛ evidence قدیمی 246/246 مربوط به `59d0dfc` است):** `RestoreRecoveryServiceTests` 42 passed؛ کل `ShopManager.Domain.Tests` 270 passed؛ build غیرافزایشی solution با 0 warnings / 0 errors؛ adversarial/final review: PASS بدون issue مسدودکنندهٔ Critical/High/Medium. این evidence تکمیل Phase 4 را ادعا نمی‌کند.
 
 **باقی‌مانده (pending) — Phase 4 کامل نیست:**
 
