@@ -6,6 +6,12 @@ namespace ShopManager.Desktop.Services;
 
 internal enum DatabaseAdmissionState { Open, Closed, FaultedClosed }
 
+/// <summary>A temporary admission cutoff, distinct from an unproven cleanup fault.</summary>
+internal sealed class DatabaseAdmissionClosedException : InvalidOperationException
+{
+    internal DatabaseAdmissionClosedException() : base("Runtime database admission is closed.") { }
+}
+
 /// <summary>Tracks runtime database resources only; drain is not restore admission.</summary>
 internal sealed class DatabaseAdmissionGate
 {
@@ -24,6 +30,8 @@ internal sealed class DatabaseAdmissionGate
     {
         lock (_sync)
         {
+            if (_state == DatabaseAdmissionState.Closed)
+                throw new DatabaseAdmissionClosedException();
             if (_state != DatabaseAdmissionState.Open)
                 throw new InvalidOperationException("Runtime database admission is closed.", _fault);
             var lease = new Lease(this);

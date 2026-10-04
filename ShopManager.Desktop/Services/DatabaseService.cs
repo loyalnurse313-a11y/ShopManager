@@ -186,6 +186,12 @@ public static class DatabaseService
                     ? ResolveAndPublishCore(MarkerPath, PrimaryDataPath, FallbackDataFolder, Directory.Exists, null, admission)
                     : resolutionForTests(admission!));
             }
+            catch (DatabaseAdmissionClosedException)
+            {
+                // A temporary cutoff is not a permanent identity/initialization failure.
+                // Leave resolution unpublished so a later access can retry after reopen.
+                throw;
+            }
             catch (Exception ex)
             {
                 _resolved = true;
@@ -270,6 +276,7 @@ public static class DatabaseService
             context = new AppDbContext(DurableOptions(ExistingConnectionString(path)),
                 () => { if (admittedInitialization is null) lease.Dispose(); }, lease.CleanupFailed);
             // Establish durability before even the initial schema writes or EF existence probes.
+            FreshDatabaseOpeningForTests?.Invoke();
             context.Database.OpenConnection();
             context.Database.EnsureCreated();
         }
@@ -356,12 +363,25 @@ public static class DatabaseService
     /// <summary>Passive observation only; production never sets this test seam.</summary>
     internal static Action? ResolutionStartingForTests { get; set; }
 
+    /// <summary>Passive observation of the fresh initialization open boundary.</summary>
+    internal static Action? FreshDatabaseOpeningForTests { get; set; }
+
+    /// <summary>Exercise the production resolution cache without a factory admission or user paths.</summary>
+    internal static string? ResolveWithoutAdmissionForTests(
+        string markerPath, string primaryFolder, string fallbackFolder)
+    {
+        EnsureResolved(resolutionForTests: _ => ResolveAndPublish(
+            markerPath, primaryFolder, fallbackFolder, Directory.Exists));
+        return _blockedReason;
+    }
+
     /// <summary>seam تست: برگرداندن state پروسه به حالت اولیه</summary>
     internal static void ResetForTests()
     {
         lock (_resolutionLock)
         {
             ResolutionStartingForTests = null;
+            FreshDatabaseOpeningForTests = null;
             _resolved = false;
             _canonicalDataFolder = null;
             _blockedReason = null;

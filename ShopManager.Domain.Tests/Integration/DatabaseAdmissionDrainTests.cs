@@ -59,7 +59,7 @@ public sealed class DatabaseAdmissionDrainTests : IDisposable
         }
         else
         {
-            Assert.Throws<InvalidOperationException>(() => gate.Enter());
+            Assert.Throws<DatabaseAdmissionClosedException>(() => gate.Enter());
             Assert.Equal(0, gate.ActiveLeases);
             await owner!.WaitForDrainAsync(Deadline);
         }
@@ -87,7 +87,7 @@ public sealed class DatabaseAdmissionDrainTests : IDisposable
             Assert.Equal(1, DatabaseAdmissionGate.Runtime.ActiveLeases);
             var drain = owner.WaitForDrainAsync(Deadline);
             Assert.False(drain.IsCompleted);
-            Assert.Throws<InvalidOperationException>(() => DatabaseService.CreateContext());
+            Assert.Throws<DatabaseAdmissionClosedException>(() => DatabaseService.CreateContext());
             proceed.Set();
             context = await construction.WaitAsync(Deadline);
             Assert.Null(DatabaseService.BlockedReason);
@@ -95,7 +95,7 @@ public sealed class DatabaseAdmissionDrainTests : IDisposable
             Assert.False(context.Users.Any());
             Assert.Equal(1, DatabaseAdmissionGate.Runtime.ActiveLeases);
             Assert.False(drain.IsCompleted);
-            Assert.Throws<InvalidOperationException>(() => DatabaseService.CreateContext());
+            Assert.Throws<DatabaseAdmissionClosedException>(() => DatabaseService.CreateContext());
             context.Dispose();
             await drain;
             owner.Reopen();
@@ -247,7 +247,7 @@ public sealed class DatabaseAdmissionDrainTests : IDisposable
             await enter.WaitAsync(Deadline);
             Assert.Equal(lease is null ? 0 : 1, gate.ActiveLeases);
             Assert.Equal(lease is null, gate.IsDrained);
-            Assert.Throws<InvalidOperationException>(() => gate.Enter());
+            Assert.Throws<DatabaseAdmissionClosedException>(() => gate.Enter());
             lease?.Dispose();
             await owner.WaitForDrainAsync(Deadline);
             owner.Reopen();
@@ -303,7 +303,7 @@ public sealed class DatabaseAdmissionDrainTests : IDisposable
         var owner = DatabaseAdmissionGate.Runtime.CloseAdmission();
         try
         {
-            Assert.Throws<InvalidOperationException>(() =>
+            Assert.Throws<DatabaseAdmissionClosedException>(() =>
                 DatabaseService.CreateContextForTests(() => initializationStarted = true));
             Assert.False(resolutionStarted);
             Assert.False(initializationStarted);
@@ -319,7 +319,7 @@ public sealed class DatabaseAdmissionDrainTests : IDisposable
         var owner = DatabaseAdmissionGate.Runtime.CloseAdmission();
         try
         {
-            Assert.Throws<InvalidOperationException>(() => DatabaseService.ResolveAndPublish(
+            Assert.Throws<DatabaseAdmissionClosedException>(() => DatabaseService.ResolveAndPublish(
                 Marker, Primary, Path.Combine(_root, "fallback"), Directory.Exists));
             Assert.False(File.Exists(Path.Combine(Primary, "shop.db")));
             Assert.False(File.Exists(Marker));
@@ -333,6 +333,119 @@ public sealed class DatabaseAdmissionDrainTests : IDisposable
     {
         Resolve();
         Assert.True(File.Exists(Path.Combine(Primary, "shop.db")));
+        Assert.Equal(0, DatabaseAdmissionGate.Runtime.ActiveLeases);
+    }
+
+    [Fact]
+    public void ClosedFreshNoLeaseResolution_RemainsRetryableAndSucceedsAfterReopen()
+    {
+        var fallback = Path.Combine(_root, "fallback");
+        var resolutions = 0;
+        var opens = 0;
+        DatabaseService.ResolutionStartingForTests = () => resolutions++;
+        DatabaseService.FreshDatabaseOpeningForTests = () => opens++;
+        var owner = DatabaseAdmissionGate.Runtime.CloseAdmission();
+        try
+        {
+            for (var attempt = 0; attempt < 2; attempt++)
+            {
+                Assert.Throws<DatabaseAdmissionClosedException>(() =>
+                    DatabaseService.ResolveWithoutAdmissionForTests(Marker, Primary, fallback));
+                Assert.Equal(attempt + 1, resolutions);
+                Assert.Equal(0, opens);
+                Assert.False(File.Exists(Path.Combine(Primary, "shop.db")));
+                Assert.False(File.Exists(Path.Combine(fallback, "shop.db")));
+                Assert.False(File.Exists(Marker));
+                Assert.Empty(Directory.GetFiles(_root, "*", SearchOption.AllDirectories));
+                Assert.Equal(0, DatabaseAdmissionGate.Runtime.ActiveLeases);
+            }
+        }
+        finally { owner.Reopen(); }
+
+        Assert.Null(DatabaseService.ResolveWithoutAdmissionForTests(Marker, Primary, fallback));
+        Assert.Equal(3, resolutions);
+        Assert.Equal(1, opens);
+        Assert.True(File.Exists(Marker));
+        Assert.True(File.Exists(DatabaseService.DatabasePath));
+        Assert.Null(DatabaseService.BlockedReason);
+        Assert.Equal(0, DatabaseAdmissionGate.Runtime.ActiveLeases);
+        using var context = DatabaseService.CreateContext();
+        Assert.False(context.Users.Any());
+        Assert.Equal(3, resolutions);
+    }
+
+    [Fact]
+    public void RealNoLeaseResolutionFailure_RemainsCachedAfterCauseIsRemoved()
+    {
+        Directory.CreateDirectory(_root);
+        var fallback = Path.Combine(_root, "fallback");
+        // Both candidate directories are unavailable because files occupy their paths.
+        File.WriteAllText(Primary, "not a directory");
+        File.WriteAllText(fallback, "not a directory");
+        var resolutions = 0;
+        DatabaseService.ResolutionStartingForTests = () => resolutions++;
+        var reason = DatabaseService.ResolveWithoutAdmissionForTests(Marker, Primary, fallback);
+        Assert.NotNull(reason);
+        Assert.Equal(1, resolutions);
+        Assert.False(File.Exists(Marker));
+        Assert.Equal(0, DatabaseAdmissionGate.Runtime.ActiveLeases);
+
+        File.Delete(Primary);
+        File.Delete(fallback);
+        var owner = DatabaseAdmissionGate.Runtime.CloseAdmission();
+        owner.Reopen();
+        Assert.Equal(reason, DatabaseService.ResolveWithoutAdmissionForTests(Marker, Primary, fallback));
+        Assert.Equal(reason, DatabaseService.BlockedReason);
+        Assert.Throws<InvalidOperationException>(() => DatabaseService.CreateContext());
+        Assert.Equal(1, resolutions);
+        Assert.False(File.Exists(Marker));
+        Assert.False(File.Exists(Path.Combine(Primary, "shop.db")));
+        Assert.False(File.Exists(Path.Combine(fallback, "shop.db")));
+        Assert.Equal(0, DatabaseAdmissionGate.Runtime.ActiveLeases);
+    }
+
+    [Fact]
+    public void RealFreshInitializationOpenFailure_RemainsPermanentlyBlocked()
+    {
+        var fallback = Path.Combine(_root, "fallback");
+        var opens = 0;
+        DatabaseService.FreshDatabaseOpeningForTests = () =>
+        {
+            opens++;
+            // Remove only the fresh file created in this fixture. The non-creating
+            // SQLite open must now fail, exercising the real initialization catch.
+            File.Delete(Path.Combine(Primary, "shop.db"));
+            File.Delete(Path.Combine(fallback, "shop.db"));
+        };
+        var reason = DatabaseService.ResolveWithoutAdmissionForTests(Marker, Primary, fallback);
+        Assert.NotNull(reason);
+        Assert.Equal(1, opens);
+        Assert.False(File.Exists(Marker));
+        Assert.Equal(0, DatabaseAdmissionGate.Runtime.ActiveLeases);
+
+        DatabaseService.FreshDatabaseOpeningForTests = null;
+        Assert.Equal(reason, DatabaseService.ResolveWithoutAdmissionForTests(Marker, Primary, fallback));
+        Assert.Equal(reason, DatabaseService.BlockedReason);
+        Assert.Throws<InvalidOperationException>(() => DatabaseService.CreateContext());
+        Assert.False(File.Exists(Marker));
+        Assert.False(File.Exists(Path.Combine(Primary, "shop.db")));
+        Assert.False(File.Exists(Path.Combine(fallback, "shop.db")));
+        Assert.Equal(0, DatabaseAdmissionGate.Runtime.ActiveLeases);
+    }
+
+    [Fact]
+    public void UnrelatedInvalidOperationWithAdmissionMessage_IsStillCached()
+    {
+        var fallback = Path.Combine(_root, "fallback");
+        var failure = new InvalidOperationException("Runtime database admission is closed.");
+        DatabaseService.ResolutionStartingForTests = () => throw failure;
+        var reason = DatabaseService.ResolveWithoutAdmissionForTests(Marker, Primary, fallback);
+        Assert.NotNull(reason);
+        DatabaseService.ResolutionStartingForTests = null;
+        Assert.Equal(reason, DatabaseService.ResolveWithoutAdmissionForTests(Marker, Primary, fallback));
+        Assert.Equal(reason, DatabaseService.BlockedReason);
+        Assert.False(File.Exists(Marker));
+        Assert.False(Directory.Exists(_root));
         Assert.Equal(0, DatabaseAdmissionGate.Runtime.ActiveLeases);
     }
 

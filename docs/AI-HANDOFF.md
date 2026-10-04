@@ -2,8 +2,8 @@
 
 > **هدف:** این فایل مرجع کامل برای هر AI است که وارد پروژه می‌شود. قبل از هر اقدامی، این سند را کامل بخوان.
 >
-> **آخرین به‌روزرسانی:** Phase 4 همچنان **IN PROGRESS** است؛ 4B-4 در `63039d2` commit شده و 4B-5A **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED — `36f0e7f`** است. 4B-5A **NOT restore-safe** است؛ 4B-5B و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست. checkpointهای پیشین: `583a7b8` (4B-3)، `d472153` (4B-2B)، `59d0dfc` (4B-2A).
-> **وضعیت فعلی:** Phase 1–3 کامل‌اند. Phase 4 همچنان **IN PROGRESS** است؛ 4B-4 در `63039d2` commit شده و 4B-5A **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED — `36f0e7f`** است. 4B-5A **NOT restore-safe** است؛ 4B-5B و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست.
+> **آخرین به‌روزرسانی:** Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5B-1 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / UNCOMMITTED** است و **NOT restore-safe** است. آخرین checkpoint کد production commit‌شده، 4B-5A در `36f0e7f` است؛ 4B-5B-2 و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست. checkpointهای پیشین: `583a7b8` (4B-3)، `d472153` (4B-2B)، `59d0dfc` (4B-2A).
+> **وضعیت فعلی:** Phase 1–3 کامل‌اند. Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5B-1 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / UNCOMMITTED** است و **NOT restore-safe** است. آخرین checkpoint کد production commit‌شده، 4B-5A در `36f0e7f` است؛ 4B-5B-2 و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست.
 > **مرجع قواعد اجرایی:** ابتدا [AGENTS.md](../AGENTS.md). بخش‌های تاریخی این سند دستور اجرای کار یا مجوز دست‌کاری داده نیستند.
 
 ---
@@ -26,6 +26,7 @@
 | historical verification checkpoint `4B-3`، پس از test hardening و پیش از commit `583a7b8` | targeted `ApplicationInstanceGuardTests`: 21 passed؛ full `ShopManager.Domain.Tests`: 291 passed؛ هر دو 0 failed / 0 skipped؛ build غیرافزایشی 0W / 0E؛ diff check exit code 0؛ review طبق تأیید کاربر: PASS WITH FINDINGS، بدون Critical یا High؛ follow-up تست بدون تغییر production |
 | verification checkpoint `4B-4`، commit `63039d2` (شواهد تاریخی) | `StartupRecoveryIntegrationTests`: 29 passed؛ `RestoreRecoveryServiceTests`: 44 passed؛ `ApplicationInstanceGuardTests`: 21 passed؛ full `ShopManager.Domain.Tests`: 322 passed؛ همگی 0 failed / 0 skipped؛ build غیرافزایشی 0W / 0E؛ diff check exit code 0؛ independent adversarial review طبق تأیید کاربر: PASS WITH FINDINGS، بدون Critical یا High و بدون checkpoint-blocking finding |
 | verification checkpoint `4B-5A`، commit `36f0e7f` | targeted 32/32؛ relevant 130/130؛ full 354/354 passed؛ build 0W / 0E؛ diff-check exit 0؛ independent review PASS WITH FINDINGS؛ هر دو blocking finding پیشین RESOLVED |
+| verification checkpoint `4B-5B-1`، UNCOMMITTED | targeted 36/36؛ relevant 166/166؛ full 358/358 passed؛ non-incremental build 0W / 0E؛ diff-check exit 0؛ independent review طبق تأیید کاربر: PASS WITH FINDINGS، بدون Critical/High/Medium؛ NOT restore-safe |
 
 این پاراگراف فقط به سطر «آخرین verification، Phase 3C» مربوط است: نتایج build/test/check آن سطر از اجرای ثبت‌شدهٔ Phase 3C هستند. PASS بازبینی adversarial نهایی طبق تأیید کاربر در درخواست Documentation Closure ثبت شده است؛ فایل مستقل آن در مخزن این بررسی یافت نشد. این کار فقط مستندسازی است و build/test را دوباره اجرا نمی‌کند. منشأ و نگاشت کامل شواهد در بخش Phase 3 سند [AUDIT-RECONCILIATION.md](AUDIT-RECONCILIATION.md) آمده است.
 
@@ -149,12 +150,12 @@ if (text.Length > N) { StatusText.Text = "..."; return; }
 | Pre-Phase | Cleanup محدود S1/S2/S3    | ✅؛ مرحلهٔ شماره‌دار نیست                                                                                                  |
 | 2         | Transaction Boundary      | ✅ COMPLETE؛ شواهد تاریخی در سند Phase 2                                                                                   |
 | 3         | Concurrency + Idempotency | ✅ COMPLETE تا 3C؛ پیاده‌سازی نهایی `da7d5b4` / بستن رسمی `905622c`                                                        |
-| 4 | Crash Recovery + Backup | Phase 4 همچنان **IN PROGRESS** است؛ 4B-4 در `63039d2` commit شده و 4B-5A **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED — `36f0e7f`** است. 4B-5A **NOT restore-safe** است؛ 4B-5B و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست. |
+| 4 | Crash Recovery + Backup | Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5B-1 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / UNCOMMITTED** است و **NOT restore-safe** است. آخرین checkpoint کد production commit‌شده، 4B-5A در `36f0e7f` است؛ 4B-5B-2 و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست. |
 | 5         | Audit + Security          | برنامه‌ریزی‌شده                                                                                                            |
 | 6         | Logging + Global Error    | برنامه‌ریزی‌شده                                                                                                            |
 | 7         | EF Core + Performance     | برنامه‌ریزی‌شده                                                                                                            |
 | 8         | Avalonia Reliability      | برنامه‌ریزی‌شده                                                                                                            |
-| 9         | Tests                     | توسعهٔ پوشش؛ 354/354 passed برای checkpoint 4B-5A (`36f0e7f`)؛ تاریخی: 322 در 4B-4، 291 در 4B-3، 270 در `d472153` و 246 در `59d0dfc`؛ این شواهد به معنی اتمام Phase 9 نیست |
+| 9         | Tests                     | توسعهٔ پوشش؛ 358/358 passed برای 4B-5B-1 (UNCOMMITTED)؛ تاریخی: 354/354 برای 4B-5A (`36f0e7f`)؛ تاریخی: 322 در 4B-4، 291 در 4B-3، 270 در `d472153` و 246 در `59d0dfc`؛ این شواهد به معنی اتمام Phase 9 نیست |
 | 10        | Release Hardening         | برنامه‌ریزی‌شده                                                                                                            |
 
 **خلاصهٔ Phase 3 برای handoff:**
@@ -193,16 +194,40 @@ Checkpoint `36f0e7f` (`feat: add database admission and drain gate`) is pushed t
 - **NOT restore-safe:** no proof of backup drain, background/timer drain, updater drain, complete multi-context business-operation drain or full quiesce. No production permission/caller for `PrepareRestore` / `Arm` is introduced; no production caller of `CloseAdmission` exists in this checkpoint. No restore UI wiring.
 - Verified implementation evidence supplied for this documentation sync: `DatabaseAdmissionDrainTests` **32/32 passed**; relevant DB/resolution/recovery/startup tests **130/130 passed**; full `ShopManager.Domain.Tests` **354/354 passed**; non-incremental solution build **0 warnings / 0 errors**; implementation `git diff --check` **exit 0**. Tests/build/review were not rerun during this docs-only step.
 - Independent review: **PASS WITH FINDINGS**. Both previous blocking findings are **RESOLVED**: concurrent cleanup ownership is established before EF cleanup; already-admitted fresh initialization reuses the existing admission instead of taking a second independent lease.
-- **MEDIUM — OPEN BEFORE PRODUCTION `CloseAdmission` / 4B-5B:** a no-lease `EnsureResolved` resolution path can still permanently publish `_blockedReason` if fresh initialization encounters admission-closed. Non-blocking for 4B-5A because it adds no production `CloseAdmission` caller; **must be resolved before production cutoff is introduced**.
+- **Historical MEDIUM at 4B-5A — RESOLVED in 4B-5B-1 (UNCOMMITTED):** no-lease fresh `EnsureResolved` could permanently cache admission-closed in `_resolved` / `_blockedReason`. The committed 4B-5A checkpoint retains this historical finding; the current independently reviewed working-tree fix leaves temporary rejection retryable. No production cutoff caller has been introduced.
 - **LOW:** if the cleanup-success callback itself throws, cleanup state may remain in-progress/fail-closed; the current gate callback has no expected throw path.
 - **LOW:** AppDbContext disposal semantics are stricter: concurrent disposal is rejected; a later disposal after cleanup failure rethrows the original failure.
-- Future sequence: **4B-5B — backup admission/timer boundary**; **4B-5C — unified cutoff/background/updater/multi-context completion**. Each needs separate scope/approval. Production `PrepareRestore` / `Arm` remains unavailable until the complete required quiesce boundary exists. Restore UI remains future work.
+- Current sequence: **4B-5B-1 — resolver poisoning fix (UNCOMMITTED)**; **4B-5B-2 — backup admission/timer boundary (future)**; **4B-5C — unified cutoff/background/updater/multi-context completion (future)**. Production `PrepareRestore` / `Arm` remains unavailable until the complete required quiesce boundary exists. Restore UI remains future work.
+
+### 4B-5B-1 — resolver poisoning fix
+
+**IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / UNCOMMITTED. NOT restore-safe.** Phase 4 remains **IN PROGRESS**. No commit or push is claimed for this checkpoint.
+
+- Typed `DatabaseAdmissionClosedException` identifies temporary `Closed` admission only; no message matching or broad `InvalidOperationException` handling.
+- Temporary no-lease `EnsureResolved` rejection no longer poisons `_resolved` / `_blockedReason`; retry after `Reopen` succeeds.
+- Real resolution/initialization/cleanup failures and `FaultedClosed` remain fail-closed. Already-admitted fresh factory initialization retains its original admission ownership; new factories after cutoff remain rejected.
+- No production `CloseAdmission`, `PrepareRestore` or `Arm` caller was added. Backup/timer/update/shutdown/restore/UI integration remains pending.
+- Recorded implementation evidence: targeted `DatabaseAdmissionDrainTests` **36/36 passed**; relevant admission/resolution/durability/recovery/startup tests **166/166 passed**; full `ShopManager.Domain.Tests` **358/358 passed**; non-incremental solution build **0 warnings / 0 errors**; implementation `git diff --check` **exit 0**. These checks were executed during implementation, not rerun during this docs-only sync.
+- Independent review supplied by the user: **PASS WITH FINDINGS; no Critical / High / Medium findings**. This sync records that review; it does not claim a new independent review.
+
+**Residual LOW findings:**
+
+1. Unresolved path getters can temporarily throw admission-closed.
+2. An empty directory may be created before admission rejection.
+3. Minor test gaps remain: cached resolution while `Closed`, the `FaultedClosed` resolver path, and concurrent retry / `Reopen`. These cases are **VERIFICATION PENDING**, not claimed as covered.
+
+**4B-5B-2 planning constraints (future work, not implemented):**
+
+- Never wait for DB drain while holding the `TransitionGate` write lock.
+- Future production flow must close admission and prove drain before `Arm`; resolver identity must be established before future `CloseAdmission`.
+- In the no-lease fresh-resolution path, marker publication currently occurs after the runtime initialization lease is released and is outside DB drain. The already-admitted factory retains its existing lease. DB drain must not be presented as proof that all resolver/marker work has completed.
+- 4B-5B-2 is the backup admission/timer boundary; 4B-5C is unified cutoff/background/updater/multi-context completion. Each requires separate scope/approval; production restore admission remains unavailable until the required complete quiesce boundary exists.
 
 **VERIFICATION PENDING — 4B-4:** direct automated coverage مسیر واقعی `App.OnFrameworkInitializationCompleted` / `InitializeNormalDesktopStartup`؛ تست بیشتر path canonicalization/alias؛ installed GUI blocked-window startup/shutdown smoke؛ startup latency/UX برای stagingهای بزرگ. پوشش entry مشترک `App.RunDesktopStartup` ادعای پوشش مستقیم callback/بدنهٔ عادی نیست.
 
-**باقی‌مانده (pending):** **4B-5B / 4B-5C و بعد future work هستند**؛ restore UI wiring، quiesce/drain، shutdown redesign و حذف legacy restore path پیاده نشده‌اند. مصرف intent موجود در production startup از 4B-4 وجود دارد؛ restore end-to-end همچنان باز است. سپس: جایگزینی `BackupService.RestoreBackup` قدیمی و مسیر `SettingsWindow.axaml.cs:290` با `Environment.Exit(0)` (AR-4)؛ `EnsureCreated → Migrate()` (AR-2)؛ Schema Drift (S8)؛ Backup 3-2-1 + رمزنگاری (D1)؛ تست‌های crash/restore. جزئیات و مرزبندی کامل: [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
+**باقی‌مانده (pending):** **4B-5B-2 / 4B-5C و بعد future work هستند**؛ restore UI wiring، quiesce/drain، shutdown redesign و حذف legacy restore path پیاده نشده‌اند. مصرف intent موجود در production startup از 4B-4 وجود دارد؛ restore end-to-end همچنان باز است. سپس: جایگزینی `BackupService.RestoreBackup` قدیمی و مسیر `SettingsWindow.axaml.cs:290` با `Environment.Exit(0)` (AR-4)؛ `EnsureCreated → Migrate()` (AR-2)؛ Schema Drift (S8)؛ Backup 3-2-1 + رمزنگاری (D1)؛ تست‌های crash/restore. جزئیات و مرزبندی کامل: [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
 
-مرحلهٔ بعد **4B-5B — backup admission/timer boundary** و سپس **4B-5C — unified cutoff/background/updater/multi-context completion** است؛ scope و approval مستقل لازم دارند. 4B-4 در `63039d2` commit شده؛ 4B-5A در `36f0e7f` commit شده و NOT restore-safe است. این handoff مجوز اجرای خودکار تغییرات بعدی نیست.
+مرحلهٔ بعد **4B-5B-2 — backup admission/timer boundary** و سپس **4B-5C — unified cutoff/background/updater/multi-context completion** است؛ scope و approval مستقل لازم دارند. 4B-4 در `63039d2` commit شده؛ 4B-5A در `36f0e7f` commit شده و NOT restore-safe است. این handoff مجوز اجرای خودکار تغییرات بعدی نیست.
 
 <details>
 <summary>جدول تاریخی شماره‌گذاری قدیمی؛ snapshot مورخ 1405/07/07، دیگر وضعیت فعلی نیست</summary>
@@ -349,4 +374,4 @@ Checkpoint `36f0e7f` (`feat: add database admission and drain gate`) is pushed t
 
 ---
 
-**Phase 1–3 بسته‌اند.** Phase 4 همچنان **IN PROGRESS** است؛ 4B-4 در `63039d2` commit شده و 4B-5A **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED — `36f0e7f`** است. 4B-5A **NOT restore-safe** است؛ 4B-5B و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست. سایر اقلام DoD بازند؛ جزئیات در [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
+**Phase 1–3 بسته‌اند.** Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5B-1 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / UNCOMMITTED** است و **NOT restore-safe** است. آخرین checkpoint کد production commit‌شده، 4B-5A در `36f0e7f` است؛ 4B-5B-2 و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست. سایر اقلام DoD بازند؛ جزئیات در [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
