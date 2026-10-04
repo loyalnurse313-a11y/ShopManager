@@ -1,7 +1,7 @@
 # MASTER-BACKLOG
 
 > **هدف:** مرجع واحد برای همه‌ی یافته‌های ممیزی.
-> **آخرین به‌روزرسانی:** Phase 4 همچنان **IN PROGRESS** است؛ 4B-4 در `63039d2` commit شده و 4B-5A **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / CHECKPOINT-READY — UNCOMMITTED** است. 4B-5A **NOT restore-safe** است؛ 4B-5B و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست. checkpointهای پیشین: `583a7b8` (4B-3)، `d472153` (4B-2B)، `59d0dfc` (4B-2A).
+> **آخرین به‌روزرسانی:** Phase 4 همچنان **IN PROGRESS** است؛ 4B-4 در `63039d2` commit شده و 4B-5A **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED — `36f0e7f`** است. 4B-5A **NOT restore-safe** است؛ 4B-5B و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست. checkpointهای پیشین: `583a7b8` (4B-3)، `d472153` (4B-2B)، `59d0dfc` (4B-2A).
 > **وضعیت:** Phase 1، Phase 2 و Phase 3 کامل‌اند؛ Phase 4 — Crash Recovery + Backup **IN PROGRESS** است و تکمیل نشده.
 > نام یافته‌ها و ارجاع‌های قدیمی، سابقهٔ ممیزی‌اند؛ ستون وضعیت و توضیحات closure، نتیجهٔ فعلی را مشخص می‌کنند.
 
@@ -130,7 +130,7 @@
 
 ### Phase 4 — Crash Recovery + Backup — IN PROGRESS (تکمیل‌نشده)
 
-**Checkpoint های انجام‌شده (4A-1 تا 4B-2A: کد + تست در commit `59d0dfc`؛ 4B-2B: `d472153`؛ 4B-3: `583a7b8`؛ 4B-4: `63039d2`؛ 4B-5A: checkpoint-ready، UNCOMMITTED):**
+**Checkpoint های انجام‌شده (4A-1 تا 4B-2A: کد + تست در commit `59d0dfc`؛ 4B-2B: `d472153`؛ 4B-3: `583a7b8`؛ 4B-4: `63039d2`؛ 4B-5A: committed `36f0e7f`):**
 
 - [x] 4A-1 (`0944a7e`): انتشار اتمیک بکاپ SQLite — staging، اعتبارسنجی و publish ایمن.
 - [x] 4A-2 (`05212da`): هویت canonical دیتابیس و توقف امن startup پیش از settings/backup/auth.
@@ -142,7 +142,7 @@
 
 - [x] 4B-3 (`583a7b8`): app-lifetime Windows mutex `Global\ShopManager.ApplicationLifetime`؛ acquisition پس از `Velopack.Run()` و پیش از `BuildAvaloniaApp()`؛ Busy/Error → exit code 2/3 بدون startup admission؛ abandoned ownership پذیرفته؛ guard موفق برای عمر process strongly rooted؛ harness واقعی چندprocess بدون production DB/mutex. **Implemented / verified / checkpoint-ready**.
 - [x] 4B-4 (`63039d2`): startup recovery integration; implemented / verified / independently reviewed / checkpoint-ready. Evidence and residual verification are recorded below; Phase 4 remains IN PROGRESS.
-- [x] 4B-5A (UNCOMMITTED): runtime DbContext admission + context drain only; implemented / verified / independently reviewed / checkpoint-ready; NOT restore-safe.
+- [x] 4B-5A (`36f0e7f`): runtime DbContext admission + context drain only; implemented / verified / independently reviewed / committed; NOT restore-safe.
 
 **شواهد تاریخی 4B-2B (commit `d472153`؛ 270 تست در آن source tree commit‌شده؛ evidence قدیمی 246/246 مربوط به `59d0dfc` است):** `RestoreRecoveryServiceTests` 42 passed؛ کل `ShopManager.Domain.Tests` 270 passed؛ build غیرافزایشی solution با 0 warnings / 0 errors؛ adversarial/final review: PASS بدون issue مسدودکنندهٔ Critical/High/Medium. این evidence تکمیل Phase 4 را ادعا نمی‌کند.
 
@@ -154,7 +154,9 @@
 
 ### 4B-5A — database admission + context drain
 
-**IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / CHECKPOINT-READY — UNCOMMITTED.** Phase 4 remains **IN PROGRESS**.
+**IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED — `36f0e7f`.** Phase 4 remains **IN PROGRESS**.
+
+Checkpoint `36f0e7f` (`feat: add database admission and drain gate`) is pushed to `origin/phase/4-crash-recovery-backup` (push confirmed by the user; local remote-tracking ref matches).
 
 - Guaranteed ONLY: atomic runtime DbContext admission cutoff; tracking admitted runtime contexts until successful cleanup; asynchronous drain proof; owner-controlled reopen; fail-closed cleanup faults.
 - **NOT restore-safe:** no proof of backup drain, background/timer drain, updater drain, complete multi-context business-operation drain or full quiesce. No production permission/caller for `PrepareRestore` / `Arm` is introduced; no production caller of `CloseAdmission` exists in this checkpoint. No restore UI wiring.

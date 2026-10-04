@@ -2,10 +2,10 @@
 
 > **هدف:** پل بین ممیزی، وضعیت فعلی، و Roadmap جدید (۱۰ Phase).
 > **اصل حاکم:** هیچ Phase بدون DoD اثبات‌شده Done نیست.
-> **آخرین به‌روزرسانی:** بستن مستندات Phase 3 در `905622c` (3C در `da7d5b4`)؛ Phase 4 همچنان **IN PROGRESS** است؛ 4B-4 در `63039d2` commit شده و 4B-5A **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / CHECKPOINT-READY — UNCOMMITTED** است. 4B-5A **NOT restore-safe** است؛ 4B-5B و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست. checkpointهای پیشین: `583a7b8` (4B-3)، `d472153` (4B-2B)، `59d0dfc` (4B-2A).
-> **آخرین Commit پیاده‌سازی:** `63039d2` — `feat: integrate startup restore recovery` (4B-4). Phase 3C: `da7d5b4`؛ closure: `905622c` / `phase-3-concurrency-idempotency-complete`. 4B-5A UNCOMMITTED است.
+> **آخرین به‌روزرسانی:** بستن مستندات Phase 3 در `905622c` (3C در `da7d5b4`)؛ Phase 4 همچنان **IN PROGRESS** است؛ 4B-4 در `63039d2` commit شده و 4B-5A **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED — `36f0e7f`** است. 4B-5A **NOT restore-safe** است؛ 4B-5B و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست. checkpointهای پیشین: `583a7b8` (4B-3)، `d472153` (4B-2B)، `59d0dfc` (4B-2A).
+> **آخرین Commit پیاده‌سازی:** `36f0e7f` — `feat: add database admission and drain gate` (4B-5A). Phase 3C: `da7d5b4`؛ closure: `905622c` / `phase-3-concurrency-idempotency-complete`. 4B-5A در `36f0e7f` commit شده است.
 > **شواهد Phase 3C:** 134 Pass / 0 Fail / 0 Skip؛ build: 0 warnings / 0 errors؛ final adversarial review: PASS.
-> **وضعیت فعلی:** Phase 1–3 کامل‌اند. Phase 4 همچنان **IN PROGRESS** است؛ 4B-4 در `63039d2` commit شده و 4B-5A **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / CHECKPOINT-READY — UNCOMMITTED** است. 4B-5A **NOT restore-safe** است؛ 4B-5B و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست.
+> **وضعیت فعلی:** Phase 1–3 کامل‌اند. Phase 4 همچنان **IN PROGRESS** است؛ 4B-4 در `63039d2` commit شده و 4B-5A **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED — `36f0e7f`** است. 4B-5A **NOT restore-safe** است؛ 4B-5B و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست.
 > نتایج Phase 1/2 در بخش‌های خود، شواهد تاریخی‌اند. وضعیت فعلی این سند جایگزین نتیجه‌گیری‌های زمانی قدیمی می‌شود؛ متن `AUDIT-REPORT.md` و اسناد closure قبلی بازنویسی نشده است.
 
 ---
@@ -253,7 +253,7 @@ Cleanup یک Pre-Phase است، نه Phase شماره‌دار. حذف S1 (`POSC
 
 **Scope:** Migrate(), WAL, Backup verification, Encryption, External backup, Crash
 
-**Checkpoint های انجام‌شده (4A-1 تا 4B-2A: کد + تست در commit `59d0dfc`؛ 4B-2B: `d472153`؛ 4B-3: `583a7b8`؛ 4B-4: `63039d2`؛ 4B-5A: checkpoint-ready، UNCOMMITTED):**
+**Checkpoint های انجام‌شده (4A-1 تا 4B-2A: کد + تست در commit `59d0dfc`؛ 4B-2B: `d472153`؛ 4B-3: `583a7b8`؛ 4B-4: `63039d2`؛ 4B-5A: committed `36f0e7f`):**
 
 - [x] 4A-1 (`0944a7e`): انتشار اتمیک بکاپ SQLite — staging، اعتبارسنجی و publish ایمن.
 - [x] 4A-2 (`05212da`): هویت canonical دیتابیس و توقف امن startup.
@@ -264,7 +264,7 @@ Cleanup یک Pre-Phase است، نه Phase شماره‌دار. حذف S1 (`POSC
 - [x] 4B-2B (`d472153`): موتور بازیابی آفلاین در سطح فایل (`RestoreRecoveryService.Recover`) — پس از intent ماندگار forward-only (forward-complete یا BLOCK، هرگز rollback)؛ وضعیت منتشرشده با SHA-256 مورد انتظار دیتابیس زنده و نبودن sidecarهای زندهٔ `-wal`/`-shm`/`-journal` تأیید می‌شود؛ فقط tombstone/incoming artifactهای دقیقاً operation-owned (بدون wildcard)؛ cleanup plan-then-execute؛ وضعیت مبهم/ناایمن fail-closed و مسلح؛ حذف intent آخرین mutation موفق؛ نبودن `SafetyBackupPath` مانع forward completion نیست. app-lifetime mutex خارج از 4B-2B بود و اکنون در 4B-3 verify شده است. **هنوز باز:** 4B-5B / 4B-5C and later: restore UI wiring, quiesce/drain, shutdown redesign and legacy restore removal.
 - [x] 4B-3 (`583a7b8`): app-lifetime Windows mutex `Global\ShopManager.ApplicationLifetime`؛ acquisition پس از `Velopack.Run()` و پیش از `BuildAvaloniaApp()`؛ Busy/Error → exit code 2/3 بدون startup admission؛ abandoned ownership پذیرفته، بدون ادعای سلامت DB؛ guard موفق برای عمر process strongly rooted؛ harness واقعی چندprocess بدون production DB/mutex. **Implemented / verified / checkpoint-ready**.
 - [x] 4B-4 (`63039d2`): startup recovery integration; implemented / verified / independently reviewed / checkpoint-ready. Evidence and residual verification are recorded below; Phase 4 remains IN PROGRESS.
-- [x] 4B-5A (UNCOMMITTED): runtime DbContext admission + context drain only; implemented / verified / independently reviewed / checkpoint-ready; NOT restore-safe.
+- [x] 4B-5A (`36f0e7f`): runtime DbContext admission + context drain only; implemented / verified / independently reviewed / committed; NOT restore-safe.
 
 **DoD — موارد باقی‌مانده (Phase 4 کامل نیست):**
 
@@ -288,7 +288,9 @@ Cleanup یک Pre-Phase است، نه Phase شماره‌دار. حذف S1 (`POSC
 
 ### 4B-5A — database admission + context drain
 
-**IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / CHECKPOINT-READY — UNCOMMITTED.** Phase 4 remains **IN PROGRESS**.
+**IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED — `36f0e7f`.** Phase 4 remains **IN PROGRESS**.
+
+Checkpoint `36f0e7f` (`feat: add database admission and drain gate`) is pushed to `origin/phase/4-crash-recovery-backup` (push confirmed by the user; local remote-tracking ref matches).
 
 - Guaranteed ONLY: atomic runtime DbContext admission cutoff; tracking admitted runtime contexts until successful cleanup; asynchronous drain proof; owner-controlled reopen; fail-closed cleanup faults.
 - **NOT restore-safe:** no proof of backup drain, background/timer drain, updater drain, complete multi-context business-operation drain or full quiesce. No production permission/caller for `PrepareRestore` / `Arm` is introduced; no production caller of `CloseAdmission` exists in this checkpoint. No restore UI wiring.
@@ -428,14 +430,14 @@ text
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | فازهای کامل (Framework جدید)    | 3 (Phase 1, Phase 2, Phase 3 تا 3C)                                                                           |
 | Unique Index / F5               | بسته‌شده در سطح SaleOperations؛ محدودیت legacy در بخش ۵                                                       |
-| فاز بعدی | Phase 4 همچنان **IN PROGRESS** است؛ 4B-4 در `63039d2` commit شده و 4B-5A **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / CHECKPOINT-READY — UNCOMMITTED** است. 4B-5A **NOT restore-safe** است؛ 4B-5B و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست. |
+| فاز بعدی | Phase 4 همچنان **IN PROGRESS** است؛ 4B-4 در `63039d2` commit شده و 4B-5A **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED — `36f0e7f`** است. 4B-5A **NOT restore-safe** است؛ 4B-5B و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست. |
 | فازهای حذف‌شده از Roadmap       | Alert، Cloud، Multi-terminal                                                                                  |
 | کارهای قدیمی ثبت‌شده در بخش ۲.۳ | ۱۳؛ این عدد شمارندهٔ کل تغییرات جدید نیست                                                                     |
 | آخرین مجموعهٔ تست تأییدشده | 4B-5A: full **354/354**؛ targeted **32/32**؛ relevant DB/resolution/recovery/startup **130/130**؛ تاریخی: 322 در 4B-4، 291 در 4B-3، 270 در `d472153` و 246 در `59d0dfc` |
 | Build | 4B-5A: build غیرافزایشی solution با **0 warnings / 0 errors**؛ شواهد تاریخی checkpointهای قبلی حفظ شده‌اند |
-| Git | آخرین checkpoint production commit‌شده: `63039d2` (4B-4)؛ 4B-5A **UNCOMMITTED** و بدون hash؛ Phase 3 implementation: `da7d5b4` |
+| Git | آخرین checkpoint production commit‌شده: `36f0e7f` (4B-5A)؛ pushed to `origin/phase/4-crash-recovery-backup`؛ checkpoint قبلی: `63039d2` (4B-4)؛ Phase 3 implementation: `da7d5b4` |
 
-**Phase 1–3 بسته‌اند.** Phase 4 همچنان **IN PROGRESS** است؛ 4B-4 در `63039d2` commit شده و 4B-5A **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / CHECKPOINT-READY — UNCOMMITTED** است. 4B-5A **NOT restore-safe** است؛ 4B-5B و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست. سایر اقلام DoD بازند؛ جزئیات در [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
+**Phase 1–3 بسته‌اند.** Phase 4 همچنان **IN PROGRESS** است؛ 4B-4 در `63039d2` commit شده و 4B-5A **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED — `36f0e7f`** است. 4B-5A **NOT restore-safe** است؛ 4B-5B و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست. سایر اقلام DoD بازند؛ جزئیات در [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
 
 ---
 
@@ -482,4 +484,4 @@ text
 
 ---
 
-**Phase 1–3 بسته‌اند.** Phase 4 همچنان **IN PROGRESS** است؛ 4B-4 در `63039d2` commit شده و 4B-5A **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / CHECKPOINT-READY — UNCOMMITTED** است. 4B-5A **NOT restore-safe** است؛ 4B-5B و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست. سایر اقلام DoD بازند؛ جزئیات در [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
+**Phase 1–3 بسته‌اند.** Phase 4 همچنان **IN PROGRESS** است؛ 4B-4 در `63039d2` commit شده و 4B-5A **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED — `36f0e7f`** است. 4B-5A **NOT restore-safe** است؛ 4B-5B و 4B-5C آینده‌اند؛ restore UI هنوز در scope نیست. سایر اقلام DoD بازند؛ جزئیات در [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).

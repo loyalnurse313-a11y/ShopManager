@@ -5,19 +5,19 @@
 **Phase 4 — Crash Recovery + Backup: IN PROGRESS — NOT complete.**
 
 - Branch: `phase/4-crash-recovery-backup`.
-- Latest implemented checkpoint: **4B-5A — IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / CHECKPOINT-READY; UNCOMMITTED**. No 4B-5A commit hash is assigned.
-- Latest committed production-code checkpoint: `63039d2` — `feat: integrate startup restore recovery` (4B-4). Earlier checkpoints: `583a7b8` (4B-3), `d472153` (4B-2B), `59d0dfc` (4B-2A); commits between `59d0dfc` and `d472153` changed documentation and repository operating rules only.
+- Latest implemented checkpoint: **4B-5A — IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED; `36f0e7f`**. Pushed to `origin/phase/4-crash-recovery-backup`.
+- Latest committed production-code checkpoint: `36f0e7f` — `feat: add database admission and drain gate` (4B-5A). Earlier checkpoints: `63039d2` (4B-4), `583a7b8` (4B-3), `d472153` (4B-2B), `59d0dfc` (4B-2A); commits between `59d0dfc` and `d472153` changed documentation and repository operating rules only.
 - No Phase 4 completion tag exists. The last completion tag in the repository is
   `phase-3-concurrency-idempotency-complete`.
 - Documented checkpoints: **4A-1 through 4B-5A**. 4A-1 through 4B-2A are committed
-  (last commit `59d0dfc`); **4B-2B is committed in `d472153`; 4B-3 in `583a7b8`; 4B-4 in `63039d2`**.
+  (last commit `59d0dfc`); **4B-2B is committed in `d472153`; 4B-3 in `583a7b8`; 4B-4 in `63039d2`; 4B-5A in `36f0e7f`**.
 - Remaining work: **4B-5B / 4B-5C and later integration (future work)**, UI/shutdown/quiesce/drain
   integration and legacy restore removal, and the rest of the Phase 4 DoD
   recorded below.
 
 This document records checkpoints 4A-1 through 4B-2A as present in the committed source
 tree at commit `59d0dfc`, 4B-2B at commit `d472153`, 4B-3 at commit `583a7b8`,
-4B-4 at commit `63039d2`, and verified, independently reviewed 4B-5A in the uncommitted working tree. It does not claim
+4B-4 at commit `63039d2`, and verified, independently reviewed 4B-5A at commit `36f0e7f`. It does not claim
 Phase 4 completion.
 
 ## Purpose and scope
@@ -69,7 +69,7 @@ checkpoint-ready; committed in `63039d2`):**
 - removal of the legacy production restore path (`BackupService.RestoreBackup` and the
   `Environment.Exit(0)` path in `Views/SettingsWindow.axaml.cs`).
 
-## Checkpoints implemented (through 4B-4 committed; 4B-5A UNCOMMITTED)
+## Checkpoints implemented (through 4B-5A committed in `36f0e7f`)
 
 | Checkpoint | Commit    | Change                                                                                                                                                                                                                                                                             | Tests                                                                 |
 | ---------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
@@ -82,7 +82,7 @@ checkpoint-ready; committed in `63039d2`):**
 | 4B-2B      | `d472153` | Offline file-level recovery engine (`RestoreRecoveryService.Recover`). After a durable intent the engine is forward-only: it forward-completes or BLOCKs, never rolls back. The published state **V** is "the live DB has the expected SHA-256 **and** no live `-wal` / `-shm` / `-journal` sidecar exists". Cleanup touches exact operation-owned tombstone and incoming artifacts only (no wildcard cleanup) and is plan-then-execute. Ambiguous or unsafe states fail closed and the restore stays armed. Deleting the intent is the final successful disk mutation. A missing `SafetyBackupPath` does not prevent forward completion; the safety snapshot, when present, is retained. Crash/restart and blocked-state coverage was added. | `ShopManager.Domain.Tests/Integration/RestoreRecoveryServiceTests.cs` |
 | 4B-3 | `583a7b8` | App-lifetime Windows mutex `Global\ShopManager.ApplicationLifetime`; startup admission before Avalonia; Busy/Error exit codes 2/3; abandoned ownership accepted; process-lifetime root. Implemented, verified, checkpoint-ready. | `ShopManager.Domain.Tests/Integration/ApplicationInstanceGuardTests.cs`; `ShopManager.InstanceGuard.TestHost` |
 | 4B-4 | `63039d2` | Startup recovery before resolver/SQLite; same-intent registered identity admission; fail-closed errors; implemented, verified, independently reviewed, checkpoint-ready. | `ShopManager.Domain.Tests/Integration/StartupRecoveryIntegrationTests.cs`; `RestoreRecoveryServiceTests.cs` |
-| 4B-5A | UNCOMMITTED | Runtime DbContext admission cutoff, context lifetime accounting and async drain proof; NOT restore-safe. | `ShopManager.Domain.Tests/Integration/DatabaseAdmissionDrainTests.cs` |
+| 4B-5A | `36f0e7f` | Runtime DbContext admission cutoff, context lifetime accounting and async drain proof; NOT restore-safe. | `ShopManager.Domain.Tests/Integration/DatabaseAdmissionDrainTests.cs` |
 
 Historical declared test-method counts through 4B-2B: BackupPublication 16, DatabasePathResolution 31,
 DatabaseDurability 10, BackupLifecycle 8, RestorePreparation 13, RestoreRecoveryService 42
@@ -94,7 +94,9 @@ several executed cases, so the total executed count can be higher than the decla
 
 ### 4B-5A — database admission + context drain
 
-**IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / CHECKPOINT-READY — UNCOMMITTED.** Phase 4 remains **IN PROGRESS**.
+**IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED — `36f0e7f`.** Phase 4 remains **IN PROGRESS**.
+
+Checkpoint `36f0e7f` (`feat: add database admission and drain gate`) is pushed to `origin/phase/4-crash-recovery-backup` (push confirmed by the user; local remote-tracking ref matches).
 
 - Guaranteed ONLY: atomic runtime DbContext admission cutoff; tracking admitted runtime contexts until successful cleanup; asynchronous drain proof; owner-controlled reopen; fail-closed cleanup faults.
 - **NOT restore-safe:** no proof of backup drain, background/timer drain, updater drain, complete multi-context business-operation drain or full quiesce. No production permission/caller for `PrepareRestore` / `Arm` is introduced; no production caller of `CloseAdmission` exists in this checkpoint. No restore UI wiring.
@@ -179,7 +181,7 @@ Source-confirmed facts:
       committed in `583a7b8`, with historical evidence and residual verification items retained.
 - [x] **4B-4**: startup recovery wiring/order and consumption of restore intent;
       implemented, verified, independently reviewed, checkpoint-ready; committed in **`63039d2`**.
-- [x] **4B-5A**: runtime context admission + drain only; implemented, verified, independently reviewed, checkpoint-ready; **UNCOMMITTED**, **NOT restore-safe**.
+- [x] **4B-5A**: runtime context admission + drain only; implemented, verified, independently reviewed; committed in **`36f0e7f`**, **NOT restore-safe**.
 - [ ] **4B-5B / 4B-5C and later — future work**: restore UI wiring; quiesce/drain;
       shutdown redesign; removal of the legacy production restore path. Not implemented.
 - [ ] **AR-4**: replace the legacy `BackupService.RestoreBackup` and the

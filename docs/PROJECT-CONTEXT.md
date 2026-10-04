@@ -23,10 +23,10 @@ ShopManager یک POS و سامانهٔ مدیریت فروشگاه است.
 
 اگر این سند با evidence معتبر (source، tests، Git) ناسازگار بود، **آن ناسازگاری را گزارش کنید**؛ حدس نزنید. اصلاح فقط در scope صریح مجاز است.
 
-آخرین checkpoint پیاده‌شده: **4B-5A — IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / CHECKPOINT-READY؛ UNCOMMITTED و بدون hash**.
-آخرین checkpoint کد production که commit شده: `63039d2` — `feat: integrate startup restore recovery` (4B-4).
+آخرین checkpoint پیاده‌شده: **4B-5A — IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED؛ `36f0e7f`**.
+آخرین checkpoint کد production که commit شده: `36f0e7f` — `feat: add database admission and drain gate` (4B-5A).
 checkpointهای قبلی: `583a7b8` (4B-3)، `d472153` (4B-2B) و `59d0dfc` (4B-2A).
-دستور زیر فقط تغییرات commit‌شده را نشان می‌دهد؛ برای 4B-5A که هنوز commit نشده، `git status --short` و working-tree diff را نیز بررسی کنید:
+دستور زیر checkpointهای commit‌شده را نشان می‌دهد؛ 4B-5A در `36f0e7f` commit شده است:
 `git diff --stat d472153 HEAD -- . ':!docs' ':!AGENTS.md'`
 
 ## 3. invariantهای حیاتی
@@ -73,7 +73,7 @@ Scope خارج از roadmap فعلی: Cloud Sync، Multi-terminal، Multi-store�
 - Phase 3 closure: commit `905622c`; آخرین completion tag: `phase-3-concurrency-idempotency-complete`.
 - Phase 4 completion tag وجود ندارد.
 
-## 6. Phase 4 — وضعیت فعلی تا 4B-5A (UNCOMMITTED)
+## 6. Phase 4 — وضعیت فعلی تا 4B-5A (`36f0e7f` — COMMITTED)
 
 Phase 4 همچنان **IN PROGRESS — NOT complete** است.
 
@@ -88,7 +88,7 @@ Phase 4 همچنان **IN PROGRESS — NOT complete** است.
 | 4B-2B | `d472153` | offline file-level recovery engine (`RestoreRecoveryService.Recover`) |
 | 4B-3 | `583a7b8` | app-lifetime Windows mutex؛ implemented / verified / committed |
 | 4B-4 | `63039d2` | startup recovery integration؛ implemented / verified / independently reviewed / checkpoint-ready |
-| 4B-5A | UNCOMMITTED | runtime context admission + drain؛ IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / CHECKPOINT-READY؛ NOT restore-safe |
+| 4B-5A | `36f0e7f` | runtime context admission + drain؛ IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED؛ NOT restore-safe |
 
 evidence تاریخی برای checkpoint قبلی `59d0dfc` (4B-2A): build با 0 errors / 0 warnings؛ tests با 246/246 passed، 0 failed، 0 skipped.
 
@@ -101,7 +101,9 @@ evidence 4B-4 (`63039d2`): `StartupRecoveryIntegrationTests` **29 passed**؛ `Re
 
 ### 4B-5A — database admission + context drain
 
-**IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / CHECKPOINT-READY — UNCOMMITTED.** Phase 4 remains **IN PROGRESS**.
+**IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED — `36f0e7f`.** Phase 4 remains **IN PROGRESS**.
+
+Checkpoint `36f0e7f` (`feat: add database admission and drain gate`) is pushed to `origin/phase/4-crash-recovery-backup` (push confirmed by the user; local remote-tracking ref matches).
 
 - Guaranteed ONLY: atomic runtime DbContext admission cutoff; tracking admitted runtime contexts until successful cleanup; asynchronous drain proof; owner-controlled reopen; fail-closed cleanup faults.
 - **NOT restore-safe:** no proof of backup drain, background/timer drain, updater drain, complete multi-context business-operation drain or full quiesce. No production permission/caller for `PrepareRestore` / `Arm` is introduced; no production caller of `CloseAdmission` exists in this checkpoint. No restore UI wiring.
