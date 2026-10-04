@@ -174,14 +174,17 @@ public static class DatabaseService
     private static ResolutionResult Blocked(string reason) =>
         new(DataFolder: null, BlockReason: reason, ShouldPersistMarker: false, IsFreshInstall: false);
 
-    private static void EnsureResolved()
+    private static void EnsureResolved(DatabaseAdmissionGate.Lease? admission = null,
+        Func<DatabaseAdmissionGate.Lease, ResolutionResult>? resolutionForTests = null)
     {
         lock (_resolutionLock)
         {
             if (_resolved) return;
             try
             {
-                ApplyResolution(ResolveAndPublish(MarkerPath, PrimaryDataPath, FallbackDataFolder, Directory.Exists));
+                ApplyResolution(resolutionForTests is null
+                    ? ResolveAndPublishCore(MarkerPath, PrimaryDataPath, FallbackDataFolder, Directory.Exists, null, admission)
+                    : resolutionForTests(admission!));
             }
             catch (Exception ex)
             {
@@ -211,6 +214,12 @@ public static class DatabaseService
     internal static ResolutionResult ResolveAndPublish(
         string markerPath, string primaryFolder, string fallbackFolder,
         Func<string, bool> directoryExists, Action? beforePublication = null)
+        => ResolveAndPublishCore(markerPath, primaryFolder, fallbackFolder, directoryExists, beforePublication, null);
+
+    private static ResolutionResult ResolveAndPublishCore(
+        string markerPath, string primaryFolder, string fallbackFolder,
+        Func<string, bool> directoryExists, Action? beforePublication,
+        DatabaseAdmissionGate.Lease? admission)
     {
         ResolutionStartingForTests?.Invoke();
         var key = Path.GetFullPath(markerPath);
@@ -227,7 +236,7 @@ public static class DatabaseService
 
             var result = ResolveDatabaseLocation(markerPath, primaryFolder, fallbackFolder, directoryExists);
             if (result.IsBlocked || !result.ShouldPersistMarker) return result;
-            if (result.IsFreshInstall) PrepareFreshDatabase(result.DataFolder!);
+            if (result.IsFreshInstall) PrepareFreshDatabase(result.DataFolder!, admission);
             beforePublication?.Invoke();
             WriteMarker(markerPath, result.DataFolder!);
             // The publication winner is authoritative, including when a competing writer won.
@@ -239,24 +248,36 @@ public static class DatabaseService
         }
     }
 
-    private static void PrepareFreshDatabase(string folder)
+    private static void PrepareFreshDatabase(string folder, DatabaseAdmissionGate.Lease? admittedInitialization)
     {
-        var path = Path.Combine(folder, "shop.db");
+        // Borrow only the factory's existing initialization admission, never a new operation.
+        var lease = admittedInitialization ?? DatabaseAdmissionGate.Runtime.Enter();
+        AppDbContext? context = null;
         try
         {
-            // Exclusive creation consumes the only creation permission. SQLite itself
-            // always opens without CREATE, even if the file disappears immediately after this.
-            using var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-            file.Flush(flushToDisk: true);
+            var path = Path.Combine(folder, "shop.db");
+            try
+            {
+                // Exclusive creation consumes the only creation permission. SQLite itself
+                // always opens without CREATE, even if the file disappears immediately after this.
+                using var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                file.Flush(flushToDisk: true);
+            }
+            catch (IOException) when (File.Exists(path))
+            {
+                return; // Another creator established the file; never retain creation permission.
+            }
+            context = new AppDbContext(DurableOptions(ExistingConnectionString(path)),
+                () => { if (admittedInitialization is null) lease.Dispose(); }, lease.CleanupFailed);
+            // Establish durability before even the initial schema writes or EF existence probes.
+            context.Database.OpenConnection();
+            context.Database.EnsureCreated();
         }
-        catch (IOException) when (File.Exists(path))
+        finally
         {
-            return; // Another creator established the file; never retain creation permission.
+            if (context is not null) context.Dispose();
+            else if (admittedInitialization is null) lease.Dispose();
         }
-        using var context = new AppDbContext(DurableOptions(ExistingConnectionString(path)));
-        // Establish durability before even the initial schema writes or EF existence probes.
-        context.Database.OpenConnection();
-        context.Database.EnsureCreated();
     }
 
     private static string ExistingConnectionString(string path) => new SqliteConnectionStringBuilder
@@ -405,54 +426,63 @@ public static class DatabaseService
 
     internal static AppDbContext CreateContextForTests(Action beforeOpen) => CreateContextCore(beforeOpen);
 
-    private static AppDbContext CreateContextCore(Action? beforeOpen = null)
+    // Isolated resolver inputs; callers never receive or supply an admission capability.
+    internal static AppDbContext CreateFreshContextForTests(string markerPath, string primaryFolder, string fallbackFolder) =>
+        CreateContextCore(resolutionForTests: lease => ResolveAndPublishCore(
+            markerPath, primaryFolder, fallbackFolder, Directory.Exists, null, lease));
+
+    private static AppDbContext CreateContextCore(Action? beforeOpen = null,
+        Func<DatabaseAdmissionGate.Lease, ResolutionResult>? resolutionForTests = null)
     {
-        // ─── فاز 4B-2A: پذیرش دیتابیس روی همان مرز همگام‌سازی گذار بازیابی ───
-        // lease تا پایان ساخت context نگه داشته می‌شود؛ اگر Arm مالک انحصاری گذار باشد این
-        // فراخوانی تا آزادسازی منتظر می‌ماند و اگر بازیابی مسلح باشد fail-closed می‌شود.
-        // این یک مرز واقعی است، نه یک بازبینی دوبارهٔ IsArmed که خودش دچار TOCTOU می‌شود.
-        using var admission = RestoreRecoveryService.EnterDatabaseAdmission();
-
-        // ─── فاز 4A-2: توقف صریح پیش از هر کار با دیتابیس در حالت blocked ───
-        EnsureResolved();
-        if (_blockedReason != null)
-            throw new InvalidOperationException(_blockedReason);
-
-        var path = DatabasePath;
-        if (!File.Exists(path))
-            throw new InvalidOperationException(
-                "فایل دیتابیس یافت نشد و ساخت خودکار جایگزین ممنوع است (هویت دیتابیس ثبت شده): " + path);
-
-        beforeOpen?.Invoke();
-
-        // ─── فقط یک بار اسکیما رو آپدیت کن (با ADO.NET خالص) ───
-        if (!_schemaInitialized)
-        {
-            lock (_schemaLock)
-            {
-                if (!_schemaInitialized)
-                {
-                    EnsureSchemaWithAdoNet();
-                    _schemaInitialized = true;
-                }
-            }
-        }
-
-        var context = new AppDbContext(DurableOptions(ExistingConnectionString(path)));
+        var lease = DatabaseAdmissionGate.Runtime.Enter();
+        AppDbContext? context = null;
         try
         {
+            // ─── فاز 4B-2A: پذیرش دیتابیس روی همان مرز همگام‌سازی گذار بازیابی ───
+            // lease تا پایان ساخت context نگه داشته می‌شود؛ اگر Arm مالک انحصاری گذار باشد این
+            // فراخوانی تا آزادسازی منتظر می‌ماند و اگر بازیابی مسلح باشد fail-closed می‌شود.
+            // این یک مرز واقعی است، نه یک بازبینی دوبارهٔ IsArmed که خودش دچار TOCTOU می‌شود.
+            using var admission = RestoreRecoveryService.EnterDatabaseAdmission();
+
+            // ─── فاز 4A-2: توقف صریح پیش از هر کار با دیتابیس در حالت blocked ───
+            EnsureResolved(lease, resolutionForTests);
+            if (_blockedReason != null)
+                throw new InvalidOperationException(_blockedReason);
+
+            var path = DatabasePath;
+            if (!File.Exists(path))
+                throw new InvalidOperationException(
+                    "فایل دیتابیس یافت نشد و ساخت خودکار جایگزین ممنوع است (هویت دیتابیس ثبت شده): " + path);
+
+            beforeOpen?.Invoke();
+
+            // ─── فقط یک بار اسکیما رو آپدیت کن (با ADO.NET خالص) ───
+            if (!_schemaInitialized)
+            {
+                lock (_schemaLock)
+                {
+                    if (!_schemaInitialized)
+                    {
+                        EnsureSchemaWithAdoNet();
+                        _schemaInitialized = true;
+                    }
+                }
+            }
+
+            context = new AppDbContext(DurableOptions(ExistingConnectionString(path)), lease.Dispose, lease.CleanupFailed);
             context.Database.EnsureCreated();
             EnsureSaleOperationSchema(context);
+
+            context.SavedChanges += OnSavedChanges;
+
+            return context;
         }
         catch
         {
-            context.Dispose();
+            if (context is null) lease.Dispose();
+            else context.Dispose();
             throw;
         }
-
-        context.SavedChanges += OnSavedChanges;
-
-        return context;
     }
 
     // Required on existing databases too: EnsureCreated does not add missing tables.

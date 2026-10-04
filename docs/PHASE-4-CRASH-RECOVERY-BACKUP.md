@@ -5,24 +5,19 @@
 **Phase 4 — Crash Recovery + Backup: IN PROGRESS — NOT complete.**
 
 - Branch: `phase/4-crash-recovery-backup`.
-- Latest implemented checkpoint: **4B-4 — implemented, verified, independently reviewed,
-  checkpoint-ready; UNCOMMITTED**. No 4B-4 commit hash is assigned.
-- Latest committed production-code checkpoint: `583a7b8` — `feat: add app-lifetime instance guard`
-  (4B-3). Earlier checkpoints: `d472153` — `feat: implement crash-safe restore recovery engine`
-  (4B-2B), and `59d0dfc` —
-  `feat: add durable restore intent foundation` (4B-2A); the commits between `59d0dfc` and
-  `d472153` changed documentation and repository operating rules only.
+- Latest implemented checkpoint: **4B-5A — IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / CHECKPOINT-READY; UNCOMMITTED**. No 4B-5A commit hash is assigned.
+- Latest committed production-code checkpoint: `63039d2` — `feat: integrate startup restore recovery` (4B-4). Earlier checkpoints: `583a7b8` (4B-3), `d472153` (4B-2B), `59d0dfc` (4B-2A); commits between `59d0dfc` and `d472153` changed documentation and repository operating rules only.
 - No Phase 4 completion tag exists. The last completion tag in the repository is
   `phase-3-concurrency-idempotency-complete`.
-- Documented checkpoints: **4A-1 through 4B-4**. 4A-1 through 4B-2A are committed
-  (last commit `59d0dfc`); **4B-2B is committed in `d472153`; 4B-3 in `583a7b8`**.
-- Remaining work: **4B-5 and later integration (future work)**, UI/shutdown/quiesce/drain
+- Documented checkpoints: **4A-1 through 4B-5A**. 4A-1 through 4B-2A are committed
+  (last commit `59d0dfc`); **4B-2B is committed in `d472153`; 4B-3 in `583a7b8`; 4B-4 in `63039d2`**.
+- Remaining work: **4B-5B / 4B-5C and later integration (future work)**, UI/shutdown/quiesce/drain
   integration and legacy restore removal, and the rest of the Phase 4 DoD
   recorded below.
 
 This document records checkpoints 4A-1 through 4B-2A as present in the committed source
 tree at commit `59d0dfc`, 4B-2B at commit `d472153`, 4B-3 at commit `583a7b8`,
-and verified, independently reviewed 4B-4 in the uncommitted working tree. It does not claim
+4B-4 at commit `63039d2`, and verified, independently reviewed 4B-5A in the uncommitted working tree. It does not claim
 Phase 4 completion.
 
 ## Purpose and scope
@@ -49,7 +44,7 @@ backup, crash recovery, and safe restore.
 - real multi-process harness uses unique test mutex names and no production DB/mutex.
 
 **4B-4 — startup recovery integration (implemented, verified, independently reviewed,
-checkpoint-ready; UNCOMMITTED):**
+checkpoint-ready; committed in `63039d2`):**
 - Production order: Velopack → acquired/retained `ApplicationInstanceGuard` → Avalonia
   initialization → first desktop startup gate (`StartupRecoveryCoordinator`) →
   `DatabaseService.BlockedReason` → `CreateContext` → settings/theme → backup/timer →
@@ -68,13 +63,13 @@ checkpoint-ready; UNCOMMITTED):**
 - The narrow identity-admission hook preserves 4B-2B forward-complete invariants;
   4B-3 guard behavior and the existing normal startup/shutdown body remain intact.
 
-**Still future work after 4B-4 (not implemented; 4B-5 and later need separate scope):**
+**Still future work after 4B-5A (not implemented; 4B-5B / 4B-5C and later need separate scope):**
 - SettingsWindow/UI integration;
 - quiesce/drain integration and shutdown redesign;
 - removal of the legacy production restore path (`BackupService.RestoreBackup` and the
   `Environment.Exit(0)` path in `Views/SettingsWindow.axaml.cs`).
 
-## Checkpoints implemented (through 4B-3 committed; 4B-4 UNCOMMITTED)
+## Checkpoints implemented (through 4B-4 committed; 4B-5A UNCOMMITTED)
 
 | Checkpoint | Commit    | Change                                                                                                                                                                                                                                                                             | Tests                                                                 |
 | ---------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
@@ -86,7 +81,8 @@ checkpoint-ready; UNCOMMITTED):**
 | 4B-2A      | `59d0dfc` | Durable restore-intent foundation: fixed app-owned `restore-intent.json`; pipeline flush → SHA-256 → atomic publish → process arm. `TransitionGate` admission lease is taken by `DatabaseService.CreateContext` so a new context cannot start while a restore owns the transition. | `ShopManager.Domain.Tests/Integration/RestoreRecoveryServiceTests.cs` |
 | 4B-2B      | `d472153` | Offline file-level recovery engine (`RestoreRecoveryService.Recover`). After a durable intent the engine is forward-only: it forward-completes or BLOCKs, never rolls back. The published state **V** is "the live DB has the expected SHA-256 **and** no live `-wal` / `-shm` / `-journal` sidecar exists". Cleanup touches exact operation-owned tombstone and incoming artifacts only (no wildcard cleanup) and is plan-then-execute. Ambiguous or unsafe states fail closed and the restore stays armed. Deleting the intent is the final successful disk mutation. A missing `SafetyBackupPath` does not prevent forward completion; the safety snapshot, when present, is retained. Crash/restart and blocked-state coverage was added. | `ShopManager.Domain.Tests/Integration/RestoreRecoveryServiceTests.cs` |
 | 4B-3 | `583a7b8` | App-lifetime Windows mutex `Global\ShopManager.ApplicationLifetime`; startup admission before Avalonia; Busy/Error exit codes 2/3; abandoned ownership accepted; process-lifetime root. Implemented, verified, checkpoint-ready. | `ShopManager.Domain.Tests/Integration/ApplicationInstanceGuardTests.cs`; `ShopManager.InstanceGuard.TestHost` |
-| 4B-4 | UNCOMMITTED | Startup recovery before resolver/SQLite; same-intent registered identity admission; fail-closed errors; implemented, verified, independently reviewed, checkpoint-ready. | `ShopManager.Domain.Tests/Integration/StartupRecoveryIntegrationTests.cs`; `RestoreRecoveryServiceTests.cs` |
+| 4B-4 | `63039d2` | Startup recovery before resolver/SQLite; same-intent registered identity admission; fail-closed errors; implemented, verified, independently reviewed, checkpoint-ready. | `ShopManager.Domain.Tests/Integration/StartupRecoveryIntegrationTests.cs`; `RestoreRecoveryServiceTests.cs` |
+| 4B-5A | UNCOMMITTED | Runtime DbContext admission cutoff, context lifetime accounting and async drain proof; NOT restore-safe. | `ShopManager.Domain.Tests/Integration/DatabaseAdmissionDrainTests.cs` |
 
 Historical declared test-method counts through 4B-2B: BackupPublication 16, DatabasePathResolution 31,
 DatabaseDurability 10, BackupLifecycle 8, RestorePreparation 13, RestoreRecoveryService 42
@@ -96,7 +92,20 @@ several executed cases, so the total executed count can be higher than the decla
 
 ## What is verified now
 
-Verified 4B-4 evidence (UNCOMMITTED; implementation/test results recorded in this session):
+### 4B-5A — database admission + context drain
+
+**IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / CHECKPOINT-READY — UNCOMMITTED.** Phase 4 remains **IN PROGRESS**.
+
+- Guaranteed ONLY: atomic runtime DbContext admission cutoff; tracking admitted runtime contexts until successful cleanup; asynchronous drain proof; owner-controlled reopen; fail-closed cleanup faults.
+- **NOT restore-safe:** no proof of backup drain, background/timer drain, updater drain, complete multi-context business-operation drain or full quiesce. No production permission/caller for `PrepareRestore` / `Arm` is introduced; no production caller of `CloseAdmission` exists in this checkpoint. No restore UI wiring.
+- Verified implementation evidence supplied for this documentation sync: `DatabaseAdmissionDrainTests` **32/32 passed**; relevant DB/resolution/recovery/startup tests **130/130 passed**; full `ShopManager.Domain.Tests` **354/354 passed**; non-incremental solution build **0 warnings / 0 errors**; implementation `git diff --check` **exit 0**. Tests/build/review were not rerun during this docs-only step.
+- Independent review: **PASS WITH FINDINGS**. Both previous blocking findings are **RESOLVED**: concurrent cleanup ownership is established before EF cleanup; already-admitted fresh initialization reuses the existing admission instead of taking a second independent lease.
+- **MEDIUM — OPEN BEFORE PRODUCTION `CloseAdmission` / 4B-5B:** a no-lease `EnsureResolved` resolution path can still permanently publish `_blockedReason` if fresh initialization encounters admission-closed. Non-blocking for 4B-5A because it adds no production `CloseAdmission` caller; **must be resolved before production cutoff is introduced**.
+- **LOW:** if the cleanup-success callback itself throws, cleanup state may remain in-progress/fail-closed; the current gate callback has no expected throw path.
+- **LOW:** AppDbContext disposal semantics are stricter: concurrent disposal is rejected; a later disposal after cleanup failure rethrows the original failure.
+- Future sequence: **4B-5B — backup admission/timer boundary**; **4B-5C — unified cutoff/background/updater/multi-context completion**. Each needs separate scope/approval. Production `PrepareRestore` / `Arm` remains unavailable until the complete required quiesce boundary exists. Restore UI remains future work.
+
+Historical verified 4B-4 evidence (checkpoint committed in `63039d2`; recorded implementation/test results):
 
 - `StartupRecoveryIntegrationTests` → **29 passed, 0 failed, 0 skipped**.
 - `RestoreRecoveryServiceTests` → **44 passed, 0 failed, 0 skipped**.
@@ -154,7 +163,7 @@ Source-confirmed facts:
   admission lease.
 - At `59d0dfc`, `RestoreRecoveryService` documented the real database/WAL/SHM swap and
   tombstone as later work. Commit `d472153` (4B-2B) implements that file-level engine
-  (`Recover`); startup recovery wiring is now implemented in uncommitted 4B-4 through
+  (`Recover`); startup recovery wiring is now implemented in committed 4B-4 (`63039d2`) through
   `StartupRecoveryCoordinator`, before the resolver and SQLite startup.
 - The legacy `BackupService.RestoreBackup` (a `File.Copy`-based implementation) still
   exists and is still invoked from `Views/SettingsWindow.axaml.cs:290` together with
@@ -169,8 +178,9 @@ Source-confirmed facts:
 - [x] **4B-3**: app-lifetime mutex — implemented, verified, checkpoint-ready;
       committed in `583a7b8`, with historical evidence and residual verification items retained.
 - [x] **4B-4**: startup recovery wiring/order and consumption of restore intent;
-      implemented, verified, independently reviewed, checkpoint-ready; **UNCOMMITTED**.
-- [ ] **4B-5 and later — future work**: restore UI wiring; quiesce/drain;
+      implemented, verified, independently reviewed, checkpoint-ready; committed in **`63039d2`**.
+- [x] **4B-5A**: runtime context admission + drain only; implemented, verified, independently reviewed, checkpoint-ready; **UNCOMMITTED**, **NOT restore-safe**.
+- [ ] **4B-5B / 4B-5C and later — future work**: restore UI wiring; quiesce/drain;
       shutdown redesign; removal of the legacy production restore path. Not implemented.
 - [ ] **AR-4**: replace the legacy `BackupService.RestoreBackup` and the
       `SettingsWindow.axaml.cs:290` `Environment.Exit(0)` path with the safe restore flow.
@@ -206,7 +216,7 @@ Source-confirmed facts:
   startup/shutdown smoke; startup latency/UX for large recovery staging files.
 - Startup now consumes existing restore intents through the 4B-2B engine. End-to-end
   restore UI wiring, quiesce/drain, shutdown redesign and legacy restore removal remain
-  unimplemented future work (4B-5 and later); checkpoint readiness does not close Phase 4.
+  unimplemented future work (4B-5B / 4B-5C and later); checkpoint readiness does not close Phase 4.
 - The legacy restore path is still the one the UI calls.
 - Durability is enforced on each connection open; this is not a claim about power-loss
   behavior under every filesystem.

@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ShopManager.Domain.Entities;
+using System.Runtime.ExceptionServices;
 
 namespace ShopManager.Infrastructure.Persistence;
 
@@ -8,9 +9,72 @@ namespace ShopManager.Infrastructure.Persistence;
 /// </summary>
 public class AppDbContext : DbContext
 {
+    private readonly Action? _cleanupSucceeded;
+    private readonly Action<Exception>? _cleanupFailed;
+    // 0 = not started, 1 = cleanup owned, 2 = succeeded, 3 = failed.
+    private int _cleanupState;
+    private ExceptionDispatchInfo? _cleanupError;
+
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options)
     {
+    }
+
+    /// <summary>Optional resource ownership hooks; the EF model and context type stay unchanged.</summary>
+    public AppDbContext(DbContextOptions<AppDbContext> options,
+        Action cleanupSucceeded, Action<Exception> cleanupFailed) : base(options)
+    {
+        ArgumentNullException.ThrowIfNull(cleanupSucceeded);
+        ArgumentNullException.ThrowIfNull(cleanupFailed);
+        _cleanupSucceeded = cleanupSucceeded;
+        _cleanupFailed = cleanupFailed;
+    }
+
+    public override void Dispose()
+    {
+        if (!TryOwnCleanup()) return;
+        try { base.Dispose(); }
+        catch (Exception error)
+        {
+            ReportCleanupFailure(error);
+            throw;
+        }
+        ReportCleanupSuccess();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        if (!TryOwnCleanup()) return;
+        try { await base.DisposeAsync().ConfigureAwait(false); }
+        catch (Exception error)
+        {
+            ReportCleanupFailure(error);
+            throw;
+        }
+        ReportCleanupSuccess();
+    }
+
+    private void ReportCleanupSuccess()
+    {
+        _cleanupSucceeded?.Invoke();
+        Volatile.Write(ref _cleanupState, 2);
+    }
+
+    private void ReportCleanupFailure(Exception error)
+    {
+        _cleanupError = ExceptionDispatchInfo.Capture(error);
+        try { _cleanupFailed?.Invoke(error); }
+        finally { Volatile.Write(ref _cleanupState, 3); }
+    }
+
+    private bool TryOwnCleanup()
+    {
+        var state = Interlocked.CompareExchange(ref _cleanupState, 1, 0);
+        if (state == 0) return true;
+        if (state == 2) return false;
+        if (state == 3) _cleanupError!.Throw();
+        // Do not enter EF concurrently, wait on the cleanup owner, or report success.
+        throw new InvalidOperationException("Context cleanup is already in progress.");
     }
 
     // ─── جدول‌ها ───
