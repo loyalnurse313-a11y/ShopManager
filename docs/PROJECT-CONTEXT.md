@@ -23,10 +23,10 @@ ShopManager یک POS و سامانهٔ مدیریت فروشگاه است.
 
 اگر این سند با evidence معتبر (source، tests، Git) ناسازگار بود، **آن ناسازگاری را گزارش کنید**؛ حدس نزنید. اصلاح فقط در scope صریح مجاز است.
 
-آخرین checkpoint پیاده‌شده: **4B-5C-1 — IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — NOT COMMITTED؛ NOT runtime-quiescent / NOT restore-safe**. گام بعدی: 4B-5C-2، production operation enrollment و producer retirement.
-آخرین checkpoint کد production که commit شده: `287764c` — `feat: add backup admission and drain boundary` (4B-5B-2). push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`.
+آخرین checkpoint پیاده‌شده: **4B-5C-1 — IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — COMMITTED `33e12b6`؛ NOT runtime-quiescent / NOT restore-safe**. گام بعدی: 4B-5C-2، production operation enrollment و producer retirement.
+آخرین checkpoint کد production که commit شده: `33e12b6` — `feat: add runtime operation admission gate` (4B-5C-1). push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`.
 checkpointهای قبلی: `583a7b8` (4B-3)، `d472153` (4B-2B) و `59d0dfc` (4B-2A).
-دستور زیر checkpointهای commit‌شده را نشان می‌دهد؛ 4B-5B-2 در `287764c` commit شده است:
+دستور زیر checkpointهای commit‌شده را نشان می‌دهد؛ 4B-5C-1 در `33e12b6` commit شده است:
 `git diff --stat d472153 HEAD -- . ':!docs' ':!AGENTS.md'`
 
 ## 3. invariantهای حیاتی
@@ -73,7 +73,7 @@ Scope خارج از roadmap فعلی: Cloud Sync، Multi-terminal، Multi-store�
 - Phase 3 closure: commit `905622c`; آخرین completion tag: `phase-3-concurrency-idempotency-complete`.
 - Phase 4 completion tag وجود ندارد.
 
-## 6. Phase 4 — وضعیت فعلی تا 4B-5C-1 (NOT COMMITTED؛ آخرین checkpoint کد production commit‌شده: 4B-5B-2 در `287764c`)
+## 6. Phase 4 — وضعیت فعلی تا 4B-5C-1 (COMMITTED `33e12b6`؛ آخرین checkpoint کد production commit‌شده: 4B-5C-1 در `33e12b6`)
 
 Phase 4 همچنان **IN PROGRESS — NOT complete** است.
 
@@ -91,7 +91,7 @@ Phase 4 همچنان **IN PROGRESS — NOT complete** است.
 | 4B-5A | `36f0e7f` | runtime context admission + drain؛ IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED؛ NOT restore-safe |
 | 4B-5B-1 | `34faeee` (COMMITTED / PUSHED) | resolver poisoning fix؛ IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED؛ NOT restore-safe |
 | 4B-5B-2 | `287764c` (COMMITTED) | backup admission/timer boundary; IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED; NOT restore-safe |
-| 4B-5C-1 | NOT COMMITTED | isolated RuntimeOperationGate primitive; IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED; NOT runtime-quiescent / NOT restore-safe |
+| 4B-5C-1 | COMMITTED `33e12b6` | isolated RuntimeOperationGate primitive; IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED; NOT runtime-quiescent / NOT restore-safe |
 
 evidence تاریخی برای checkpoint قبلی `59d0dfc` (4B-2A): build با 0 errors / 0 warnings؛ tests با 246/246 passed، 0 failed، 0 skipped.
 
@@ -115,7 +115,7 @@ Checkpoint `36f0e7f` (`feat: add database admission and drain gate`) is pushed t
 - **Historical MEDIUM at 4B-5A — RESOLVED in 4B-5B-1 (`34faeee`; COMMITTED / PUSHED):** no-lease fresh `EnsureResolved` could permanently cache admission-closed in `_resolved` / `_blockedReason`. The committed 4B-5A checkpoint retains this historical finding; the independently reviewed resolver fix committed in `34faeee` leaves temporary rejection retryable. No production cutoff caller has been introduced.
 - **LOW:** if the cleanup-success callback itself throws, cleanup state may remain in-progress/fail-closed; the current gate callback has no expected throw path.
 - **LOW:** AppDbContext disposal semantics are stricter: concurrent disposal is rejected; a later disposal after cleanup failure rethrows the original failure.
-- Current sequence: **4B-5B-1 — resolver poisoning fix (`34faeee`; COMMITTED / PUSHED)**; **4B-5B-2 — backup admission/timer boundary (IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED `287764c`)**; **4B-5C-1 — isolated operation-lifetime primitive (IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — NOT COMMITTED)**; **4B-5C-2 — production operation enrollment and producer retirement (next planned)**. Production `PrepareRestore` / `Arm` remains unavailable until the complete required quiesce boundary exists. Restore UI remains future work.
+- Current sequence: **4B-5B-1 — resolver poisoning fix (`34faeee`; COMMITTED / PUSHED)**; **4B-5B-2 — backup admission/timer boundary (IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED `287764c`)**; **4B-5C-1 — isolated operation-lifetime primitive (IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — COMMITTED `33e12b6`)**; **4B-5C-2 — production operation enrollment and producer retirement (next planned)**. Production `PrepareRestore` / `Arm` remains unavailable until the complete required quiesce boundary exists. Restore UI remains future work.
 
 ### 4B-5B-1 — resolver poisoning fix
 
@@ -176,7 +176,9 @@ Checkpoint commit: `287764c2e89d428ac658e55589a5900defe24397` — `feat: add bac
 
 ### 4B-5C-1 — isolated operation-lifetime primitive
 
-**IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — NOT COMMITTED. NOT runtime-quiescent / NOT restore-safe.** Phase 4 remains **IN PROGRESS**.
+**IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — COMMITTED `33e12b6`. NOT runtime-quiescent / NOT restore-safe.** Phase 4 remains **IN PROGRESS**.
+
+Checkpoint commit: `33e12b6e52e01a307e7ab474f26945447116db46` — `feat: add runtime operation admission gate`. This post-commit reconciliation records COMMITTED status only; it does not claim a push or new test/build/review execution.
 
 - Production: `ShopManager.Desktop/Services/RuntimeOperationGate.cs`; tests: `ShopManager.Domain.Tests/Integration/RuntimeOperationAdmissionTests.cs`.
 - States `Open` / `Closed` / `FaultedClosed`; operation-lifetime accounting, Interactive Busy, closure ownership, async drain, controlled reopen and fail-closed unproven completion.
