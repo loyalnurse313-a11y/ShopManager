@@ -2,10 +2,10 @@
 
 > **هدف:** پل بین ممیزی، وضعیت فعلی، و Roadmap جدید (۱۰ Phase).
 > **اصل حاکم:** هیچ Phase بدون DoD اثبات‌شده Done نیست.
-> **آخرین به‌روزرسانی:** بستن مستندات Phase 3 در `905622c` (3C در `da7d5b4`)؛ Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5B-2 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / UNCOMMITTED** است و **NOT restore-safe** است. آخرین checkpoint کد production commit‌شده و pushed، 4B-5B-1 در `34faeee` است؛ 4B-5C آینده است؛ restore UI هنوز در scope نیست. checkpointهای پیشین: `583a7b8` (4B-3)، `d472153` (4B-2B)، `59d0dfc` (4B-2A).
+> **آخرین به‌روزرسانی:** بستن مستندات Phase 3 در `905622c` (3C در `da7d5b4`)؛ Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5B-2 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED** است و **NOT restore-safe** است. آخرین checkpoint کد production commit‌شده، 4B-5B-2 در `287764c` است؛ push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`؛ 4B-5C آینده است؛ restore UI هنوز در scope نیست. checkpointهای پیشین: `583a7b8` (4B-3)، `d472153` (4B-2B)، `59d0dfc` (4B-2A).
 > **آخرین Commit پیاده‌سازی:** `36f0e7f` — `feat: add database admission and drain gate` (4B-5A). Phase 3C: `da7d5b4`؛ closure: `905622c` / `phase-3-concurrency-idempotency-complete`. 4B-5A در `36f0e7f` commit شده است.
 > **شواهد Phase 3C:** 134 Pass / 0 Fail / 0 Skip؛ build: 0 warnings / 0 errors؛ final adversarial review: PASS.
-> **وضعیت فعلی:** Phase 1–3 کامل‌اند. Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5B-2 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / UNCOMMITTED** است و **NOT restore-safe** است. آخرین checkpoint کد production commit‌شده و pushed، 4B-5B-1 در `34faeee` است؛ 4B-5C آینده است؛ restore UI هنوز در scope نیست.
+> **وضعیت فعلی:** Phase 1–3 کامل‌اند. Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5B-2 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED** است و **NOT restore-safe** است. آخرین checkpoint کد production commit‌شده، 4B-5B-2 در `287764c` است؛ push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`؛ 4B-5C آینده است؛ restore UI هنوز در scope نیست.
 > نتایج Phase 1/2 در بخش‌های خود، شواهد تاریخی‌اند. وضعیت فعلی این سند جایگزین نتیجه‌گیری‌های زمانی قدیمی می‌شود؛ متن `AUDIT-REPORT.md` و اسناد closure قبلی بازنویسی نشده است.
 
 ---
@@ -266,7 +266,7 @@ Cleanup یک Pre-Phase است، نه Phase شماره‌دار. حذف S1 (`POSC
 - [x] 4B-4 (`63039d2`): startup recovery integration; implemented / verified / independently reviewed / checkpoint-ready. Evidence and residual verification are recorded below; Phase 4 remains IN PROGRESS.
 - [x] 4B-5A (`36f0e7f`): runtime DbContext admission + context drain only; implemented / verified / independently reviewed / committed; NOT restore-safe.
 - [x] 4B-5B-1 (`34faeee`; COMMITTED / PUSHED): resolver poisoning fix; implemented / verified / independently reviewed; NOT restore-safe.
-- [x] **4B-5B-2**: backup admission/timer boundary; IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED; **UNCOMMITTED**, **NOT restore-safe**. Final evidence: 26/26 targeted, 172/172 relevant, 384/384 full; re-review PASS WITH FINDINGS; M1/M2 CLOSED.
+- [x] **4B-5B-2**: backup admission/timer boundary; IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED; **COMMITTED `287764c`**, **NOT restore-safe**. Final evidence: 26/26 targeted, 172/172 relevant, 384/384 full; re-review PASS WITH FINDINGS; M1/M2 CLOSED.
 
 **DoD — موارد باقی‌مانده (Phase 4 کامل نیست):**
 
@@ -301,7 +301,7 @@ Checkpoint `36f0e7f` (`feat: add database admission and drain gate`) is pushed t
 - **Historical MEDIUM at 4B-5A — RESOLVED in 4B-5B-1 (`34faeee`; COMMITTED / PUSHED):** no-lease fresh `EnsureResolved` could permanently cache admission-closed in `_resolved` / `_blockedReason`. The committed 4B-5A checkpoint retains this historical finding; the independently reviewed resolver fix committed in `34faeee` leaves temporary rejection retryable. No production cutoff caller has been introduced.
 - **LOW:** if the cleanup-success callback itself throws, cleanup state may remain in-progress/fail-closed; the current gate callback has no expected throw path.
 - **LOW:** AppDbContext disposal semantics are stricter: concurrent disposal is rejected; a later disposal after cleanup failure rethrows the original failure.
-- Current sequence: **4B-5B-1 — resolver poisoning fix (`34faeee`; COMMITTED / PUSHED)**; **4B-5B-2 — backup admission/timer boundary (IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / UNCOMMITTED)**; **4B-5C — unified cutoff/background/updater/multi-context completion (future)**. Production `PrepareRestore` / `Arm` remains unavailable until the complete required quiesce boundary exists. Restore UI remains future work.
+- Current sequence: **4B-5B-1 — resolver poisoning fix (`34faeee`; COMMITTED / PUSHED)**; **4B-5B-2 — backup admission/timer boundary (IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED `287764c`)**; **4B-5C — unified cutoff/background/updater/multi-context completion (future)**. Production `PrepareRestore` / `Arm` remains unavailable until the complete required quiesce boundary exists. Restore UI remains future work.
 
 ### 4B-5B-1 — resolver poisoning fix
 
@@ -322,7 +322,9 @@ Checkpoint `36f0e7f` (`feat: add database admission and drain gate`) is pushed t
 
 ### 4B-5B-2 — backup admission/timer boundary
 
-**IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / UNCOMMITTED. NOT restore-safe / NOT full quiesce.** Phase 4 remains **IN PROGRESS**.
+**IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED. NOT restore-safe / NOT full quiesce.** Phase 4 remains **IN PROGRESS**.
+
+Checkpoint commit: `287764c2e89d428ac658e55589a5900defe24397` — `feat: add backup admission and drain boundary`. This post-commit reconciliation records COMMITTED status only; it does not claim a push or new test/build/review execution.
 
 - Recorded final implementation evidence: targeted `BackupAdmissionDrainTests` **26/26**; relevant backup/preparation + DB admission/recovery/startup regressions **172/172**; full suite **384/384**; **0 failed / 0 skipped**; non-incremental solution build **0 warnings / 0 errors**; implementation `git diff --check` **PASS**. Tests/build were executed during implementation and the Medium fixes, not rerun during this documentation-only sync.
 - Independent re-review supplied by the user: **PASS WITH FINDINGS**; **M1 CLOSED**, **M2 CLOSED**; **no remaining Critical / High / Medium findings**. This sync records that result, not a new independent review.
@@ -494,14 +496,14 @@ text
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | فازهای کامل (Framework جدید)    | 3 (Phase 1, Phase 2, Phase 3 تا 3C)                                                                           |
 | Unique Index / F5               | بسته‌شده در سطح SaleOperations؛ محدودیت legacy در بخش ۵                                                       |
-| فاز بعدی | Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5B-2 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / UNCOMMITTED** است و **NOT restore-safe** است. آخرین checkpoint کد production commit‌شده و pushed، 4B-5B-1 در `34faeee` است؛ 4B-5C آینده است؛ restore UI هنوز در scope نیست. |
+| فاز بعدی | Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5B-2 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED** است و **NOT restore-safe** است. آخرین checkpoint کد production commit‌شده، 4B-5B-2 در `287764c` است؛ push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`؛ 4B-5C آینده است؛ restore UI هنوز در scope نیست. |
 | فازهای حذف‌شده از Roadmap       | Alert، Cloud، Multi-terminal                                                                                  |
 | کارهای قدیمی ثبت‌شده در بخش ۲.۳ | ۱۳؛ این عدد شمارندهٔ کل تغییرات جدید نیست                                                                     |
-| آخرین مجموعهٔ تست تأییدشده | 4B-5B-2 (UNCOMMITTED): full **384/384**؛ targeted **26/26**؛ relevant **172/172**؛ 0 failed / 0 skipped؛ تاریخی: 4B-5B-1 (`34faeee`; COMMITTED / PUSHED): full **358/358**؛ targeted **36/36**؛ relevant **166/166**؛ تاریخی 4B-5A: full 354/354، targeted 32/32، relevant 130/130؛ تاریخی: 322 در 4B-4، 291 در 4B-3، 270 در `d472153` و 246 در `59d0dfc` |
-| Build | 4B-5B-2 (UNCOMMITTED): non-incremental **0 warnings / 0 errors**؛ تاریخی: 4B-5B-1 (`34faeee`; COMMITTED / PUSHED): build غیرافزایشی solution با **0 warnings / 0 errors**؛ شواهد تاریخی checkpointهای قبلی حفظ شده‌اند |
-| Git | آخرین checkpoint production commit‌شده: `34faeee` (4B-5B-1)، pushed to `origin/phase/4-crash-recovery-backup`؛ 4B-5B-2 IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / UNCOMMITTED؛ checkpoint قبلی: `63039d2` (4B-4)؛ Phase 3 implementation: `da7d5b4` |
+| آخرین مجموعهٔ تست تأییدشده | 4B-5B-2 (COMMITTED `287764c`): full **384/384**؛ targeted **26/26**؛ relevant **172/172**؛ 0 failed / 0 skipped؛ تاریخی: 4B-5B-1 (`34faeee`; COMMITTED / PUSHED): full **358/358**؛ targeted **36/36**؛ relevant **166/166**؛ تاریخی 4B-5A: full 354/354، targeted 32/32، relevant 130/130؛ تاریخی: 322 در 4B-4، 291 در 4B-3، 270 در `d472153` و 246 در `59d0dfc` |
+| Build | 4B-5B-2 (COMMITTED `287764c`): non-incremental **0 warnings / 0 errors**؛ تاریخی: 4B-5B-1 (`34faeee`; COMMITTED / PUSHED): build غیرافزایشی solution با **0 warnings / 0 errors**؛ شواهد تاریخی checkpointهای قبلی حفظ شده‌اند |
+| Git | آخرین checkpoint production commit‌شده: `287764c` (4B-5B-2)؛ push تأییدشدهٔ قبلی: `34faeee` (4B-5B-1) به `origin/phase/4-crash-recovery-backup`؛ 4B-5B-2 IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED؛ checkpoint قبلی: `63039d2` (4B-4)؛ Phase 3 implementation: `da7d5b4` |
 
-**Phase 1–3 بسته‌اند.** Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5B-2 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / UNCOMMITTED** است و **NOT restore-safe** است. آخرین checkpoint کد production commit‌شده و pushed، 4B-5B-1 در `34faeee` است؛ 4B-5C آینده است؛ restore UI هنوز در scope نیست. سایر اقلام DoD بازند؛ جزئیات در [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
+**Phase 1–3 بسته‌اند.** Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5B-2 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED** است و **NOT restore-safe** است. آخرین checkpoint کد production commit‌شده، 4B-5B-2 در `287764c` است؛ push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`؛ 4B-5C آینده است؛ restore UI هنوز در scope نیست. سایر اقلام DoD بازند؛ جزئیات در [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
 
 ---
 
@@ -548,4 +550,4 @@ text
 
 ---
 
-**Phase 1–3 بسته‌اند.** Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5B-2 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / UNCOMMITTED** است و **NOT restore-safe** است. آخرین checkpoint کد production commit‌شده و pushed، 4B-5B-1 در `34faeee` است؛ 4B-5C آینده است؛ restore UI هنوز در scope نیست. سایر اقلام DoD بازند؛ جزئیات در [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
+**Phase 1–3 بسته‌اند.** Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5B-2 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED** است و **NOT restore-safe** است. آخرین checkpoint کد production commit‌شده، 4B-5B-2 در `287764c` است؛ push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`؛ 4B-5C آینده است؛ restore UI هنوز در scope نیست. سایر اقلام DoD بازند؛ جزئیات در [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).

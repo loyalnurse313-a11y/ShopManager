@@ -1,7 +1,7 @@
 # MASTER-BACKLOG
 
 > **هدف:** مرجع واحد برای همه‌ی یافته‌های ممیزی.
-> **آخرین به‌روزرسانی:** Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5B-2 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / UNCOMMITTED** است و **NOT restore-safe** است. آخرین checkpoint کد production commit‌شده و pushed، 4B-5B-1 در `34faeee` است؛ 4B-5C آینده است؛ restore UI هنوز در scope نیست. checkpointهای پیشین: `583a7b8` (4B-3)، `d472153` (4B-2B)، `59d0dfc` (4B-2A).
+> **آخرین به‌روزرسانی:** Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5B-2 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED** است و **NOT restore-safe** است. آخرین checkpoint کد production commit‌شده، 4B-5B-2 در `287764c` است؛ push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`؛ 4B-5C آینده است؛ restore UI هنوز در scope نیست. checkpointهای پیشین: `583a7b8` (4B-3)، `d472153` (4B-2B)، `59d0dfc` (4B-2A).
 > **وضعیت:** Phase 1، Phase 2 و Phase 3 کامل‌اند؛ Phase 4 — Crash Recovery + Backup **IN PROGRESS** است و تکمیل نشده.
 > نام یافته‌ها و ارجاع‌های قدیمی، سابقهٔ ممیزی‌اند؛ ستون وضعیت و توضیحات closure، نتیجهٔ فعلی را مشخص می‌کنند.
 
@@ -144,7 +144,7 @@
 - [x] 4B-4 (`63039d2`): startup recovery integration; implemented / verified / independently reviewed / checkpoint-ready. Evidence and residual verification are recorded below; Phase 4 remains IN PROGRESS.
 - [x] 4B-5A (`36f0e7f`): runtime DbContext admission + context drain only; implemented / verified / independently reviewed / committed; NOT restore-safe.
 - [x] 4B-5B-1 (`34faeee`; COMMITTED / PUSHED): resolver poisoning fix; implemented / verified / independently reviewed; NOT restore-safe.
-- [x] **4B-5B-2**: backup admission/timer boundary; IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED; **UNCOMMITTED**, **NOT restore-safe**. Final evidence: 26/26 targeted, 172/172 relevant, 384/384 full; re-review PASS WITH FINDINGS; M1/M2 CLOSED.
+- [x] **4B-5B-2**: backup admission/timer boundary; IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED; **COMMITTED `287764c`**, **NOT restore-safe**. Final evidence: 26/26 targeted, 172/172 relevant, 384/384 full; re-review PASS WITH FINDINGS; M1/M2 CLOSED.
 
 **شواهد تاریخی 4B-2B (commit `d472153`؛ 270 تست در آن source tree commit‌شده؛ evidence قدیمی 246/246 مربوط به `59d0dfc` است):** `RestoreRecoveryServiceTests` 42 passed؛ کل `ShopManager.Domain.Tests` 270 passed؛ build غیرافزایشی solution با 0 warnings / 0 errors؛ adversarial/final review: PASS بدون issue مسدودکنندهٔ Critical/High/Medium. این evidence تکمیل Phase 4 را ادعا نمی‌کند.
 
@@ -167,7 +167,7 @@ Checkpoint `36f0e7f` (`feat: add database admission and drain gate`) is pushed t
 - **Historical MEDIUM at 4B-5A — RESOLVED in 4B-5B-1 (`34faeee`; COMMITTED / PUSHED):** no-lease fresh `EnsureResolved` could permanently cache admission-closed in `_resolved` / `_blockedReason`. The committed 4B-5A checkpoint retains this historical finding; the independently reviewed resolver fix committed in `34faeee` leaves temporary rejection retryable. No production cutoff caller has been introduced.
 - **LOW:** if the cleanup-success callback itself throws, cleanup state may remain in-progress/fail-closed; the current gate callback has no expected throw path.
 - **LOW:** AppDbContext disposal semantics are stricter: concurrent disposal is rejected; a later disposal after cleanup failure rethrows the original failure.
-- Current sequence: **4B-5B-1 — resolver poisoning fix (`34faeee`; COMMITTED / PUSHED)**; **4B-5B-2 — backup admission/timer boundary (IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / UNCOMMITTED)**; **4B-5C — unified cutoff/background/updater/multi-context completion (future)**. Production `PrepareRestore` / `Arm` remains unavailable until the complete required quiesce boundary exists. Restore UI remains future work.
+- Current sequence: **4B-5B-1 — resolver poisoning fix (`34faeee`; COMMITTED / PUSHED)**; **4B-5B-2 — backup admission/timer boundary (IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED `287764c`)**; **4B-5C — unified cutoff/background/updater/multi-context completion (future)**. Production `PrepareRestore` / `Arm` remains unavailable until the complete required quiesce boundary exists. Restore UI remains future work.
 
 ### 4B-5B-1 — resolver poisoning fix
 
@@ -188,7 +188,9 @@ Checkpoint `36f0e7f` (`feat: add database admission and drain gate`) is pushed t
 
 ### 4B-5B-2 — backup admission/timer boundary
 
-**IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / UNCOMMITTED. NOT restore-safe / NOT full quiesce.** Phase 4 remains **IN PROGRESS**.
+**IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED. NOT restore-safe / NOT full quiesce.** Phase 4 remains **IN PROGRESS**.
+
+Checkpoint commit: `287764c2e89d428ac658e55589a5900defe24397` — `feat: add backup admission and drain boundary`. This post-commit reconciliation records COMMITTED status only; it does not claim a push or new test/build/review execution.
 
 - Recorded final implementation evidence: targeted `BackupAdmissionDrainTests` **26/26**; relevant backup/preparation + DB admission/recovery/startup regressions **172/172**; full suite **384/384**; **0 failed / 0 skipped**; non-incremental solution build **0 warnings / 0 errors**; implementation `git diff --check` **PASS**. Tests/build were executed during implementation and the Medium fixes, not rerun during this documentation-only sync.
 - Independent re-review supplied by the user: **PASS WITH FINDINGS**; **M1 CLOSED**, **M2 CLOSED**; **no remaining Critical / High / Medium findings**. This sync records that result, not a new independent review.
