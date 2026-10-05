@@ -23,10 +23,10 @@ ShopManager یک POS و سامانهٔ مدیریت فروشگاه است.
 
 اگر این سند با evidence معتبر (source، tests، Git) ناسازگار بود، **آن ناسازگاری را گزارش کنید**؛ حدس نزنید. اصلاح فقط در scope صریح مجاز است.
 
-آخرین checkpoint پیاده‌شده: **4B-5C-2.1 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — NOT COMMITTED YET؛ NOT runtime-quiescent / NOT restore-safe**. production operation ownership/composition و Auth enrollment اضافه شده‌اند؛ گام بعدی **4B-5C-2.2 — SessionTracker enrollment/retirement** با audit/scope مستقل است.
-آخرین checkpoint کد production که commit شده: `33e12b6` — `feat: add runtime operation admission gate` (4B-5C-1). push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`.
+Phase 4 همچنان **IN PROGRESS / NOT restore-safe** است؛ آخرین checkpoint پیاده‌شده **4B-5C-2.2 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — NOT COMMITTED YET** است: SessionTracker tick enrollment و generation/single-flight safety اضافه شده‌اند؛ Stop اثبات پایان accepted work نیست و conditional Auth logout با parent binding صریح از replacement session محافظت می‌کند. آخرین checkpoint production **COMMITTED / PUSHED**، 4B-5C-2.1 در `a8e3d02eb7059d5eee8504ea712f85499f9119e4` است (push طبق تأیید کاربر). terminal producer retirement و full runtime quiescence همچنان deferred هستند؛ enrollment/caller hardening باقی‌مانده و سپس integrationهای موجود در backlog به audit/scope/approval مستقل نیاز دارند و خودکار کامل نشده‌اند.
+آخرین checkpoint production که commit/push شده: 4B-5C-2.1 در `a8e3d02eb7059d5eee8504ea712f85499f9119e4` (push طبق تأیید کاربر).
 checkpointهای قبلی: `583a7b8` (4B-3)، `d472153` (4B-2B) و `59d0dfc` (4B-2A).
-دستور زیر checkpointهای commit‌شده را نشان می‌دهد؛ 4B-5C-1 در `33e12b6` commit شده است:
+دستور زیر checkpointهای commit‌شده را نشان می‌دهد؛ آخرین مورد 4B-5C-2.1 در `a8e3d02` است؛ 4B-5C-1 در `33e12b6` checkpoint تاریخی قبلی است:
 `git diff --stat d472153 HEAD -- . ':!docs' ':!AGENTS.md'`
 
 ## 3. invariantهای حیاتی
@@ -73,7 +73,7 @@ Scope خارج از roadmap فعلی: Cloud Sync، Multi-terminal، Multi-store�
 - Phase 3 closure: commit `905622c`; آخرین completion tag: `phase-3-concurrency-idempotency-complete`.
 - Phase 4 completion tag وجود ندارد.
 
-## 6. Phase 4 — وضعیت فعلی تا 4B-5C-2.1 (NOT COMMITTED YET؛ آخرین checkpoint کد production commit‌شده: 4B-5C-1 در `33e12b6`)
+## 6. Phase 4 — وضعیت فعلی تا 4B-5C-2.2 (NOT COMMITTED YET؛ آخرین checkpoint production commit/push‌شده: 4B-5C-2.1 در `a8e3d02`)
 
 Phase 4 همچنان **IN PROGRESS — NOT complete** است.
 
@@ -92,7 +92,8 @@ Phase 4 همچنان **IN PROGRESS — NOT complete** است.
 | 4B-5B-1 | `34faeee` (COMMITTED / PUSHED) | resolver poisoning fix؛ IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED؛ NOT restore-safe |
 | 4B-5B-2 | `287764c` (COMMITTED) | backup admission/timer boundary; IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED; NOT restore-safe |
 | 4B-5C-1 | COMMITTED `33e12b6` | isolated RuntimeOperationGate primitive; IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED; NOT runtime-quiescent / NOT restore-safe |
-| 4B-5C-2.1 | NOT COMMITTED YET | production operation ownership/composition and Auth enrollment; IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED; NOT runtime-quiescent / NOT restore-safe |
+| 4B-5C-2.1 | COMMITTED / PUSHED `a8e3d02` | production operation ownership/composition and Auth enrollment; IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED; NOT runtime-quiescent / NOT restore-safe |
+| 4B-5C-2.2 | NOT COMMITTED YET | SessionTracker tick enrollment, generation/single-flight safety and conditional parent-bound Auth logout; IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED; terminal retirement/full quiescence deferred; NOT restore-safe |
 
 evidence تاریخی برای checkpoint قبلی `59d0dfc` (4B-2A): build با 0 errors / 0 warnings؛ tests با 246/246 passed، 0 failed، 0 skipped.
 
@@ -191,7 +192,7 @@ Checkpoint commit: `33e12b6e52e01a307e7ab474f26945447116db46` — `feat: add run
 
 ### 4B-5C-2.1 — production operation ownership/composition and Auth enrollment
 
-**IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — NOT COMMITTED YET.** Phase 4 remains **IN PROGRESS**; runtime quiescence and restore safety are **NOT established**.
+**IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — COMMITTED / PUSHED `a8e3d02eb7059d5eee8504ea712f85499f9119e4`** (push confirmed by the user). Phase 4 remains **IN PROGRESS**; runtime quiescence and restore safety are **NOT established**.
 
 **Implemented scope:**
 
@@ -212,7 +213,7 @@ Checkpoint commit: `33e12b6e52e01a307e7ab474f26945447116db46` — `feat: add run
 
 **Residual findings:**
 
-- **F2 — OPEN FOLLOW-UP:** new Auth admission/Busy/fault exceptions can escape existing callers. Caller hardening belongs to later SessionTracker/UI/lifecycle enrollment; it was not changed here.
+- **F2 — OPEN FOLLOW-UP:** at 5C-2.1, new Auth admission/Busy/fault exceptions could escape existing callers. 5C-2.2 handles the SessionTracker path; general UI/Auth caller hardening remains deferred.
 - **F3 — OPEN RESIDUAL:** a replayed historical DatabaseService resolution cleanup diagnostic may be attributed to a current operation; normal production reachability remains **VERIFICATION PENDING**. This checkpoint does not fix or redesign diagnostic provenance.
 - **F4 — KNOWN/INTENTIONAL:** LogoutCore may swallow a cleanup-unproven diagnostic while the operation gate remains FaultedClosed.
 
@@ -224,16 +225,39 @@ Checkpoint commit: `33e12b6e52e01a307e7ab474f26945447116db46` — `feat: add run
 - Non-incremental solution build: **0 warnings / 0 errors**; `git diff --check`: **PASS**.
 - Test/build evidence was executed during implementation/follow-up, not rerun during this docs-only step.
 
-**Explicit non-guarantees:** SessionTracker and LoginWindow are NOT enrolled; producer retirement is NOT implemented; F2/F3 remain open; no runtime quiescence or restore safety is established. Earlier checkpoint guarantees and evidence remain historical and are not retroactively upgraded.
+**Historical non-guarantees at the 5C-2.1 checkpoint:** SessionTracker and LoginWindow were NOT enrolled; producer retirement was NOT implemented; F2/F3 remained open; no runtime quiescence or restore safety was established. Earlier checkpoint guarantees and evidence remain historical and are not retroactively upgraded.
 
-**Next planned increment:** **4B-5C-2.2 — SessionTracker enrollment/retirement**, subject to its own audit/scope gate.
+**Next increment recorded at the 5C-2.1 checkpoint:** **4B-5C-2.2 — SessionTracker enrollment/retirement**. The implemented narrower boundary and its remaining deferrals are recorded below.
+
+### 4B-5C-2.2 — SessionTracker tick enrollment and generation/single-flight safety
+
+**IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — NOT COMMITTED YET.** Phase 4 remains **IN PROGRESS / NOT restore-safe**; full runtime quiescence is **NOT established**.
+
+**Implemented scope:** `ShopManager.Desktop/Services/SessionTracker.cs`, `ShopManager.Desktop/Services/AuthService.cs`, and new `ShopManager.Domain.Tests/Integration/SessionTrackerOperationEnrollmentTests.cs`. RuntimeOperations, RuntimeOperationGate, DatabaseService and UI/lifecycle source were not changed in this increment.
+
+- One accepted tick owns one NonInteractive operation through tracker DB work and proven context cleanup, conditional enrolled Auth logout, synchronous UserDeactivated notification and generation-scoped self-stop, followed by owner disposal. Producer bookkeeping settles after owner disposal. Stale-generation callbacks cannot become accepted; accepted ticks are single-flight.
+- Stop revokes generation authority and initiates timer teardown; it does **not** prove accepted work complete. Accepted work remains accounted until proven completion. Start during Starting/Stopping is Busy; no pending Start/latest-wins or terminal retirement API was added. No DB/Auth/callback/timer teardown or drain wait occurs under the producer lock; self-stop does not wait for its own lease.
+- Conditional Auth logout borrows an explicit parent binding with **no nested Auth admission and no AsyncLocal**. Under the Auth mutation claim it compares immutable session-snapshot reference identity before effects. Replacement sessions are protected, including logout/relogin by the same user; mutable user fields are not session identity.
+- Tracker/Auth cleanup uncertainty remains **fail-closed**: the responsible operation's unproven lease stays outstanding and the gate stays FaultedClosed. A fault from another operation does not turn this tick's proven cleanup into an unproven lease. Timer teardown uncertainty faults the producer and is not automatically a runtime-operation cleanup fault.
+
+**Evidence from completed implementation and user-confirmed independent review (not rerun in this docs-only step):**
+
+- New SessionTracker tests: **47/47 PASS**; Auth regression: **52/52 PASS**.
+- Relevant regression: **148/148 PASS** (RuntimeOperationAdmission, DatabaseAdmissionDrain, DatabasePathResolution, DatabaseDurability and BackupAdmissionDrain tests).
+- Full suite: **512/512 PASS, 0 failed / 0 skipped**.
+- Independent targeted review run: **99/99 PASS**; independent review: **PASS, no Critical/High/Medium/Low findings** (supplied by the user).
+- Non-incremental solution build: **0 warnings / 0 errors**; implementation `git diff --check`: **PASS**. This docs step reruns only diff/working-tree integrity checks, not build/tests/review.
+
+**Residuals / non-guarantees:** terminal producer retirement and full quiescence remain deferred. F2 general UI/Auth caller hardening remains open; SessionTracker exception handling does not close it for other callers. F3 historical resolution-cleanup diagnostic provenance remains **VERIFICATION PENDING**. F4 LogoutCore may swallow its cleanup diagnostic, while the same parent lease remains unproven and the gate stays FaultedClosed. Synchronous notification coverage does not include queued UI transitions. LoginWindow/MainWindow/general lifecycle, history-write serialization, shutdown/updater coordination and restore activation/safety are not established by this increment.
+
+**Next uncompleted work (existing backlog order):** remaining production enrollment/caller hardening (including LoginWindow) and producer/lifecycle integration, followed by the existing restore UI, quiesce/drain, shutdown/updater and legacy-restore work. Each needs its own audit/scope/approval; no later increment is automatically complete or authorized by this checkpoint.
 
 **Future 4B-5C integration constraints (not implemented):**
 
 - Never wait for DB drain while holding the `TransitionGate` write lock.
 - Future production flow must close admission and prove drain before `Arm`; resolver identity must be established before future `CloseAdmission`.
 - In the no-lease fresh-resolution path, marker publication currently occurs after the runtime initialization lease is released and is outside DB drain. The already-admitted factory retains its existing lease. DB drain must not be presented as proof that all resolver/marker work has completed.
-- 4B-5B-2 implements the backup admission/timer primitive only; 4B-5C-1 supplied the isolated operation-lifetime primitive without production enrollment at that checkpoint. 4B-5C-2.1 now adds production ownership/composition and Auth enrollment only; 4B-5C-2.2 SessionTracker enrollment/retirement is next planned. Producer retirement, unified cutoff/background/updater/multi-context completion remain future work requiring separate scope/approval. Production restore admission remains unavailable until the required complete quiesce boundary exists.
+- 4B-5B-2 implements the backup admission/timer primitive only; 4B-5C-1 supplied the isolated operation-lifetime primitive without production enrollment at that checkpoint. 4B-5C-2.1 adds production ownership/composition and Auth enrollment; 4B-5C-2.2 adds SessionTracker tick enrollment and generation/single-flight safety. Stop is not completion proof. Terminal producer retirement, unified cutoff/background/updater/multi-context completion remain deferred, requiring separate scope/approval. Production restore admission remains unavailable until the required complete quiesce boundary exists.
 
 **قراردادهای حیاتی Phase 4 برای کار بعدی:**
 - **Startup recovery (4B-4):** پس از mutex و Avalonia، نخستین gate در startupِ desktop پیش از resolver/SQLite اجرا می‌شود. فقط `NoIntent` یا `Completed` در حالت unarmed اجازهٔ ادامه می‌دهد؛ `Blocked` و خطاهای غیرمنتظره بدون resolver/context/settings/theme/backup/timer/auth/session/normal window/normal shutdown registration متوقف می‌شوند. registered identity روی همان intent مصرف‌شدهٔ `Recover`، پس از arming و پیش از mutation بررسی می‌شود؛ validator از DatabaseService یا SQLite استفاده نمی‌کند و live مفقود پس از tombstone می‌تواند پیش از resolver بازیابی شود. invariantهای 4B-2B و رفتار 4B-3 حفظ شده‌اند.
@@ -271,8 +295,9 @@ Checkpoint commit: `33e12b6e52e01a307e7ab474f26945447116db46` — `feat: add run
 
 ### Phase 4 — subsequent integration (4B-5C-2 و بعد؛ هنوز باز)
 
-- **4B-5C-2.1 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED؛ NOT COMMITTED YET:** فقط production operation ownership/composition و Auth enrollment؛ producer retirement هنوز پیاده نشده است.
-- **4B-5C-2.2 — next planned:** SessionTracker enrollment/retirement با audit/scope gate مستقل؛ LoginWindow enrollment، caller hardening، restore UI wiring، quiesce/drain و shutdown redesign همچنان بازند.
+- **4B-5C-2.1 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED؛ COMMITTED / PUSHED `a8e3d02`:** production operation ownership/composition و Auth enrollment؛ شواهد و محدودیت‌های تاریخی آن checkpoint حفظ شده‌اند.
+- **4B-5C-2.2 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED؛ NOT COMMITTED YET:** SessionTracker tick enrollment، generation/single-flight safety و conditional parent-bound Auth logout؛ Stop اثبات completion نیست؛ terminal retirement/full quiescence deferred.
+- گام بعدی هنوز باز است: enrollment/caller hardening باقی‌مانده (از جمله LoginWindow) و producer/lifecycle integration، سپس restore UI، quiesce/drain و shutdown redesign در ترتیب backlog؛ هرکدام نیازمند audit/scope/approval مستقل‌اند.
 - فراخوانی موتور swap آفلاین از restore UI/flow برنامه همچنان باز است؛ مصرف intent موجود در startup از 4B-4 وجود دارد.
 - جایگزینی مسیر legacy `BackupService.RestoreBackup` و مسیر `Environment.Exit(0)` در `Views/SettingsWindow.axaml.cs`.
 - رفع محدودیت‌های Phase 4 شناخته‌شده در بخش ۹.

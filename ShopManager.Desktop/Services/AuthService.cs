@@ -18,6 +18,9 @@ public static class AuthService
         () => UserLoggedIn?.Invoke(), () => UserLoggedOut?.Invoke());
 
     internal sealed record SessionSnapshot(User User, LoginHistory LoginRecord);
+    internal enum ConditionalLogoutResult { Applied, SessionChanged }
+
+    internal static SessionSnapshot? CurrentSessionSnapshot => ProductionSession.Current;
 
     // The claim covers DB work, callbacks and cleanup without holding a monitor.
     internal sealed class SessionState(Action? loggedIn = null, Action? loggedOut = null)
@@ -60,6 +63,11 @@ public static class AuthService
     internal static void LogoutEnrolled(RuntimeOperations.OperationContext operation, string note = "Logout")
         => LogoutEnrolled(RuntimeOperations.Runtime, operation, ProductionSession, DatabaseService.CreateContext, note);
 
+    internal static ConditionalLogoutResult LogoutEnrolledIfCurrent(RuntimeOperations.OperationContext operation,
+        SessionSnapshot expectedSnapshot, string note)
+        => LogoutEnrolledIfCurrent(RuntimeOperations.Runtime, operation, ProductionSession,
+            DatabaseService.CreateContext, expectedSnapshot, note);
+
     // Explicit dependencies exercise the same production paths with isolated test state.
     internal static (bool Success, string Message) LoginStandalone(RuntimeOperations operations,
         SessionState session, Func<AppDbContext> createContext, string username, string password)
@@ -93,6 +101,25 @@ public static class AuthService
         using var use = operation.Use(operations);
         if (!session.TryClaim()) throw new AuthOperationBusyException();
         try { LogoutCore(session, createContext, use, note); }
+        finally { session.Release(); }
+    }
+
+    internal static ConditionalLogoutResult LogoutEnrolledIfCurrent(RuntimeOperations operations,
+        RuntimeOperations.OperationContext operation, SessionState session, Func<AppDbContext> createContext,
+        SessionSnapshot expectedSnapshot, string note)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(expectedSnapshot);
+        using var use = operation.Use(operations);
+        if (!session.TryClaim()) throw new AuthOperationBusyException();
+        try
+        {
+            if (!ReferenceEquals(session.Current, expectedSnapshot))
+                return ConditionalLogoutResult.SessionChanged;
+            LogoutCore(session, createContext, use, note);
+            // Applied identifies the session acted on; legacy LogoutCore can hide a cleanup fault.
+            return ConditionalLogoutResult.Applied;
+        }
         finally { session.Release(); }
     }
 
