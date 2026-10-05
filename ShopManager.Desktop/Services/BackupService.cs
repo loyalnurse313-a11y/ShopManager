@@ -45,17 +45,22 @@ public static class BackupService
     /// <summary>تا از اشتراک تکراری رویداد تغییر داده در فراخوانی چندبارهٔ Initialize جلوگیری شود.</summary>
     private static int _dataChangedSubscribed = 0;
 
-    /// <summary>گیتِ single-flight فرایندی: در هر لحظه فقط یک بکاپ اجازهٔ اجرا دارد.</summary>
-    private static readonly SemaphoreSlim _backupGate = new(1, 1);
+    private static readonly BackupAdmissionCoordinator RuntimeAdmission = new();
+    // Execution-context-local injection keeps test closure/failure paths off the runtime boundary.
+    internal static AsyncLocal<BackupAdmissionCoordinator?> AdmissionOverrideForTests { get; } = new();
+    internal static BackupAdmissionCoordinator Admission => AdmissionOverrideForTests.Value ?? RuntimeAdmission;
 
     /// <summary>شمارنده بکاپ‌های این نشست</summary>
     public static int BackupCountThisSession => Volatile.Read(ref _backupCountThisSession);
 
-    /// <summary>تایمر خودکار</summary>
-    private static System.Timers.Timer? _autoTimer;
-
     /// <summary>راه‌اندازی سرویس</summary>
     public static void Initialize()
+        => RunExclusive(() => { InitializeCore(() => BackupFolder); return true; });
+
+    internal static void Initialize(string backupFolder)
+        => RunExclusive(() => { InitializeCore(() => backupFolder); return true; });
+
+    private static void InitializeCore(Func<string> backupFolder)
     {
         if (Interlocked.Exchange(ref _dataChangedSubscribed, 1) == 0)
         {
@@ -69,7 +74,7 @@ public static class BackupService
         // حذف باقی‌ماندهٔ staging جاگذاشته‌شده از کرش/قطع سخت قبلی.
         try
         {
-            CleanupOrphanedStagingArtifacts(BackupFolder);
+            CleanupOrphanedStagingArtifacts(backupFolder());
         }
         catch (Exception ex)
         {
@@ -91,66 +96,30 @@ public static class BackupService
     /// </summary>
     public static void RestartAutoBackupTimer()
     {
-        try
+        Admission.RestartTimer(() =>
         {
-            _autoTimer?.Stop();
-            _autoTimer?.Dispose();
-            _autoTimer = null;
-
             var settings = StoreSettingsService.Current;
-
-            if (!settings.BackupAutoEnabled) return;
-
-            var intervalMinutes = Math.Max(1, settings.BackupIntervalMinutes);
-
-            _autoTimer = new System.Timers.Timer(TimeSpan.FromMinutes(intervalMinutes).TotalMilliseconds);
-            _autoTimer.AutoReset = true;
-            _autoTimer.Elapsed += (s, e) =>
-            {
-                try
-                {
-                    // Non-blocking: اگر بکاپی در حال اجراست، این tick رد می‌شود و تغییر pending می‌ماند.
-                    TryCreateSmartBackup();
-                }
-                catch (Exception ex)
-                {
-                    LogBackupError("auto-backup timer", ex);
-                }
-            };
-            _autoTimer.Start();
-        }
-        catch (Exception ex)
-        {
-            LogBackupError("auto-backup timer setup", ex);
-        }
+            return settings.BackupAutoEnabled
+                ? TimeSpan.FromMinutes(Math.Max(1, settings.BackupIntervalMinutes))
+                : (TimeSpan?)null;
+        }, () => CreateSmartBackupCore(), ex => LogBackupError("auto-backup timer", ex));
     }
 
     /// <summary>متوقف کردن تایمر</summary>
     public static void StopAutoBackupTimer()
     {
-        try
-        {
-            _autoTimer?.Stop();
-            _autoTimer?.Dispose();
-            _autoTimer = null;
-        }
-        catch (Exception ex)
-        {
-            LogBackupError("auto-backup timer stop", ex);
-        }
+        Admission.StopTimer();
     }
 
     // ═══════════ single-flight ═══════════
 
     /// <summary>
-    /// اجرای عملیات در حالی که گیتِ single-flight فرایندی نگه داشته شده است (با انتظار).
+    /// اجرای عملیات با نوبت منطقی FIFO؛ هیچ قفلی در طول I/O نگه داشته نمی‌شود.
     /// تضمین می‌کند هیچ دو بکاپی هم‌زمان اجرا نشوند؛ فراخوانی‌های هم‌زمان صف می‌شوند.
     /// </summary>
     internal static T RunExclusive<T>(Func<T> operation)
     {
-        _backupGate.Wait();
-        try { return operation(); }
-        finally { _backupGate.Release(); }
+        return Admission.Run(operation);
     }
 
     /// <summary>
@@ -159,9 +128,7 @@ public static class BackupService
     /// </summary>
     internal static bool TryRunExclusive(Action operation)
     {
-        if (!_backupGate.Wait(0)) return false;
-        try { operation(); return true; }
-        finally { _backupGate.Release(); }
+        return Admission.TryRun(operation);
     }
 
     // ═══════════ بکاپ ═══════════
@@ -190,7 +157,7 @@ public static class BackupService
         var keepCount = StoreSettingsService.Current.BackupKeepCount;
         if (keepCount < 5) keepCount = 5;
 
-        return CreateBackup(DatabasePath, BackupFolder, keepCount);
+        return CreateBackupCore(DatabasePath, BackupFolder, keepCount, PublishStagingFile);
     }
 
     /// <summary>
@@ -210,6 +177,10 @@ public static class BackupService
     /// گلوبال و بدون وابستگی به زمان‌بندی شبیه‌سازی کنند.
     /// </summary>
     internal static string CreateBackup(
+        string sourceDatabasePath, string backupFolder, int keepCount, Action<string, string> publish)
+        => RunExclusive(() => CreateBackupCore(sourceDatabasePath, backupFolder, keepCount, publish));
+
+    private static string CreateBackupCore(
         string sourceDatabasePath, string backupFolder, int keepCount, Action<string, string> publish)
     {
         if (string.IsNullOrWhiteSpace(sourceDatabasePath) || !File.Exists(sourceDatabasePath))
@@ -462,7 +433,7 @@ public static class BackupService
 
     /// <summary>
     /// نسخهٔ دارای هر دو seam تست: رویداد مراحل و رویداد «مرز کسب گیت».
-    /// <paramref name="gateAcquired"/> دقیقاً پس از کسب موفق <c>_backupGate</c> و پیش از
+    /// <paramref name="gateAcquired"/> دقیقاً پس از کسب نوبت منطقی و پیش از
     /// اجرای هر بخشی از آماده‌سازی فراخوانی می‌شود؛ بنابراین تستِ هم‌زمانی می‌تواند در همان
     /// لحظه، مالکیت واقعی گیت را به‌صورت قطعی (بدون وابستگی به زمان‌بندی) بررسی کند.
     /// </summary>
@@ -470,16 +441,11 @@ public static class BackupService
         string backupFilePath, string liveDatabasePath, string backupFolder,
         Action<RestorePreparationStage>? stageReached, Action? gateAcquired)
     {
-        _backupGate.Wait();
-        try
+        return RunExclusive(() =>
         {
             gateAcquired?.Invoke();
             return PrepareRestoreCore(backupFilePath, liveDatabasePath, backupFolder, stageReached);
-        }
-        finally
-        {
-            _backupGate.Release();
-        }
+        });
     }
 
     private static RestorePreparation PrepareRestoreCore(
