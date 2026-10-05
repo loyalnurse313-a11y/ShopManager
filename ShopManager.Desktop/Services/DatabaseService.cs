@@ -15,6 +15,21 @@ using ShopManager.Infrastructure.Persistence;
 
 namespace ShopManager.Desktop.Services;
 
+/// <summary>Cleanup could not be proven; independent of callers' lifetime accounting.</summary>
+internal sealed class DatabaseContextCleanupUnprovenException : InvalidOperationException
+{
+    internal Exception? OriginalError { get; }
+    internal Exception CleanupError { get; }
+
+    internal DatabaseContextCleanupUnprovenException(Exception? originalError, Exception cleanupError)
+        : base("Database context cleanup could not be proven.", cleanupError)
+    {
+        ArgumentNullException.ThrowIfNull(cleanupError);
+        OriginalError = originalError;
+        CleanupError = cleanupError;
+    }
+}
+
 public static class DatabaseService
 {
     public static event Action? DataChanged;
@@ -27,6 +42,7 @@ public static class DatabaseService
     private static bool _resolved;
     private static string? _canonicalDataFolder;
     private static string? _blockedReason;
+    private static DatabaseContextCleanupUnprovenException? _resolutionCleanupError;
 
     /// <summary>فایل ثبت مسیر canonical — مکانی پایدار و مستقل از درایو G</summary>
     private static string MarkerPath =>
@@ -192,6 +208,15 @@ public static class DatabaseService
                 // Leave resolution unpublished so a later access can retry after reopen.
                 throw;
             }
+            catch (DatabaseContextCleanupUnprovenException ex)
+            {
+                // Preserve blocked identity and its typed cause. BlockedReason remains observable;
+                // factories below rethrow this cause rather than losing it in a message.
+                _resolved = true;
+                _blockedReason = "Database initialization cleanup could not be proven: " + ex.Message;
+                _canonicalDataFolder = null;
+                _resolutionCleanupError = ex;
+            }
             catch (Exception ex)
             {
                 _resolved = true;
@@ -225,7 +250,9 @@ public static class DatabaseService
     private static ResolutionResult ResolveAndPublishCore(
         string markerPath, string primaryFolder, string fallbackFolder,
         Func<string, bool> directoryExists, Action? beforePublication,
-        DatabaseAdmissionGate.Lease? admission)
+        DatabaseAdmissionGate.Lease? admission,
+        Func<string, DbContextOptions<AppDbContext>>? freshOptionsForTests = null,
+        Action<AppDbContext>? initializedForTests = null)
     {
         ResolutionStartingForTests?.Invoke();
         var key = Path.GetFullPath(markerPath);
@@ -242,7 +269,8 @@ public static class DatabaseService
 
             var result = ResolveDatabaseLocation(markerPath, primaryFolder, fallbackFolder, directoryExists);
             if (result.IsBlocked || !result.ShouldPersistMarker) return result;
-            if (result.IsFreshInstall) PrepareFreshDatabase(result.DataFolder!, admission);
+            if (result.IsFreshInstall) PrepareFreshDatabase(result.DataFolder!, admission,
+                freshOptionsForTests, initializedForTests);
             beforePublication?.Invoke();
             WriteMarker(markerPath, result.DataFolder!);
             // The publication winner is authoritative, including when a competing writer won.
@@ -254,11 +282,14 @@ public static class DatabaseService
         }
     }
 
-    private static void PrepareFreshDatabase(string folder, DatabaseAdmissionGate.Lease? admittedInitialization)
+    private static void PrepareFreshDatabase(string folder, DatabaseAdmissionGate.Lease? admittedInitialization,
+        Func<string, DbContextOptions<AppDbContext>>? optionsForTests = null,
+        Action<AppDbContext>? initializedForTests = null)
     {
         // Borrow only the factory's existing initialization admission, never a new operation.
         var lease = admittedInitialization ?? DatabaseAdmissionGate.Runtime.Enter();
         AppDbContext? context = null;
+        Exception? initializationError = null;
         try
         {
             var path = Path.Combine(folder, "shop.db");
@@ -273,16 +304,27 @@ public static class DatabaseService
             {
                 return; // Another creator established the file; never retain creation permission.
             }
-            context = new AppDbContext(DurableOptions(ExistingConnectionString(path)),
+            context = new AppDbContext(optionsForTests?.Invoke(path) ?? DurableOptions(ExistingConnectionString(path)),
                 () => { if (admittedInitialization is null) lease.Dispose(); }, lease.CleanupFailed);
             // Establish durability before even the initial schema writes or EF existence probes.
             FreshDatabaseOpeningForTests?.Invoke();
             context.Database.OpenConnection();
             context.Database.EnsureCreated();
+            initializedForTests?.Invoke(context);
+        }
+        catch (Exception error)
+        {
+            initializationError = error;
+            throw;
         }
         finally
         {
-            if (context is not null) context.Dispose();
+            if (context is not null)
+            {
+                try { context.Dispose(); }
+                catch (Exception cleanupError)
+                { throw new DatabaseContextCleanupUnprovenException(initializationError, cleanupError); }
+            }
             else if (admittedInitialization is null) lease.Dispose();
         }
     }
@@ -385,6 +427,7 @@ public static class DatabaseService
             _resolved = false;
             _canonicalDataFolder = null;
             _blockedReason = null;
+            _resolutionCleanupError = null;
             lock (_schemaLock) _schemaInitialized = false;
             SqliteConnection.ClearAllPools();
         }
@@ -451,10 +494,24 @@ public static class DatabaseService
         CreateContextCore(resolutionForTests: lease => ResolveAndPublishCore(
             markerPath, primaryFolder, fallbackFolder, Directory.Exists, null, lease));
 
+    // Isolated cleanup injection uses the production factory/classification and no user paths.
+    internal static AppDbContext CreateContextForCleanupTests(DatabaseAdmissionGate gate,
+        Func<DbContextOptions<AppDbContext>> options, Action<AppDbContext> contextCreated) =>
+        CreateContextCore(gateForTests: gate, optionsForTests: options, contextCreatedForTests: contextCreated);
+
+    internal static AppDbContext CreateFreshContextForCleanupTests(string markerPath, string primaryFolder,
+        string fallbackFolder, DatabaseAdmissionGate gate, Func<string, DbContextOptions<AppDbContext>> freshOptions,
+        Action<AppDbContext> initialized) => CreateContextCore(gateForTests: gate,
+            resolutionForTests: lease => ResolveAndPublishCore(markerPath, primaryFolder, fallbackFolder,
+                Directory.Exists, null, lease, freshOptions, initialized));
+
     private static AppDbContext CreateContextCore(Action? beforeOpen = null,
-        Func<DatabaseAdmissionGate.Lease, ResolutionResult>? resolutionForTests = null)
+        Func<DatabaseAdmissionGate.Lease, ResolutionResult>? resolutionForTests = null,
+        DatabaseAdmissionGate? gateForTests = null,
+        Func<DbContextOptions<AppDbContext>>? optionsForTests = null,
+        Action<AppDbContext>? contextCreatedForTests = null)
     {
-        var lease = DatabaseAdmissionGate.Runtime.Enter();
+        var lease = (gateForTests ?? DatabaseAdmissionGate.Runtime).Enter();
         AppDbContext? context = null;
         try
         {
@@ -466,6 +523,7 @@ public static class DatabaseService
 
             // ─── فاز 4A-2: توقف صریح پیش از هر کار با دیتابیس در حالت blocked ───
             EnsureResolved(lease, resolutionForTests);
+            if (_resolutionCleanupError is not null) throw _resolutionCleanupError;
             if (_blockedReason != null)
                 throw new InvalidOperationException(_blockedReason);
 
@@ -489,7 +547,9 @@ public static class DatabaseService
                 }
             }
 
-            context = new AppDbContext(DurableOptions(ExistingConnectionString(path)), lease.Dispose, lease.CleanupFailed);
+            context = new AppDbContext(optionsForTests?.Invoke() ?? DurableOptions(ExistingConnectionString(path)),
+                lease.Dispose, lease.CleanupFailed);
+            contextCreatedForTests?.Invoke(context);
             context.Database.EnsureCreated();
             EnsureSaleOperationSchema(context);
 
@@ -497,10 +557,15 @@ public static class DatabaseService
 
             return context;
         }
-        catch
+        catch (Exception originalError)
         {
             if (context is null) lease.Dispose();
-            else context.Dispose();
+            else
+            {
+                try { context.Dispose(); }
+                catch (Exception cleanupError)
+                { throw new DatabaseContextCleanupUnprovenException(originalError, cleanupError); }
+            }
             throw;
         }
     }

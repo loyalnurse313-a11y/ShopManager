@@ -2,10 +2,10 @@
 
 > **هدف:** پل بین ممیزی، وضعیت فعلی، و Roadmap جدید (۱۰ Phase).
 > **اصل حاکم:** هیچ Phase بدون DoD اثبات‌شده Done نیست.
-> **آخرین به‌روزرسانی:** بستن مستندات Phase 3 در `905622c` (3C در `da7d5b4`)؛ Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5C-1 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — COMMITTED `33e12b6`** است؛ primitive مستقل است و runtime quiescence یا restore safety فراهم نمی‌کند. آخرین checkpoint کد production commit‌شده، 4B-5C-1 در `33e12b6` است؛ push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`؛ گام بعدی 4B-5C-2: production operation enrollment و producer retirement؛ restore UI هنوز پیاده نشده است. checkpointهای پیشین: `583a7b8` (4B-3)، `d472153` (4B-2B)، `59d0dfc` (4B-2A).
+> **آخرین به‌روزرسانی:** بستن مستندات Phase 3 در `905622c` (3C در `da7d5b4`)؛ Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده **4B-5C-2.1 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — NOT COMMITTED YET** است: production operation ownership/composition و Auth enrollment اضافه شده‌اند؛ runtime quiescence و restore safety برقرار نیستند. آخرین checkpoint کد production commit‌شده، 4B-5C-1 در `33e12b6` باقی است؛ push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`؛ گام بعدی **4B-5C-2.2 — SessionTracker enrollment/retirement** با audit/scope مستقل است؛ producer retirement و restore UI هنوز پیاده نشده‌اند. checkpointهای پیشین: `583a7b8` (4B-3)، `d472153` (4B-2B)، `59d0dfc` (4B-2A).
 > **آخرین Commit پیاده‌سازی production:** `33e12b6` — `feat: add runtime operation admission gate` (4B-5C-1؛ COMMITTED). Phase 3C: `da7d5b4`؛ closure: `905622c` / `phase-3-concurrency-idempotency-complete`. 4B-5A در `36f0e7f` commit شده است.
 > **شواهد Phase 3C:** 134 Pass / 0 Fail / 0 Skip؛ build: 0 warnings / 0 errors؛ final adversarial review: PASS.
-> **وضعیت فعلی:** Phase 1–3 کامل‌اند. Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5C-1 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — COMMITTED `33e12b6`** است؛ primitive مستقل است و runtime quiescence یا restore safety فراهم نمی‌کند. آخرین checkpoint کد production commit‌شده، 4B-5C-1 در `33e12b6` است؛ push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`؛ گام بعدی 4B-5C-2: production operation enrollment و producer retirement؛ restore UI هنوز پیاده نشده است.
+> **وضعیت فعلی:** Phase 1–3 کامل‌اند. Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده **4B-5C-2.1 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — NOT COMMITTED YET** است: production operation ownership/composition و Auth enrollment اضافه شده‌اند؛ runtime quiescence و restore safety برقرار نیستند. آخرین checkpoint کد production commit‌شده، 4B-5C-1 در `33e12b6` باقی است؛ push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`؛ گام بعدی **4B-5C-2.2 — SessionTracker enrollment/retirement** با audit/scope مستقل است؛ producer retirement و restore UI هنوز پیاده نشده‌اند.
 > نتایج Phase 1/2 در بخش‌های خود، شواهد تاریخی‌اند. وضعیت فعلی این سند جایگزین نتیجه‌گیری‌های زمانی قدیمی می‌شود؛ متن `AUDIT-REPORT.md` و اسناد closure قبلی بازنویسی نشده است.
 
 ---
@@ -303,7 +303,7 @@ Checkpoint `36f0e7f` (`feat: add database admission and drain gate`) is pushed t
 - **Historical MEDIUM at 4B-5A — RESOLVED in 4B-5B-1 (`34faeee`; COMMITTED / PUSHED):** no-lease fresh `EnsureResolved` could permanently cache admission-closed in `_resolved` / `_blockedReason`. The committed 4B-5A checkpoint retains this historical finding; the independently reviewed resolver fix committed in `34faeee` leaves temporary rejection retryable. No production cutoff caller has been introduced.
 - **LOW:** if the cleanup-success callback itself throws, cleanup state may remain in-progress/fail-closed; the current gate callback has no expected throw path.
 - **LOW:** AppDbContext disposal semantics are stricter: concurrent disposal is rejected; a later disposal after cleanup failure rethrows the original failure.
-- Current sequence: **4B-5B-1 — resolver poisoning fix (`34faeee`; COMMITTED / PUSHED)**; **4B-5B-2 — backup admission/timer boundary (IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED `287764c`)**; **4B-5C-1 — isolated operation-lifetime primitive (IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — COMMITTED `33e12b6`)**; **4B-5C-2 — production operation enrollment and producer retirement (next planned)**. Production `PrepareRestore` / `Arm` remains unavailable until the complete required quiesce boundary exists. Restore UI remains future work.
+- Historical sequence recorded through 4B-5C-1: **4B-5B-1 — resolver poisoning fix (`34faeee`; COMMITTED / PUSHED)**; **4B-5B-2 — backup admission/timer boundary (IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED `287764c`)**; **4B-5C-1 — isolated operation-lifetime primitive (IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — COMMITTED `33e12b6`)**; **4B-5C-2 — production operation enrollment and producer retirement (next planned)**. Production `PrepareRestore` / `Arm` remains unavailable until the complete required quiesce boundary exists. Restore UI remains future work.
 
 ### 4B-5B-1 — resolver poisoning fix
 
@@ -374,14 +374,53 @@ Checkpoint commit: `33e12b6e52e01a307e7ab474f26945447116db46` — `feat: add run
 - Independent review supplied by the user: **PASS WITH FINDINGS**; **M1 and M2 fixed and re-reviewed CLOSED**. M1 now proves stale/foreign identity rejection with zero outstanding; M2 covers Dispose versus the first unproven report, with both controlled orderings and a concurrent start, rejecting FaultedClosed plus zero outstanding.
 - **M3 — residual test gap / VERIFICATION PENDING:** broad contended/stress linearizability coverage.
 - Final evidence: targeted **29/29 PASS**; relevant regression **118/118 PASS**; full suite **413/413 PASS, 0 failed / 0 skipped**; non-incremental build **0 warnings / 0 errors**; `git diff --check` **PASS**. Test/build evidence comes from completed implementation/follow-up; review closure is user-confirmed. No test/build or independent review was rerun in this documentation-only sync.
-- Next planned increment: **4B-5C-2 — production operation enrollment and producer retirement**, requiring separate scope/approval. Full details: [Phase 4 checkpoint](PHASE-4-CRASH-RECOVERY-BACKUP.md#4b-5c-1--isolated-operation-lifetime-primitive).
+- Next increment recorded at the 5C-1 checkpoint: **4B-5C-2 — production operation enrollment and producer retirement**, requiring separate scope/approval. Full details: [Phase 4 checkpoint](PHASE-4-CRASH-RECOVERY-BACKUP.md#4b-5c-1--isolated-operation-lifetime-primitive).
+
+### 4B-5C-2.1 — production operation ownership/composition and Auth enrollment
+
+**IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — NOT COMMITTED YET.** Phase 4 remains **IN PROGRESS**; runtime quiescence and restore safety are **NOT established**.
+
+**Implemented scope:**
+
+- Production files: `ShopManager.Desktop/Services/RuntimeOperations.cs`, `ShopManager.Desktop/Services/AuthService.cs`, `ShopManager.Desktop/Services/DatabaseService.cs`.
+- Tests: `ShopManager.Domain.Tests/Integration/AuthOperationEnrollmentTests.cs`.
+- `RuntimeOperations` owns one shared production `RuntimeOperationGate` and supplies explicit owner/view composition bindings; isolated runtimes support tests without contaminating production state. Stale/completed/faulted and concurrent/reentrant binding use is rejected; an owner cannot complete while its binding is in use.
+- Standalone Auth Login/Logout owns exactly one operation lifetime through context disposal. Enrolled Auth borrows an explicit parent binding without nested admission or completing its parent. `RecordFailedLogin` and its secondary context remain within the parent Login lifetime.
+- Internal `DatabaseContextCleanupUnprovenException` preserves factory/fresh-initialization body and cleanup diagnostics without coupling DatabaseService to RuntimeOperationGate, RuntimeOperations or AuthService; identity/blocking behavior remains fail-closed.
+- Admission rejection precedes DB/session/history/event side effects. Auth mutation has a non-blocking Busy claim. Proven cleanup of business/auth/query/save failures, including unknown commit outcomes, does not itself fault operation accounting.
+- No `AsyncLocal`, ambient authority, DB capability/bypass, or production Close/Drain/Reopen caller was added.
+
+**Review reconciliation (user-confirmed independent review; no new review performed in this documentation sync):**
+
+- **F1 HIGH — CLOSED:** Login tracks publication by this attempt. A later subscriber/cleanup failure returns Success=true with a warning and preserves its published session/history; it does not fake rollback or re-fire events. Before-publication failure remains Success=false, even if an older session exists. Subscriber failure alone is not cleanup uncertainty; unproven cleanup still leaves the gate FaultedClosed and its outstanding lease retained. Combined subscriber/cleanup failures preserve both diagnostics.
+- **M1 test false-positive — CLOSED:** reentrancy observations/results/exceptions are captured inside the callback and asserted after Login returns; coverage proves exactly-once callback execution, Busy rejection, no extra DB work, outer success, cleanup/claim release, a subsequent legitimate Auth operation and healthy final accounting.
+- **L3 coverage added:** older session + pre-publication failure + cleanup failure remains Success=false, preserves the older session and fault-closes the gate with outstanding retained.
+- Final independent-review disposition supplied by the user: **F1 CLOSED; no new Critical/High; M1 CLOSED**.
+
+**Residual findings:**
+
+- **F2 — OPEN FOLLOW-UP:** new Auth admission/Busy/fault exceptions can escape existing callers. Caller hardening belongs to later SessionTracker/UI/lifecycle enrollment; it was not changed here.
+- **F3 — OPEN RESIDUAL:** a replayed historical DatabaseService resolution cleanup diagnostic may be attributed to a current operation; normal production reachability remains **VERIFICATION PENDING**. This checkpoint does not fix or redesign diagnostic provenance.
+- **F4 — KNOWN/INTENTIONAL:** LogoutCore may swallow a cleanup-unproven diagnostic while the operation gate remains FaultedClosed.
+
+**Final implementation/follow-up evidence:**
+
+- Targeted `AuthOperationEnrollmentTests`: **52/52 PASS**.
+- Relevant Auth/admission/resolution regressions: **200/200 PASS** (`AuthOperationEnrollmentTests`, `RuntimeOperationAdmissionTests`, `DatabaseAdmissionDrainTests`, `DatabasePathResolutionTests`, `DatabaseDurabilityTests`, `BackupAdmissionDrainTests`).
+- Full suite: **465/465 PASS, 0 failed / 0 skipped**.
+- Non-incremental solution build: **0 warnings / 0 errors**; `git diff --check`: **PASS**.
+- Test/build evidence was executed during implementation/follow-up, not rerun during this docs-only step.
+
+**Explicit non-guarantees:** SessionTracker and LoginWindow are NOT enrolled; producer retirement is NOT implemented; F2/F3 remain open; no runtime quiescence or restore safety is established. Earlier checkpoint guarantees and evidence remain historical and are not retroactively upgraded.
+
+**Next planned increment:** **4B-5C-2.2 — SessionTracker enrollment/retirement**, subject to its own audit/scope gate.
 
 **Future 4B-5C integration constraints (not implemented):**
 
 - Never wait for DB drain while holding the `TransitionGate` write lock.
 - Future production flow must close admission and prove drain before `Arm`; resolver identity must be established before future `CloseAdmission`.
 - In the no-lease fresh-resolution path, marker publication currently occurs after the runtime initialization lease is released and is outside DB drain. The already-admitted factory retains its existing lease. DB drain must not be presented as proof that all resolver/marker work has completed.
-- 4B-5B-2 implements the backup admission/timer primitive only; 4B-5C-1 adds an isolated operation-lifetime primitive without production enrollment. 4B-5C-2 production operation enrollment and producer retirement is next planned; unified cutoff/background/updater/multi-context completion remains future work and requires separate scope/approval. Production restore admission remains unavailable until the required complete quiesce boundary exists.
+- 4B-5B-2 implements the backup admission/timer primitive only; 4B-5C-1 supplied the isolated operation-lifetime primitive without production enrollment at that checkpoint. 4B-5C-2.1 now adds production ownership/composition and Auth enrollment only; 4B-5C-2.2 SessionTracker enrollment/retirement is next planned. Producer retirement, unified cutoff/background/updater/multi-context completion remain future work requiring separate scope/approval. Production restore admission remains unavailable until the required complete quiesce boundary exists.
 
 **VERIFICATION PENDING — 4B-4:** direct automated coverage مسیر واقعی `App.OnFrameworkInitializationCompleted` / `InitializeNormalDesktopStartup`؛ تست بیشتر path canonicalization/alias؛ installed GUI blocked-window startup/shutdown smoke؛ startup latency/UX برای stagingهای بزرگ. پوشش entry مشترک startup ادعای پوشش مستقیم callback/بدنهٔ عادی نیست.
 
@@ -512,14 +551,14 @@ text
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | فازهای کامل (Framework جدید)    | 3 (Phase 1, Phase 2, Phase 3 تا 3C)                                                                           |
 | Unique Index / F5               | بسته‌شده در سطح SaleOperations؛ محدودیت legacy در بخش ۵                                                       |
-| فاز بعدی | Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5C-1 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — COMMITTED `33e12b6`** است؛ primitive مستقل است و runtime quiescence یا restore safety فراهم نمی‌کند. آخرین checkpoint کد production commit‌شده، 4B-5C-1 در `33e12b6` است؛ push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`؛ گام بعدی 4B-5C-2: production operation enrollment و producer retirement؛ restore UI هنوز پیاده نشده است. |
+| فاز بعدی | Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده **4B-5C-2.1 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — NOT COMMITTED YET** است: production operation ownership/composition و Auth enrollment اضافه شده‌اند؛ runtime quiescence و restore safety برقرار نیستند. آخرین checkpoint کد production commit‌شده، 4B-5C-1 در `33e12b6` باقی است؛ push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`؛ گام بعدی **4B-5C-2.2 — SessionTracker enrollment/retirement** با audit/scope مستقل است؛ producer retirement و restore UI هنوز پیاده نشده‌اند. |
 | فازهای حذف‌شده از Roadmap       | Alert، Cloud، Multi-terminal                                                                                  |
 | کارهای قدیمی ثبت‌شده در بخش ۲.۳ | ۱۳؛ این عدد شمارندهٔ کل تغییرات جدید نیست                                                                     |
-| آخرین مجموعهٔ تست تأییدشده | 4B-5C-1 (COMMITTED `33e12b6`): full **413/413 PASS**؛ targeted **29/29 PASS**؛ relevant **118/118 PASS**؛ 0 failed / 0 skipped؛ تاریخی: 4B-5B-2 (COMMITTED `287764c`): full **384/384**؛ targeted **26/26**؛ relevant **172/172**؛ 0 failed / 0 skipped؛ تاریخی: 4B-5B-1 (`34faeee`; COMMITTED / PUSHED): full **358/358**؛ targeted **36/36**؛ relevant **166/166**؛ تاریخی 4B-5A: full 354/354، targeted 32/32، relevant 130/130؛ تاریخی: 322 در 4B-4، 291 در 4B-3، 270 در `d472153` و 246 در `59d0dfc` |
-| Build | 4B-5C-1 (COMMITTED `33e12b6`): non-incremental **0 warnings / 0 errors**؛ diff-check **PASS**؛ تاریخی: 4B-5B-2 (COMMITTED `287764c`): non-incremental **0 warnings / 0 errors**؛ تاریخی: 4B-5B-1 (`34faeee`; COMMITTED / PUSHED): build غیرافزایشی solution با **0 warnings / 0 errors**؛ شواهد تاریخی checkpointهای قبلی حفظ شده‌اند |
-| Git | 4B-5C-1 IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — COMMITTED `33e12b6`؛ آخرین checkpoint production commit‌شده: `33e12b6` (4B-5C-1)؛ push تأییدشدهٔ قبلی: `34faeee` (4B-5B-1) به `origin/phase/4-crash-recovery-backup`؛ 4B-5B-2 IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED؛ checkpoint قبلی: `63039d2` (4B-4)؛ Phase 3 implementation: `da7d5b4` |
+| آخرین مجموعهٔ تست تأییدشده | 4B-5C-2.1 (NOT COMMITTED YET): full **465/465 PASS**؛ targeted **52/52 PASS**؛ relevant **200/200 PASS**؛ 0 failed / 0 skipped؛ تاریخی: 4B-5C-1 (COMMITTED `33e12b6`): full **413/413 PASS**؛ targeted **29/29 PASS**؛ relevant **118/118 PASS**؛ 0 failed / 0 skipped؛ تاریخی: 4B-5B-2 (COMMITTED `287764c`): full **384/384**؛ targeted **26/26**؛ relevant **172/172**؛ 0 failed / 0 skipped؛ تاریخی: 4B-5B-1 (`34faeee`; COMMITTED / PUSHED): full **358/358**؛ targeted **36/36**؛ relevant **166/166**؛ تاریخی 4B-5A: full 354/354، targeted 32/32، relevant 130/130؛ تاریخی: 322 در 4B-4، 291 در 4B-3، 270 در `d472153` و 246 در `59d0dfc` |
+| Build | 4B-5C-2.1 (NOT COMMITTED YET): non-incremental **0 warnings / 0 errors**؛ diff-check **PASS**؛ تاریخی: 4B-5C-1 (COMMITTED `33e12b6`): non-incremental **0 warnings / 0 errors**؛ diff-check **PASS**؛ تاریخی: 4B-5B-2 (COMMITTED `287764c`): non-incremental **0 warnings / 0 errors**؛ تاریخی: 4B-5B-1 (`34faeee`; COMMITTED / PUSHED): build غیرافزایشی solution با **0 warnings / 0 errors**؛ شواهد تاریخی checkpointهای قبلی حفظ شده‌اند |
+| Git | 4B-5C-2.1 IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — **NOT COMMITTED YET**؛ 4B-5C-1 IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — COMMITTED `33e12b6`؛ آخرین checkpoint production commit‌شده: `33e12b6` (4B-5C-1)؛ push تأییدشدهٔ قبلی: `34faeee` (4B-5B-1) به `origin/phase/4-crash-recovery-backup`؛ 4B-5B-2 IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED؛ checkpoint قبلی: `63039d2` (4B-4)؛ Phase 3 implementation: `da7d5b4` |
 
-**Phase 1–3 بسته‌اند.** Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5C-1 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — COMMITTED `33e12b6`** است؛ primitive مستقل است و runtime quiescence یا restore safety فراهم نمی‌کند. آخرین checkpoint کد production commit‌شده، 4B-5C-1 در `33e12b6` است؛ push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`؛ گام بعدی 4B-5C-2: production operation enrollment و producer retirement؛ restore UI هنوز پیاده نشده است. سایر اقلام DoD بازند؛ جزئیات در [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
+**Phase 1–3 بسته‌اند.** Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده **4B-5C-2.1 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — NOT COMMITTED YET** است: production operation ownership/composition و Auth enrollment اضافه شده‌اند؛ runtime quiescence و restore safety برقرار نیستند. آخرین checkpoint کد production commit‌شده، 4B-5C-1 در `33e12b6` باقی است؛ push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`؛ گام بعدی **4B-5C-2.2 — SessionTracker enrollment/retirement** با audit/scope مستقل است؛ producer retirement و restore UI هنوز پیاده نشده‌اند. سایر اقلام DoD بازند؛ جزئیات در [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
 
 ---
 
@@ -566,4 +605,4 @@ text
 
 ---
 
-**Phase 1–3 بسته‌اند.** Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده 4B-5C-1 **IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — COMMITTED `33e12b6`** است؛ primitive مستقل است و runtime quiescence یا restore safety فراهم نمی‌کند. آخرین checkpoint کد production commit‌شده، 4B-5C-1 در `33e12b6` است؛ push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`؛ گام بعدی 4B-5C-2: production operation enrollment و producer retirement؛ restore UI هنوز پیاده نشده است. سایر اقلام DoD بازند؛ جزئیات در [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
+**Phase 1–3 بسته‌اند.** Phase 4 همچنان **IN PROGRESS** است؛ آخرین checkpoint پیاده‌شده **4B-5C-2.1 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — NOT COMMITTED YET** است: production operation ownership/composition و Auth enrollment اضافه شده‌اند؛ runtime quiescence و restore safety برقرار نیستند. آخرین checkpoint کد production commit‌شده، 4B-5C-1 در `33e12b6` باقی است؛ push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`؛ گام بعدی **4B-5C-2.2 — SessionTracker enrollment/retirement** با audit/scope مستقل است؛ producer retirement و restore UI هنوز پیاده نشده‌اند. سایر اقلام DoD بازند؛ جزئیات در [PHASE-4-CRASH-RECOVERY-BACKUP.md](PHASE-4-CRASH-RECOVERY-BACKUP.md).
