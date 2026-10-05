@@ -2,32 +2,29 @@
 
 ## Status
 
-**Phase 4 — Crash Recovery + Backup: IN PROGRESS — NOT complete.**
+**Phase 4 — Crash Recovery + Backup: IN PROGRESS / NOT restore-safe — NOT complete.**
 
 - Branch: `phase/4-crash-recovery-backup`.
-- Latest implemented checkpoint: **4B-5C-2.2 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — NOT COMMITTED YET; NOT runtime-quiescent / NOT restore-safe**. SessionTracker tick enrollment and generation/single-flight safety exist; terminal producer retirement/full quiescence remain deferred.
-- Latest committed/pushed production-code checkpoint: `a8e3d02eb7059d5eee8504ea712f85499f9119e4` (4B-5C-2.1; push confirmed by the user). Earlier checkpoints: `33e12b6` (4B-5C-1), `287764c` (4B-5B-2), `34faeee` (4B-5B-1; committed/pushed), `36f0e7f` (4B-5A), `63039d2` (4B-4), `583a7b8` (4B-3), `d472153` (4B-2B), `59d0dfc` (4B-2A); commits between `59d0dfc` and `d472153` changed documentation and repository operating rules only.
+- Latest implemented checkpoint: **4B-5C-2.2 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — COMMITTED / PUSHED `72d7761`; NOT runtime-quiescent / NOT restore-safe**. SessionTracker tick enrollment and generation/single-flight safety exist; terminal producer retirement/full quiescence remain deferred.
+- Latest committed/pushed production-code checkpoint: **4B-5C-2.2**, `72d77613340f2d9b88abd64ec39bcbe351156608` (push confirmed by the user); 5C-2.1 remains committed/pushed in `a8e3d02`.
 - No Phase 4 completion tag exists. The last completion tag in the repository is
   `phase-3-concurrency-idempotency-complete`.
-- Documented checkpoints: **4A-1 through 4B-5C-2.2**; **5C-2.1 is COMMITTED / PUSHED; 5C-2.2 is NOT COMMITTED YET**. 4A-1 through 4B-2A are committed
+- Documented checkpoints: **4A-1 through 4B-5C-2.2**; **5C-2.1 is COMMITTED / PUSHED; 5C-2.2 is COMMITTED / PUSHED `72d7761`**. 4A-1 through 4B-2A are committed
   (last commit `59d0dfc`); **4B-2B is committed in `d472153`; 4B-3 in `583a7b8`; 4B-4 in `63039d2`; 4B-5A in `36f0e7f`; 4B-5B-1 committed/pushed in `34faeee`**; 4B-5B-2 is committed in `287764c`; 4B-5C-1 is committed in `33e12b6`.
-- Next uncompleted: remaining production enrollment/caller hardening and producer/lifecycle integration, requiring separate audit/scope/approval; existing backlog order remains unchanged.
-- Remaining work: **terminal producer retirement/full quiescence and later integration (future work)**, UI/shutdown/quiesce/drain
-  integration and legacy restore removal, and the rest of the Phase 4 DoD
-  recorded below.
+- Next uncompleted: **F1 — Final Restore Boundary**, then **F2 — Backup Compatibility + Broken-DB Recovery**, then **F3 — Final Verification & Closure**.
+- Remaining work: approved F1/F2/F3 DoD; general per-window enrollment and lifetime architecture are deferred.
 
 This document records checkpoints 4A-1 through 4B-2A as present in the committed source
 tree at commit `59d0dfc`, 4B-2B at commit `d472153`, 4B-3 at commit `583a7b8`,
 4B-4 at commit `63039d2`, verified, independently reviewed 4B-5A at commit `36f0e7f`,
 4B-5B-1 committed/pushed in `34faeee`, and implemented, verified, independently reviewed
 4B-5B-2 at commit `287764c`, and 4B-5C-1 at commit `33e12b6` (COMMITTED). It also records
-4B-5C-2.1 as implemented, tested and independently reviewed, **COMMITTED / PUSHED `a8e3d02eb7059d5eee8504ea712f85499f9119e4`**, and 4B-5C-2.2 as **IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — NOT COMMITTED YET**.
+4B-5C-2.1 as implemented, tested and independently reviewed, **COMMITTED / PUSHED `a8e3d02eb7059d5eee8504ea712f85499f9119e4`**, and 4B-5C-2.2 as **IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — COMMITTED / PUSHED `72d7761`**.
 Historical checkpoint guarantees are not extended retroactively. Phase 4 is not complete.
 
 ## Purpose and scope
 
-Roadmap scope: `Migrate()`, WAL, backup verification, encryption, external/secondary
-backup, crash recovery, and safe restore.
+Original roadmap scope included migrations, WAL, backup verification, encryption and secondary backup. The user-approved scope reset narrows closure to crash-safe backup and genuinely safe terminal restore for this single-process desktop POS. Deferred items remain OPEN; completed hardening and historical evidence are retained.
 
 ### Phase 4 checkpoint boundary (authoritative: `docs/PROJECT-CONTEXT.md`)
 
@@ -67,13 +64,9 @@ checkpoint-ready; committed in `63039d2`):**
 - The narrow identity-admission hook preserves 4B-2B forward-complete invariants;
   4B-3 guard behavior and the existing normal startup/shutdown body remain intact.
 
-**Still future integration after 4B-5C-2.2 (not implemented; later increments need separate scope):**
-- SettingsWindow/UI integration;
-- quiesce/drain integration and shutdown redesign;
-- removal of the legacy production restore path (`BackupService.RestoreBackup` and the
-  `Environment.Exit(0)` path in `Views/SettingsWindow.axaml.cs`).
+**Remaining integration (approved scope reset; not implemented):** F1 → F2 → F3, detailed below. General per-window enrollment is outside the critical path.
 
-## Checkpoints implemented (through 4B-5C-2.2; 5C-2.1 COMMITTED / PUSHED; 5C-2.2 NOT COMMITTED YET)
+## Checkpoints implemented (through 4B-5C-2.2; 5C-2.1 COMMITTED / PUSHED; 5C-2.2 COMMITTED / PUSHED `72d7761`)
 
 | Checkpoint | Commit    | Change                                                                                                                                                                                                                                                                             | Tests                                                                 |
 | ---------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
@@ -91,7 +84,7 @@ checkpoint-ready; committed in `63039d2`):**
 | 4B-5B-2 | `287764c` (COMMITTED) | Backup admission/timer boundary; IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED; NOT restore-safe. | `ShopManager.Domain.Tests/Integration/BackupAdmissionDrainTests.cs` |
 | 4B-5C-1 | COMMITTED `33e12b6` | Isolated RuntimeOperationGate; IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED; NOT runtime-quiescent / NOT restore-safe. | ShopManager.Domain.Tests/Integration/RuntimeOperationAdmissionTests.cs |
 | 4B-5C-2.1 | COMMITTED / PUSHED `a8e3d02` | Production operation ownership/composition and Auth Login/Logout enrollment; IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED; NOT runtime-quiescent / NOT restore-safe. | ShopManager.Domain.Tests/Integration/AuthOperationEnrollmentTests.cs |
-| 4B-5C-2.2 | NOT COMMITTED YET | SessionTracker tick enrollment, generation/single-flight safety and conditional parent-bound Auth logout; IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED; terminal retirement/full quiescence deferred; NOT restore-safe. | ShopManager.Domain.Tests/Integration/SessionTrackerOperationEnrollmentTests.cs |
+| 4B-5C-2.2 | COMMITTED / PUSHED `72d7761` | SessionTracker tick enrollment, generation/single-flight safety and conditional parent-bound Auth logout; IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED; terminal retirement/full quiescence deferred; NOT restore-safe. | ShopManager.Domain.Tests/Integration/SessionTrackerOperationEnrollmentTests.cs |
 
 Historical declared test-method counts through 4B-2B: BackupPublication 16, DatabasePathResolution 31,
 DatabaseDurability 10, BackupLifecycle 8, RestorePreparation 13, RestoreRecoveryService 42
@@ -171,7 +164,7 @@ Checkpoint commit: `287764c2e89d428ac658e55589a5900defe24397` — `feat: add bac
 - The accounting-corruption test reflects private `_accepted`.
 - Fixture worker aggregation has no independent timeout.
 
-**Remaining boundary:** no production cutoff / `PrepareRestore` / `Arm` wiring exists. DB/updater/shutdown/background/multi-context coordination remains for **4B-5C-2 and later integration**. Legacy `BackupService.RestoreBackup` remains outside this guarantee; the preparation algorithm is unchanged. Backup/timer drain does not establish restore safety or full quiesce, protect the entire Prepare-to-Arm interval, or prove successful deletion of all best-effort temporary artifacts.
+**Remaining boundary:** no production cutoff / `PrepareRestore` / `Arm` wiring exists. Restore-specific cutoff/drain and lifecycle coordination remain for **F1**. Legacy `BackupService.RestoreBackup` remains outside this guarantee; the preparation algorithm is unchanged. Backup/timer drain does not establish restore safety or full quiesce, protect the entire Prepare-to-Arm interval, or prove successful deletion of all best-effort temporary artifacts.
 
 ### 4B-5C-1 — isolated operation-lifetime primitive
 
@@ -233,7 +226,7 @@ Checkpoint commit: `33e12b6e52e01a307e7ab474f26945447116db46` — `feat: add run
 
 ### 4B-5C-2.2 — SessionTracker tick enrollment and generation/single-flight safety
 
-**IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — NOT COMMITTED YET.** Phase 4 remains **IN PROGRESS / NOT restore-safe**; full runtime quiescence is **NOT established**.
+**IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — COMMITTED / PUSHED `72d7761`.** Phase 4 remains **IN PROGRESS / NOT restore-safe**; full runtime quiescence is **NOT established**.
 
 **Implemented scope:** `ShopManager.Desktop/Services/SessionTracker.cs`, `ShopManager.Desktop/Services/AuthService.cs`, and new `ShopManager.Domain.Tests/Integration/SessionTrackerOperationEnrollmentTests.cs`. RuntimeOperations, RuntimeOperationGate, DatabaseService and UI/lifecycle source were not changed in this increment.
 
@@ -252,14 +245,16 @@ Checkpoint commit: `33e12b6e52e01a307e7ab474f26945447116db46` — `feat: add run
 
 **Residuals / non-guarantees:** terminal producer retirement and full quiescence remain deferred. F2 general UI/Auth caller hardening remains open; SessionTracker exception handling does not close it for other callers. F3 historical resolution-cleanup diagnostic provenance remains **VERIFICATION PENDING**. F4 LogoutCore may swallow its cleanup diagnostic, while the same parent lease remains unproven and the gate stays FaultedClosed. Synchronous notification coverage does not include queued UI transitions. LoginWindow/MainWindow/general lifecycle, history-write serialization, shutdown/updater coordination and restore activation/safety are not established by this increment.
 
-**Next uncompleted work (existing backlog order):** remaining production enrollment/caller hardening (including LoginWindow) and producer/lifecycle integration, followed by the existing restore UI, quiesce/drain, shutdown/updater and legacy-restore work. Each needs its own audit/scope/approval; no later increment is automatically complete or authorized by this checkpoint.
+**Next uncompleted work (approved scope reset):** F1 → F2 → F3. General per-window enrollment is deferred to reliability backlog; source implementation needs separate scope/approval.
 
-**Future 4B-5C integration constraints (not implemented):**
+**Final restore constraints (F1; not implemented):**
 
 - Never wait for DB drain while holding the `TransitionGate` write lock.
 - Future production flow must close admission and prove drain before `Arm`; resolver identity must be established before future `CloseAdmission`.
 - In the no-lease fresh-resolution path, marker publication currently occurs after the runtime initialization lease is released and is outside DB drain. The already-admitted factory retains its existing lease. DB drain must not be presented as proof that all resolver/marker work has completed.
-- 4B-5B-2 implements the backup admission/timer primitive only; 4B-5C-1 supplied the isolated operation-lifetime primitive without production enrollment at that checkpoint. 4B-5C-2.1 adds production ownership/composition and Auth enrollment; 4B-5C-2.2 adds SessionTracker tick enrollment and generation/single-flight safety. Stop is not completion proof. Terminal producer retirement, unified cutoff/background/updater/multi-context completion remain deferred, requiring separate scope/approval. Production restore admission remains unavailable until the required complete quiesce boundary exists.
+- Existing 5C-2.1/2.2 hardening and evidence are retained. F1/F2/F3 is the approved critical path; general per-window enrollment/lifetime architecture is deferred. Production restore activation remains unimplemented.
+- Keep cutoff closed through terminal restore exit. Timeout or cleanup uncertainty => do not `Arm`; after persistent intent exists, or publication is uncertain, normal DB work must not resume.
+- Ordering: runtime/DB cutoff and drain → `PrepareRestore` with backup admission still open → backup cutoff and drain → release SQLite pools → `Arm` → restore-specific exit → actual swap at next startup. Updater Apply/Restart and queued lifecycle transitions must not race restore.
 
 Historical verified 4B-4 evidence (checkpoint committed in `63039d2`; recorded implementation/test results):
 
@@ -340,32 +335,48 @@ Source-confirmed facts:
 - [x] **4B-5B-2**: backup admission/timer boundary; IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED; **COMMITTED `287764c`**, **NOT restore-safe**. Final evidence: 26/26 targeted, 172/172 relevant, 384/384 full; re-review PASS WITH FINDINGS; M1/M2 CLOSED.
 - [x] **4B-5C-1 — COMMITTED `33e12b6`**: isolated RuntimeOperationGate primitive; implemented / verified / independently reviewed; NOT runtime-quiescent / NOT restore-safe. Final evidence: targeted 29/29, relevant 118/118, full 413/413 PASS, 0 failed/skipped; build 0 warnings/errors; diff-check PASS; user-confirmed review PASS WITH FINDINGS, M1/M2 re-reviewed CLOSED; M3 stress linearizability remains a test gap.
 - [x] **4B-5C-2.1 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED; COMMITTED / PUSHED `a8e3d02`:** production operation ownership/composition and Auth enrollment only; F1/M1 CLOSED, L3 added; targeted 52/52, relevant 200/200, full 465/465 PASS; no runtime quiescence or restore safety.
-- [x] **4B-5C-2.2 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED; NOT COMMITTED YET:** SessionTracker tick enrollment and generation/single-flight safety; Stop is not completion proof; conditional parent-bound Auth logout protects replacement sessions without nested admission; cleanup uncertainty remains fail-closed. New tests 47/47, Auth 52/52, relevant 148/148, full 512/512, independent targeted review run 99/99 PASS; build 0 warnings/errors; independent review PASS with no Critical/High/Medium/Low findings (user-confirmed); diff-check PASS. Terminal producer retirement/full quiescence deferred; NOT restore-safe.
-- [ ] **Next uncompleted enrollment/producer integration:** remaining enrollment/caller hardening (including LoginWindow) and terminal producer retirement/lifecycle coordination; separate audit/scope/approval required. No later increment is automatically complete; retain existing backlog order.
-- [ ] **4B-5C-2 and later — future integration**: restore UI wiring; quiesce/drain;
-      shutdown redesign; removal of the legacy production restore path. Not implemented.
-- [ ] **AR-4**: replace the legacy `BackupService.RestoreBackup` and the
-      `SettingsWindow.axaml.cs:290` `Environment.Exit(0)` path with the safe restore flow.
-- [ ] **AR-2**: `EnsureCreated` → a real `Migrate()`.
-- [ ] **S8**: schema drift / migrations.
-- [ ] **D1**: backup 3-2-1, encryption (DPAPI/AES), and secondary USB backup.
-- [ ] Crash/recovery tests: kill during `SaveSale`; restore from backup → all data;
-      corrupted DB → recover from backup.
+- [x] **4B-5C-2.2 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED; COMMITTED / PUSHED `72d7761`:** SessionTracker tick enrollment and generation/single-flight safety; Stop is not completion proof; conditional parent-bound Auth logout protects replacement sessions without nested admission; cleanup uncertainty remains fail-closed. New tests 47/47, Auth 52/52, relevant 148/148, full 512/512, independent targeted review run 99/99 PASS; build 0 warnings/errors; independent review PASS with no Critical/High/Medium/Low findings (user-confirmed); diff-check PASS. Terminal producer retirement/full quiescence deferred; NOT restore-safe.
+- [ ] **F1 → F2 → F3:** approved completion path below; no remaining increment is implemented or verified by this docs-only update.
 
-## Phase 4 DoD (roadmap) — progress
+## Approved completion plan
 
-| DoD item                                  | Status                                                                                                     |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `EnsureCreated` → `Migrate()`             | **PENDING**                                                                                                |
-| DB from zero → all migrations run         | **PENDING**                                                                                                |
-| Backup: copy + integrity check + restore  | **PARTIAL** — publication and validation exist (4A-1); the file-level restore engine is implemented (4B-2B, `d472153`), but the end-to-end restore is pending the subsequent Phase 4 integration. |
-| Backup encryption (DPAPI/AES)             | **PENDING**                                                                                                |
-| Secondary backup on USB                   | **PENDING**                                                                                                |
-| Test: kill during `SaveSale` → DB healthy | **PENDING**                                                                                                |
-| Test: restore from backup → all data      | **PENDING**                                                                                                |
-| Test: corrupted DB → recover from backup  | **PENDING**                                                                                                |
+The scope reset is intentional and user-approved, not abandonment of restore safety. **No current evidence proves per-window operation enrollment mandatory for safe restore.** Existing 5C-2.1 Auth and 5C-2.2 SessionTracker hardening, code and historical evidence remain valid. F1/F2/F3 here name completion increments, not historical audit finding IDs. Source implementation still requires its own approved scope.
 
-**Evidence for the full Phase 4 DoD (a complete crash + recovery scenario): NOT produced.**
+### F1 — Final Restore Boundary
+
+- [ ] Replace the legacy SettingsWindow `RestoreBackup`/`Environment.Exit(0)` path with terminal restore single-flight.
+- [ ] Establish registered DB identity, block relevant new work, stop relevant producers, and asynchronously drain existing runtime/DB work. Active contexts held across UI dialogs must settle or restore must abort; do not force-dispose them.
+- [ ] Healthy-DB ordering: runtime/DB admission cutoff and drain → `PrepareRestore` while backup admission is still open → backup admission cutoff and drain (accepted/queued work and timer/lifecycle retirement) → release SQLite pools → `Arm` persistent restore intent → terminal restore-specific exit.
+- [ ] Keep cutoff closed through terminal restore exit. Timeout or cleanup uncertainty => do not `Arm`. Once persistent intent exists, or publication is uncertain, normal DB work must not resume.
+- [ ] Prevent updater Apply/Restart and queued lifecycle transitions from racing restore; suppress normal shutdown DB/logout/backup work during terminal restore.
+- [ ] Startup recovery performs the actual swap before resolver/SQLite admission. Do not resume normal work on the restored DB in the exiting process. No general UI operation-lifetime framework is required by this plan.
+
+### F2 — Backup Compatibility + Broken-DB Recovery
+
+- [ ] Prove the selected backup is compatible with this application before arming; SQLite integrity plus a nonempty `sqlite_master` is insufficient application-compatibility evidence.
+- [ ] Provide a bounded recovery entry when the current DB is broken, without admitting normal DB consumers. Failure to obtain a valid live safety snapshot must not be silently bypassed.
+- [ ] Preserve damaged/original DB and relevant sidecar files before replacement; uncertainty must fail closed. The existing engine's tolerance of a missing safety snapshot does not itself satisfy preservation.
+
+### F3 — Final Verification & Closure
+
+- [ ] Integration/end-to-end restore verification: admission cutoff/drain, preparation ordering, persistent intent, terminal exit, startup recovery and restored application data; cover incompatible backups, broken DB and fail-closed failures.
+- [ ] Real process-crash/kill verification where required, including kill during `SaveSale` and restart across critical restore boundaries. Exception/reset simulations alone do not establish process-crash behavior.
+- [ ] UI smoke verification, including pending dialogs, queued lifecycle transitions, updater exclusion, restore-specific shutdown and broken-startup recovery.
+- [ ] Full tests pass; solution build has **0 warnings / 0 errors**; independent review passes; final documentation reconciliation records only obtained evidence.
+
+## Phase 4 DoD — approved scope reset
+
+| Completion increment | Current status |
+| --- | --- |
+| F1 — Final Restore Boundary | **OPEN / NOT implemented** |
+| F2 — Backup Compatibility + Broken-DB Recovery | **OPEN / NOT implemented** |
+| F3 — Final Verification & Closure | **VERIFICATION PENDING** |
+
+**Original DoD disposition:** backup publication/integrity portions remain implemented; end-to-end restore, complete restored DB data, broken-DB recovery and crash verification remain mandatory under F1/F2/F3. `EnsureCreated → Migrate()`, DB-from-zero migration coverage, general schema drift (AR-2/S8), encryption, secondary USB backup and 3-2-1 (D1) move to [deferred backlog](MASTER-BACKLOG.md#deferred-work-from-phase-4-scope-reset), OPEN and not completed. Narrow backup compatibility remains in F2.
+
+General per-window enrollment (Login/Users/Items/Cashbox/POS/Transfer/Reports/etc.), general producer-retirement/lifetime architecture and broader shutdown/updater redesign move to deferred reliability backlog. Only restore-boundary safety coordination is required now.
+
+**Closure evidence is NOT produced.** Historical checkpoint tests/builds/reviews are retained; none were rerun in this docs-only update. Phase 4 remains **IN PROGRESS / NOT restore-safe** until F1/F2/F3 are implemented and evidenced.
 
 ## Residual risks and limitations
 
@@ -376,9 +387,7 @@ Source-confirmed facts:
   of real `App.OnFrameworkInitializationCompleted` / `InitializeNormalDesktopStartup`;
   additional path canonicalization/alias test coverage; installed GUI blocked-window
   startup/shutdown smoke; startup latency/UX for large recovery staging files.
-- Startup now consumes existing restore intents through the 4B-2B engine. End-to-end
-  restore UI wiring, quiesce/drain, shutdown redesign and legacy restore removal remain
-  unimplemented future work (4B-5C and later); checkpoint readiness does not close Phase 4.
+- Startup consumes existing restore intents. F1/F2/F3 remain OPEN; checkpoint readiness does not close Phase 4. General lifetime/shutdown architecture is deferred; restore-boundary safety remains mandatory.
 - The legacy restore path is still the one the UI calls.
 - Durability is enforced on each connection open; this is not a claim about power-loss
   behavior under every filesystem.
@@ -387,5 +396,4 @@ Source-confirmed facts:
 
 ## Closure
 
-**Phase 4: IN PROGRESS — do not mark complete.** Update this document as the subsequent
-Phase 4 integration and the remaining DoD items are implemented and verified.
+**Phase 4: IN PROGRESS / NOT restore-safe — do not mark complete.** Close only after the approved F1/F2/F3 DoD has implementation, verification and independent-review evidence.
