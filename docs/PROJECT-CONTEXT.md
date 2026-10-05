@@ -23,7 +23,7 @@ ShopManager یک POS و سامانهٔ مدیریت فروشگاه است.
 
 اگر این سند با evidence معتبر (source، tests، Git) ناسازگار بود، **آن ناسازگاری را گزارش کنید**؛ حدس نزنید. اصلاح فقط در scope صریح مجاز است.
 
-آخرین checkpoint پیاده‌شده: **4B-5B-2 — IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED؛ NOT restore-safe**.
+آخرین checkpoint پیاده‌شده: **4B-5C-1 — IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — NOT COMMITTED؛ NOT runtime-quiescent / NOT restore-safe**. گام بعدی: 4B-5C-2، production operation enrollment و producer retirement.
 آخرین checkpoint کد production که commit شده: `287764c` — `feat: add backup admission and drain boundary` (4B-5B-2). push تأییدشدهٔ قبلی: 4B-5B-1 در `34faeee`.
 checkpointهای قبلی: `583a7b8` (4B-3)، `d472153` (4B-2B) و `59d0dfc` (4B-2A).
 دستور زیر checkpointهای commit‌شده را نشان می‌دهد؛ 4B-5B-2 در `287764c` commit شده است:
@@ -73,7 +73,7 @@ Scope خارج از roadmap فعلی: Cloud Sync، Multi-terminal، Multi-store�
 - Phase 3 closure: commit `905622c`; آخرین completion tag: `phase-3-concurrency-idempotency-complete`.
 - Phase 4 completion tag وجود ندارد.
 
-## 6. Phase 4 — وضعیت فعلی تا 4B-5B-2 (COMMITTED `287764c`؛ 4B-5B-1 در `34faeee` commit و push شده)
+## 6. Phase 4 — وضعیت فعلی تا 4B-5C-1 (NOT COMMITTED؛ آخرین checkpoint کد production commit‌شده: 4B-5B-2 در `287764c`)
 
 Phase 4 همچنان **IN PROGRESS — NOT complete** است.
 
@@ -91,6 +91,7 @@ Phase 4 همچنان **IN PROGRESS — NOT complete** است.
 | 4B-5A | `36f0e7f` | runtime context admission + drain؛ IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED؛ NOT restore-safe |
 | 4B-5B-1 | `34faeee` (COMMITTED / PUSHED) | resolver poisoning fix؛ IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED؛ NOT restore-safe |
 | 4B-5B-2 | `287764c` (COMMITTED) | backup admission/timer boundary; IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED; NOT restore-safe |
+| 4B-5C-1 | NOT COMMITTED | isolated RuntimeOperationGate primitive; IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED; NOT runtime-quiescent / NOT restore-safe |
 
 evidence تاریخی برای checkpoint قبلی `59d0dfc` (4B-2A): build با 0 errors / 0 warnings؛ tests با 246/246 passed، 0 failed، 0 skipped.
 
@@ -114,7 +115,7 @@ Checkpoint `36f0e7f` (`feat: add database admission and drain gate`) is pushed t
 - **Historical MEDIUM at 4B-5A — RESOLVED in 4B-5B-1 (`34faeee`; COMMITTED / PUSHED):** no-lease fresh `EnsureResolved` could permanently cache admission-closed in `_resolved` / `_blockedReason`. The committed 4B-5A checkpoint retains this historical finding; the independently reviewed resolver fix committed in `34faeee` leaves temporary rejection retryable. No production cutoff caller has been introduced.
 - **LOW:** if the cleanup-success callback itself throws, cleanup state may remain in-progress/fail-closed; the current gate callback has no expected throw path.
 - **LOW:** AppDbContext disposal semantics are stricter: concurrent disposal is rejected; a later disposal after cleanup failure rethrows the original failure.
-- Current sequence: **4B-5B-1 — resolver poisoning fix (`34faeee`; COMMITTED / PUSHED)**; **4B-5B-2 — backup admission/timer boundary (IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED `287764c`)**; **4B-5C — unified cutoff/background/updater/multi-context completion (future)**. Production `PrepareRestore` / `Arm` remains unavailable until the complete required quiesce boundary exists. Restore UI remains future work.
+- Current sequence: **4B-5B-1 — resolver poisoning fix (`34faeee`; COMMITTED / PUSHED)**; **4B-5B-2 — backup admission/timer boundary (IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED `287764c`)**; **4B-5C-1 — isolated operation-lifetime primitive (IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — NOT COMMITTED)**; **4B-5C-2 — production operation enrollment and producer retirement (next planned)**. Production `PrepareRestore` / `Arm` remains unavailable until the complete required quiesce boundary exists. Restore UI remains future work.
 
 ### 4B-5B-1 — resolver poisoning fix
 
@@ -171,14 +172,26 @@ Checkpoint commit: `287764c2e89d428ac658e55589a5900defe24397` — `feat: add bac
 - The accounting-corruption test reflects private `_accepted`.
 - Fixture worker aggregation has no independent timeout.
 
-**Remaining boundary:** no production cutoff / `PrepareRestore` / `Arm` wiring exists. DB/updater/shutdown/background/multi-context coordination remains for **4B-5C**. Legacy `BackupService.RestoreBackup` remains outside this guarantee; the preparation algorithm is unchanged. Backup/timer drain does not establish restore safety or full quiesce, protect the entire Prepare-to-Arm interval, or prove successful deletion of all best-effort temporary artifacts.
+**Remaining boundary:** no production cutoff / `PrepareRestore` / `Arm` wiring exists. DB/updater/shutdown/background/multi-context coordination remains for **4B-5C-2 and later integration**. Legacy `BackupService.RestoreBackup` remains outside this guarantee; the preparation algorithm is unchanged. Backup/timer drain does not establish restore safety or full quiesce, protect the entire Prepare-to-Arm interval, or prove successful deletion of all best-effort temporary artifacts.
+
+### 4B-5C-1 — isolated operation-lifetime primitive
+
+**IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — NOT COMMITTED. NOT runtime-quiescent / NOT restore-safe.** Phase 4 remains **IN PROGRESS**.
+
+- Production: `ShopManager.Desktop/Services/RuntimeOperationGate.cs`; tests: `ShopManager.Domain.Tests/Integration/RuntimeOperationAdmissionTests.cs`.
+- States `Open` / `Closed` / `FaultedClosed`; operation-lifetime accounting, Interactive Busy, closure ownership, async drain, controlled reopen and fail-closed unproven completion.
+- No production callers/integration, DB capability, `AsyncLocal`, singleton or production cutoff. No runtime quiescence or restore safety; no automatic self-drain detection.
+- Independent review supplied by the user: **PASS WITH FINDINGS**; **M1 and M2 fixed and re-reviewed CLOSED**. M1 now proves stale/foreign identity rejection with zero outstanding; M2 covers Dispose versus the first unproven report, with both controlled orderings and a concurrent start, rejecting FaultedClosed plus zero outstanding.
+- **M3 — residual test gap / VERIFICATION PENDING:** broad contended/stress linearizability coverage.
+- Final evidence: targeted **29/29 PASS**; relevant regression **118/118 PASS**; full suite **413/413 PASS, 0 failed / 0 skipped**; non-incremental build **0 warnings / 0 errors**; `git diff --check` **PASS**. Test/build evidence comes from completed implementation/follow-up; review closure is user-confirmed. No test/build or independent review was rerun in this documentation-only sync.
+- Next planned increment: **4B-5C-2 — production operation enrollment and producer retirement**, requiring separate scope/approval. Full details: [Phase 4 checkpoint](PHASE-4-CRASH-RECOVERY-BACKUP.md#4b-5c-1--isolated-operation-lifetime-primitive).
 
 **Future 4B-5C integration constraints (not implemented):**
 
 - Never wait for DB drain while holding the `TransitionGate` write lock.
 - Future production flow must close admission and prove drain before `Arm`; resolver identity must be established before future `CloseAdmission`.
 - In the no-lease fresh-resolution path, marker publication currently occurs after the runtime initialization lease is released and is outside DB drain. The already-admitted factory retains its existing lease. DB drain must not be presented as proof that all resolver/marker work has completed.
-- 4B-5B-2 implements the backup admission/timer primitive only; 4B-5C remains unified cutoff/background/updater/multi-context completion and requires separate scope/approval. Production restore admission remains unavailable until the required complete quiesce boundary exists.
+- 4B-5B-2 implements the backup admission/timer primitive only; 4B-5C-1 adds an isolated operation-lifetime primitive without production enrollment. 4B-5C-2 production operation enrollment and producer retirement is next planned; unified cutoff/background/updater/multi-context completion remains future work and requires separate scope/approval. Production restore admission remains unavailable until the required complete quiesce boundary exists.
 
 **قراردادهای حیاتی Phase 4 برای کار بعدی:**
 - **Startup recovery (4B-4):** پس از mutex و Avalonia، نخستین gate در startupِ desktop پیش از resolver/SQLite اجرا می‌شود. فقط `NoIntent` یا `Completed` در حالت unarmed اجازهٔ ادامه می‌دهد؛ `Blocked` و خطاهای غیرمنتظره بدون resolver/context/settings/theme/backup/timer/auth/session/normal window/normal shutdown registration متوقف می‌شوند. registered identity روی همان intent مصرف‌شدهٔ `Recover`، پس از arming و پیش از mutation بررسی می‌شود؛ validator از DatabaseService یا SQLite استفاده نمی‌کند و live مفقود پس از tombstone می‌تواند پیش از resolver بازیابی شود. invariantهای 4B-2B و رفتار 4B-3 حفظ شده‌اند.
@@ -203,7 +216,7 @@ Checkpoint commit: `287764c2e89d428ac658e55589a5900defe24397` — `feat: add bac
 - نبودن `SafetyBackupPath` مانع forward completion نیست؛ اسنپ‌شات ایمنی در صورت وجود حفظ می‌شود؛
 - پوشش crash/restart و blocked-state اضافه شده است.
 
-**خارج از 4B-2B:** app-lifetime mutex در **4B-3 (`583a7b8`)** commit شده و startup recovery در **4B-4 (`63039d2`)** پیاده، verify و independently reviewed شده است. **4B-5C و بعد — آینده و پیاده‌نشده:** restore UI wiring؛ quiesce/drain؛ shutdown redesign؛ حذف legacy production restore path.
+**خارج از 4B-2B:** app-lifetime mutex در **4B-3 (`583a7b8`)** commit شده و startup recovery در **4B-4 (`63039d2`)** پیاده، verify و independently reviewed شده است. **4B-5C-2 و بعد — integration آینده و پیاده‌نشده:** restore UI wiring؛ quiesce/drain؛ shutdown redesign؛ حذف legacy production restore path.
 
 ### Phase 4 — remaining DoD (هنوز باز)
 
@@ -214,9 +227,9 @@ Checkpoint commit: `287764c2e89d428ac658e55589a5900defe24397` — `feat: add bac
 - تست: restore کامل از backup → همهٔ داده؛
 - تست: DB خراب → بازیابی از backup.
 
-### Phase 4 — subsequent integration (4B-5C و بعد؛ هنوز باز)
+### Phase 4 — subsequent integration (4B-5C-2 و بعد؛ هنوز باز)
 
-- **4B-5C — future work:** checkpoint بعدی نیازمند scope و approval مستقل است؛ restore UI wiring، quiesce/drain و shutdown redesign هنوز پیاده نشده‌اند.
+- **4B-5C-2 — next planned:** production operation enrollment و producer retirement نیازمند scope و approval مستقل است؛ restore UI wiring، quiesce/drain و shutdown redesign هنوز پیاده نشده‌اند.
 - فراخوانی موتور swap آفلاین از restore UI/flow برنامه همچنان باز است؛ مصرف intent موجود در startup از 4B-4 وجود دارد.
 - جایگزینی مسیر legacy `BackupService.RestoreBackup` و مسیر `Environment.Exit(0)` در `Views/SettingsWindow.axaml.cs`.
 - رفع محدودیت‌های Phase 4 شناخته‌شده در بخش ۹.

@@ -5,13 +5,14 @@
 **Phase 4 — Crash Recovery + Backup: IN PROGRESS — NOT complete.**
 
 - Branch: `phase/4-crash-recovery-backup`.
-- Latest implemented checkpoint: **4B-5B-2 — IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED; NOT restore-safe**. The latest committed production checkpoint is 4B-5B-2 (`287764c`); the previously confirmed pushed checkpoint is 4B-5B-1 (`34faeee`).
+- Latest implemented checkpoint: **4B-5C-1 — IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — NOT COMMITTED; NOT runtime-quiescent / NOT restore-safe**. The latest committed production checkpoint is 4B-5B-2 (`287764c`); the previously confirmed pushed checkpoint is 4B-5B-1 (`34faeee`).
 - Latest committed production-code checkpoint: `287764c` — `feat: add backup admission and drain boundary` (4B-5B-2). Earlier checkpoints: `34faeee` (4B-5B-1; committed/pushed), `36f0e7f` (4B-5A), `63039d2` (4B-4), `583a7b8` (4B-3), `d472153` (4B-2B), `59d0dfc` (4B-2A); commits between `59d0dfc` and `d472153` changed documentation and repository operating rules only.
 - No Phase 4 completion tag exists. The last completion tag in the repository is
   `phase-3-concurrency-idempotency-complete`.
-- Documented checkpoints: **4A-1 through 4B-5B-2**. 4A-1 through 4B-2A are committed
+- Documented checkpoints: **4A-1 through 4B-5C-1**. 4A-1 through 4B-2A are committed
   (last commit `59d0dfc`); **4B-2B is committed in `d472153`; 4B-3 in `583a7b8`; 4B-4 in `63039d2`; 4B-5A in `36f0e7f`; 4B-5B-1 committed/pushed in `34faeee`**; 4B-5B-2 is committed in `287764c`.
-- Remaining work: **4B-5C and later integration (future work)**, UI/shutdown/quiesce/drain
+- Next planned: **4B-5C-2 — production operation enrollment and producer retirement**.
+- Remaining work: **4B-5C-2 and later integration (future work)**, UI/shutdown/quiesce/drain
   integration and legacy restore removal, and the rest of the Phase 4 DoD
   recorded below.
 
@@ -19,7 +20,7 @@ This document records checkpoints 4A-1 through 4B-2A as present in the committed
 tree at commit `59d0dfc`, 4B-2B at commit `d472153`, 4B-3 at commit `583a7b8`,
 4B-4 at commit `63039d2`, verified, independently reviewed 4B-5A at commit `36f0e7f`,
 4B-5B-1 committed/pushed in `34faeee`, and implemented, verified, independently reviewed
-4B-5B-2 at commit `287764c`. It does not claim
+4B-5B-2 at commit `287764c`, and 4B-5C-1 in the working tree (NOT COMMITTED). It does not claim
 Phase 4 completion.
 
 ## Purpose and scope
@@ -65,13 +66,13 @@ checkpoint-ready; committed in `63039d2`):**
 - The narrow identity-admission hook preserves 4B-2B forward-complete invariants;
   4B-3 guard behavior and the existing normal startup/shutdown body remain intact.
 
-**Still future work after 4B-5B-2 (not implemented; 4B-5C and later need separate scope):**
+**Still future integration after 4B-5C-1 (not implemented; 4B-5C-2 and later need separate scope):**
 - SettingsWindow/UI integration;
 - quiesce/drain integration and shutdown redesign;
 - removal of the legacy production restore path (`BackupService.RestoreBackup` and the
   `Environment.Exit(0)` path in `Views/SettingsWindow.axaml.cs`).
 
-## Checkpoints implemented (through committed 4B-5B-2 (`287764c`); 4B-5B-1 committed/pushed in `34faeee`)
+## Checkpoints implemented (through 4B-5C-1; 5C-1 NOT COMMITTED)
 
 | Checkpoint | Commit    | Change                                                                                                                                                                                                                                                                             | Tests                                                                 |
 | ---------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
@@ -87,6 +88,7 @@ checkpoint-ready; committed in `63039d2`):**
 | 4B-5A | `36f0e7f` | Runtime DbContext admission cutoff, context lifetime accounting and async drain proof; NOT restore-safe. | `ShopManager.Domain.Tests/Integration/DatabaseAdmissionDrainTests.cs` |
 | 4B-5B-1 | `34faeee` (COMMITTED / PUSHED) | Resolver poisoning fix; implemented / verified / independently reviewed; NOT restore-safe. | `ShopManager.Domain.Tests/Integration/DatabaseAdmissionDrainTests.cs` |
 | 4B-5B-2 | `287764c` (COMMITTED) | Backup admission/timer boundary; IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED; NOT restore-safe. | `ShopManager.Domain.Tests/Integration/BackupAdmissionDrainTests.cs` |
+| 4B-5C-1 | NOT COMMITTED | Isolated RuntimeOperationGate; IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED; NOT runtime-quiescent / NOT restore-safe. | ShopManager.Domain.Tests/Integration/RuntimeOperationAdmissionTests.cs |
 
 Historical declared test-method counts through 4B-2B: BackupPublication 16, DatabasePathResolution 31,
 DatabaseDurability 10, BackupLifecycle 8, RestorePreparation 13, RestoreRecoveryService 42
@@ -109,7 +111,7 @@ Checkpoint `36f0e7f` (`feat: add database admission and drain gate`) is pushed t
 - **Historical MEDIUM at 4B-5A — RESOLVED in 4B-5B-1 (`34faeee`; COMMITTED / PUSHED):** no-lease fresh `EnsureResolved` could permanently cache admission-closed in `_resolved` / `_blockedReason`. The committed 4B-5A checkpoint retains this historical finding; the independently reviewed resolver fix committed in `34faeee` leaves temporary rejection retryable. No production cutoff caller has been introduced.
 - **LOW:** if the cleanup-success callback itself throws, cleanup state may remain in-progress/fail-closed; the current gate callback has no expected throw path.
 - **LOW:** AppDbContext disposal semantics are stricter: concurrent disposal is rejected; a later disposal after cleanup failure rethrows the original failure.
-- Current sequence: **4B-5B-1 — resolver poisoning fix (`34faeee`; COMMITTED / PUSHED)**; **4B-5B-2 — backup admission/timer boundary (IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED `287764c`)**; **4B-5C — unified cutoff/background/updater/multi-context completion (future)**. Production `PrepareRestore` / `Arm` remains unavailable until the complete required quiesce boundary exists. Restore UI remains future work.
+- Current sequence: **4B-5B-1 — resolver poisoning fix (`34faeee`; COMMITTED / PUSHED)**; **4B-5B-2 — backup admission/timer boundary (IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED / COMMITTED `287764c`)**; **4B-5C-1 — isolated operation-lifetime primitive (IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — NOT COMMITTED)**; **4B-5C-2 — production operation enrollment and producer retirement (next planned)**. Production `PrepareRestore` / `Arm` remains unavailable until the complete required quiesce boundary exists. Restore UI remains future work.
 
 ### 4B-5B-1 — resolver poisoning fix
 
@@ -166,14 +168,31 @@ Checkpoint commit: `287764c2e89d428ac658e55589a5900defe24397` — `feat: add bac
 - The accounting-corruption test reflects private `_accepted`.
 - Fixture worker aggregation has no independent timeout.
 
-**Remaining boundary:** no production cutoff / `PrepareRestore` / `Arm` wiring exists. DB/updater/shutdown/background/multi-context coordination remains for **4B-5C**. Legacy `BackupService.RestoreBackup` remains outside this guarantee; the preparation algorithm is unchanged. Backup/timer drain does not establish restore safety or full quiesce, protect the entire Prepare-to-Arm interval, or prove successful deletion of all best-effort temporary artifacts.
+**Remaining boundary:** no production cutoff / `PrepareRestore` / `Arm` wiring exists. DB/updater/shutdown/background/multi-context coordination remains for **4B-5C-2 and later integration**. Legacy `BackupService.RestoreBackup` remains outside this guarantee; the preparation algorithm is unchanged. Backup/timer drain does not establish restore safety or full quiesce, protect the entire Prepare-to-Arm interval, or prove successful deletion of all best-effort temporary artifacts.
+
+### 4B-5C-1 — isolated operation-lifetime primitive
+
+**IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED — NOT COMMITTED. NOT runtime-quiescent / NOT restore-safe.** Phase 4 remains **IN PROGRESS**.
+
+- Production file: `ShopManager.Desktop/Services/RuntimeOperationGate.cs`.
+- Tests: `ShopManager.Domain.Tests/Integration/RuntimeOperationAdmissionTests.cs`.
+- Isolated, instance-based primitive with states `Open` / `Closed` / `FaultedClosed`; atomic admission and operation-lifetime accounting; `NonInteractive` / `Interactive` classification and Interactive Busy; one closure owner; asynchronous drain; controlled reopen; exact-once/idempotent successful completion; fail-closed unproven completion.
+- No production callers or integration, DB capability, `AsyncLocal`, singleton, or production cutoff. No lock is held across await, callbacks, DB or other I/O; signalling uses asynchronous continuations.
+- Independent review supplied by the user: **PASS WITH FINDINGS**. **M1 and M2 fixed and re-reviewed CLOSED**; this sync records that disposition and does not claim a new independent review.
+- **M1 CLOSED:** deterministic tests reject stale/foreign owner identity when the current closure is drained (`outstanding == 0`) but remains Closed; only its current owner can reopen. The foreign-owner test uses test-only reflection to construct a non-issued handle without changing production code.
+- **M2 CLOSED:** two controlled orderings plus a concurrent Barrier-started Dispose-versus-first-`MarkCompletionUnproven` race allow only whole terminal outcomes: completed with zero outstanding and no fault, or FaultedClosed with one outstanding. The mixed outcome FaultedClosed plus zero outstanding is explicitly rejected.
+- **M3 — residual test gap / VERIFICATION PENDING:** broad contended/stress linearizability coverage. No iteration-count stress test was added.
+- Final implementation/follow-up evidence: targeted **29/29 PASS**; relevant admission/concurrency regression **118/118 PASS** (`DatabaseAdmissionDrainTests`, `BackupAdmissionDrainTests`, `SalePersistenceTests`, `TransferPersistenceTests`); full suite **413/413 PASS, 0 failed / 0 skipped**; non-incremental solution build **0 warnings / 0 errors**; `git diff --check` **PASS**, with separate whitespace checks for untracked files.
+- These test/build results were executed during implementation/follow-up, not rerun in this documentation-only sync.
+- Completion boundaries and proven cleanup remain caller responsibilities. No automatic self-drain detection, implicit nesting/join, or DB authorization is provided. **5C-1 does not establish runtime quiescence or restore safety.**
+- Next planned increment: **4B-5C-2 — production operation enrollment and producer retirement**, requiring separate scope/approval. Restore UI, unified quiescence, shutdown/updater coordination and legacy restore removal remain future integration.
 
 **Future 4B-5C integration constraints (not implemented):**
 
 - Never wait for DB drain while holding the `TransitionGate` write lock.
 - Future production flow must close admission and prove drain before `Arm`; resolver identity must be established before future `CloseAdmission`.
 - In the no-lease fresh-resolution path, marker publication currently occurs after the runtime initialization lease is released and is outside DB drain. The already-admitted factory retains its existing lease. DB drain must not be presented as proof that all resolver/marker work has completed.
-- 4B-5B-2 implements the backup admission/timer primitive only; 4B-5C remains unified cutoff/background/updater/multi-context completion and requires separate scope/approval. Production restore admission remains unavailable until the required complete quiesce boundary exists.
+- 4B-5B-2 implements the backup admission/timer primitive only; 4B-5C-1 adds an isolated operation-lifetime primitive without production enrollment. 4B-5C-2 production operation enrollment and producer retirement is next planned; unified cutoff/background/updater/multi-context completion remains future work and requires separate scope/approval. Production restore admission remains unavailable until the required complete quiesce boundary exists.
 
 Historical verified 4B-4 evidence (checkpoint committed in `63039d2`; recorded implementation/test results):
 
@@ -252,7 +271,9 @@ Source-confirmed facts:
 - [x] **4B-5A**: runtime context admission + drain only; implemented, verified, independently reviewed; committed in **`36f0e7f`**, **NOT restore-safe**.
 - [x] **4B-5B-1**: resolver poisoning fix; implemented, verified, independently reviewed; **COMMITTED / PUSHED `34faeee`**, **NOT restore-safe**.
 - [x] **4B-5B-2**: backup admission/timer boundary; IMPLEMENTED / VERIFIED / INDEPENDENTLY REVIEWED; **COMMITTED `287764c`**, **NOT restore-safe**. Final evidence: 26/26 targeted, 172/172 relevant, 384/384 full; re-review PASS WITH FINDINGS; M1/M2 CLOSED.
-- [ ] **4B-5C and later — future work**: restore UI wiring; quiesce/drain;
+- [x] **4B-5C-1 — NOT COMMITTED**: isolated RuntimeOperationGate primitive; implemented / verified / independently reviewed; NOT runtime-quiescent / NOT restore-safe. Final evidence: targeted 29/29, relevant 118/118, full 413/413 PASS, 0 failed/skipped; build 0 warnings/errors; diff-check PASS; user-confirmed review PASS WITH FINDINGS, M1/M2 re-reviewed CLOSED; M3 stress linearizability remains a test gap.
+- [ ] **4B-5C-2 — next planned increment:** production operation enrollment and producer retirement; separate scope/approval required.
+- [ ] **4B-5C-2 and later — future integration**: restore UI wiring; quiesce/drain;
       shutdown redesign; removal of the legacy production restore path. Not implemented.
 - [ ] **AR-4**: replace the legacy `BackupService.RestoreBackup` and the
       `SettingsWindow.axaml.cs:290` `Environment.Exit(0)` path with the safe restore flow.
