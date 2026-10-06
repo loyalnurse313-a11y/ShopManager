@@ -1,5 +1,7 @@
 ﻿using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Win32.SafeHandles;
+using ShopManager.Infrastructure.Persistence;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -702,6 +704,7 @@ public static class BackupService
             {
                 connection.Open();
                 ValidateOpenDatabase(connection);
+                ValidateApplicationCompatibility(connection);
             });
 
             // اعتبارسنجی موفق: کپی تثبیت‌شده حفظ می‌شود تا staging دقیقاً از همین مصنوع
@@ -715,6 +718,87 @@ public static class BackupService
             // روی شکست، پاک‌سازی فقط مصنوعات همین کپی عملیاتی (فایل + sidecarهای خودش).
             if (!validated) DeleteRestoreArtifacts(stabilizedCopyPath, bodyError);
         }
+    }
+
+    /// <summary>
+    /// سازگاری اسکیمای بکاپ با مدل فعلی برنامه (F2a): هر جدول مدل باید وجود داشته باشد و همهٔ
+    /// ستون‌های آن را داشته باشد. تنها کمبودهای legacy که راه‌اندازی خودش ترمیم می‌کند
+    /// (<see cref="DatabaseService.LegacyUpgradeColumns"/> و <see cref="DatabaseService.SaleOperationsTable"/>)
+    /// پذیرفته می‌شود. جدول/ستون اضافه مجاز است؛ داده، FK، شکل canonical و نسخه بررسی نمی‌شود.
+    /// منبع حقیقت، متادیتای رابطه‌ای مدل EF است (بدون اتصال به دیتابیس).
+    /// </summary>
+    private static void ValidateApplicationCompatibility(SqliteConnection connection)
+    {
+        using var context = new AppDbContext(
+            new DbContextOptionsBuilder<AppDbContext>().UseSqlite("Data Source=:memory:").Options);
+        var requiredTables = context.Model.GetRelationalModel().Tables.ToList();
+        if (requiredTables.Count == 0)
+        {
+            throw new InvalidOperationException("متادیتای جدول‌های مدل برنامه در دسترس نیست.");
+        }
+
+        var legacyColumns = new HashSet<(string, string)>(
+            DatabaseService.LegacyUpgradeColumns.Select(c => (c.Table, c.Column)),
+            new TableColumnComparer());
+
+        var problems = new List<string>();
+        foreach (var table in requiredTables)
+        {
+            if (!BackupHasTable(connection, table.Name))
+            {
+                if (!string.Equals(table.Name, DatabaseService.SaleOperationsTable, StringComparison.OrdinalIgnoreCase))
+                {
+                    problems.Add("جدول " + table.Name);
+                }
+                continue;
+            }
+
+            var present = ReadColumnNames(connection, table.Name);
+            foreach (var column in table.Columns)
+            {
+                if (!present.Contains(column.Name) && !legacyColumns.Contains((table.Name, column.Name)))
+                {
+                    problems.Add("ستون " + table.Name + "." + column.Name);
+                }
+            }
+        }
+
+        if (problems.Count > 0)
+        {
+            throw new InvalidDataException(
+                "بکاپ با این نسخهٔ ShopManager سازگار نیست؛ موارد مفقود: " + string.Join("، ", problems));
+        }
+    }
+
+    private static bool BackupHasTable(SqliteConnection connection, string tableName)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = $name COLLATE NOCASE;";
+        command.Parameters.AddWithValue("$name", tableName);
+        return Convert.ToInt64(command.ExecuteScalar() ?? 0L) > 0;
+    }
+
+    private static HashSet<string> ReadColumnNames(SqliteConnection connection, string tableName)
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT name FROM pragma_table_info($name);";
+        command.Parameters.AddWithValue("$name", tableName);
+        using var reader = command.ExecuteReader();
+        while (reader.Read()) names.Add(reader.GetString(0));
+        return names;
+    }
+
+    private sealed class TableColumnComparer : IEqualityComparer<(string Table, string Column)>
+    {
+        public bool Equals((string Table, string Column) x, (string Table, string Column) y) =>
+            string.Equals(x.Table, y.Table, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(x.Column, y.Column, StringComparison.OrdinalIgnoreCase);
+
+        public int GetHashCode((string Table, string Column) value) =>
+            HashCode.Combine(
+                StringComparer.OrdinalIgnoreCase.GetHashCode(value.Table),
+                StringComparer.OrdinalIgnoreCase.GetHashCode(value.Column));
     }
 
     /// <summary>ساخت مسیر موقت اختصاصی بازیابی؛ خارج از الگوی نام و sweep استیجینگ بکاپ.</summary>

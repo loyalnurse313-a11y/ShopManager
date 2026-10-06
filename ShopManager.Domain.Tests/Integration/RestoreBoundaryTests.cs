@@ -542,6 +542,7 @@ public sealed class RestoreBoundaryTests : IDisposable
     {
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString());
         connection.Open();
+        ShopManagerBackupFixture.CreateCurrentSchema(connection);
         using var command = connection.CreateCommand();
         command.CommandText = "CREATE TABLE Evidence(Value TEXT NOT NULL); INSERT INTO Evidence VALUES ($value);";
         command.Parameters.AddWithValue("$value", value);

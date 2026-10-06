@@ -1,9 +1,33 @@
 ﻿using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using ShopManager.Desktop.Services;
+using ShopManager.Infrastructure.Persistence;
 
 namespace ShopManager.Domain.Tests.Integration;
+
+/// <summary>
+/// فیکسچر مشترک بکاپ سازگار با ShopManager: اسکیمای کامل مدل فعلی (از EF) روی یک اتصال
+/// باز SQLite؛ تا فایل‌های بکاپ تست «فقط یک SQLite معتبر» نباشند (F2a).
+/// </summary>
+internal static class ShopManagerBackupFixture
+{
+    public static void CreateCurrentSchema(SqliteConnection connection)
+    {
+        using var context = new AppDbContext(
+            new DbContextOptionsBuilder<AppDbContext>().UseSqlite("Data Source=:memory:").Options);
+        using var command = connection.CreateCommand();
+        command.CommandText = context.Database.GenerateCreateScript();
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>درج یک Item با همهٔ ستون‌های اجباری مدل فعلی.</summary>
+    public static string InsertItemSql(int id, string name) =>
+        "INSERT INTO Items (Id, ItemCode, Name, Unit, OpeningWarehouseQty, OpeningShopQty, MarkupPct, " +
+        "LowStockCriticalPct, LowStockWarningPct, CreatedAt, IsActive) " +
+        $"VALUES ({id}, {id}, '{name}', 'u', '0', '0', '0.3', '0.1', '0.25', '2026-01-01 00:00:00', 1);";
+}
 
 /// <summary>
 /// Phase 4B-1 — آماده‌سازی بازیابی امن تا پیش از تعویض دیتابیس زنده:
@@ -518,7 +542,116 @@ public sealed class RestorePreparationTests : IDisposable
         Assert.NotNull(preparation);
     }
 
+    // ═══════════ F2a: سازگاری اسکیمای بکاپ با ShopManager ═══════════
+
+    [Theory]
+    [InlineData("unrelated")]
+    [InlineData("missing-table")]
+    [InlineData("missing-column")]
+    [InlineData("sale-operations-missing-column")]
+    public void PrepareRestore_IncompatibleBackup_IsRejectedBeforeLiveDatabaseIsTouched(string kind)
+    {
+        var backupFolder = Sub("backups");
+        var dataFolder = Sub("data");
+        using var live = new WalSource(dataFolder, "shop.db", (3, "live-only"));
+        var liveDbBefore = HashFile(live.DatabasePath);
+        var liveWalBefore = HashFile(live.DatabasePath + "-wal");
+
+        var candidate = kind switch
+        {
+            "unrelated" => BuildCandidate("unrelated.db", withSchema: false,
+                "CREATE TABLE Other (Id INTEGER PRIMARY KEY, Value TEXT);"),
+            "missing-table" => BuildCandidate("missing-table.db", true, "DROP TABLE LoginHistories;"),
+            "sale-operations-missing-column" => BuildCandidate("sale-operations-missing-column.db", true,
+                $"ALTER TABLE {DatabaseService.SaleOperationsTable} DROP COLUMN RequestFingerprint;"),
+            _ => BuildCandidate("missing-column.db", true, "ALTER TABLE Items DROP COLUMN Unit;"),
+        };
+        var candidateBefore = HashFile(candidate);
+
+        var stages = new List<RestorePreparationStage>();
+        var error = Assert.Throws<InvalidDataException>(
+            () => BackupService.PrepareRestore(candidate, live.DatabasePath, backupFolder, stages.Add));
+
+        if (kind == "missing-table") Assert.Contains("LoginHistories", error.Message);
+        if (kind == "missing-column") Assert.Contains("Items.Unit", error.Message);
+        if (kind == "sale-operations-missing-column")
+            Assert.Contains("SaleOperations.RequestFingerprint", error.Message);
+
+        // رد پیش از هر کار روی دیتابیس زنده: نه BackupValidated، نه اسنپ‌شات ایمنی، نه staging.
+        Assert.DoesNotContain(RestorePreparationStage.BackupValidated, stages);
+        Assert.Empty(Directory.GetFiles(backupFolder));
+        AssertNoRestoreTemporaryArtifacts(backupFolder);
+        AssertNoRestoreTemporaryArtifacts(dataFolder);
+        Assert.Equal(liveDbBefore, HashFile(live.DatabasePath));
+        Assert.Equal(liveWalBefore, HashFile(live.DatabasePath + "-wal"));
+        Assert.Equal(candidateBefore, HashFile(candidate));
+    }
+
+    [Theory]
+    [InlineData("current-model")]
+    [InlineData("legacy-columns")]
+    [InlineData("legacy-sale-operations")]
+    [InlineData("legacy-all")]
+    [InlineData("extras")]
+    public void PrepareRestore_CompatibleBackup_IsAccepted(string kind)
+    {
+        var backupFolder = Sub("backups");
+        using var live = new WalSource(Sub("data"), "shop.db");
+
+        var dropLegacyColumns = DatabaseService.LegacyUpgradeColumns
+            .Select(c => $"ALTER TABLE {c.Table} DROP COLUMN {c.Column};").ToArray();
+        var dropSaleOperations = $"DROP TABLE {DatabaseService.SaleOperationsTable};";
+        var candidate = kind switch
+        {
+            "current-model" => BuildCandidate("ok.db", true),
+            "legacy-columns" => BuildCandidate("ok.db", true, dropLegacyColumns),
+            "legacy-sale-operations" => BuildCandidate("ok.db", true, dropSaleOperations),
+            "legacy-all" => BuildCandidate("ok.db", true, dropLegacyColumns.Append(dropSaleOperations).ToArray()),
+            _ => BuildCandidate("ok.db", true,
+                "CREATE TABLE ExtraTable (Id INTEGER PRIMARY KEY);",
+                "ALTER TABLE Items ADD COLUMN ExtraColumn TEXT;"),
+        };
+
+        var preparation = BackupService.PrepareRestore(candidate, live.DatabasePath, backupFolder);
+
+        Assert.True(File.Exists(preparation.StagingPath));
+        using var staged = OpenReadWrite(preparation.StagingPath);
+        Assert.Equal("ok", ScalarString(staged, "PRAGMA integrity_check;"));
+    }
+
+    [Fact]
+    public void LegacySchemaExemptions_AreRealModelNames_SoStartupRepairAndRestoreValidationCannotDrift()
+    {
+        using var context = new AppDbContext(
+            new DbContextOptionsBuilder<AppDbContext>().UseSqlite("Data Source=:memory:").Options);
+        var tables = context.Model.GetRelationalModel().Tables.ToDictionary(t => t.Name, StringComparer.OrdinalIgnoreCase);
+
+        Assert.True(tables.ContainsKey(DatabaseService.SaleOperationsTable));
+        foreach (var legacy in DatabaseService.LegacyUpgradeColumns)
+        {
+            Assert.True(tables.TryGetValue(legacy.Table, out var table), "unknown legacy table " + legacy.Table);
+            Assert.Contains(table!.Columns, c => string.Equals(c.Name, legacy.Column, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
     // ═══════════ ابزارها ═══════════
+
+    private string BuildCandidate(string fileName, bool withSchema, params string[] statements)
+    {
+        var path = Path.Combine(Sub("candidates"), fileName);
+        using (var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = path,
+            Mode = SqliteOpenMode.ReadWriteCreate,
+            Pooling = false
+        }.ToString()))
+        {
+            connection.Open();
+            if (withSchema) ShopManagerBackupFixture.CreateCurrentSchema(connection);
+            foreach (var statement in statements) Execute(connection, statement);
+        }
+        return path;
+    }
 
     private string Sub(string name)
     {
@@ -607,11 +740,11 @@ public sealed class RestorePreparationTests : IDisposable
             connection.Open();
             Execute(connection, "PRAGMA journal_mode=WAL;");
             Execute(connection, "PRAGMA wal_autocheckpoint=0;");
-            Execute(connection, "CREATE TABLE Items (Id INTEGER PRIMARY KEY, Name TEXT NOT NULL);");
-            Execute(connection, "INSERT INTO Items (Id, Name) VALUES (1, 'baseline');");
+            ShopManagerBackupFixture.CreateCurrentSchema(connection);
+            Execute(connection, ShopManagerBackupFixture.InsertItemSql(1, "baseline"));
             Execute(connection, "PRAGMA wal_checkpoint(TRUNCATE);");
-            Execute(connection, "INSERT INTO Items (Id, Name) VALUES (2, 'from-wal');");
-            Execute(connection, "INSERT INTO Items (Id, Name) VALUES (3, 'live-only');");
+            Execute(connection, ShopManagerBackupFixture.InsertItemSql(2, "from-wal"));
+            Execute(connection, ShopManagerBackupFixture.InsertItemSql(3, "live-only"));
 
             File.Copy(snapshotSource, destinationPath, overwrite: false);
             File.Copy(snapshotSource + "-wal", destinationPath + "-wal", overwrite: false);
@@ -656,13 +789,13 @@ public sealed class RestorePreparationTests : IDisposable
             _connection.Open();
             Execute("PRAGMA journal_mode=WAL;");
             Execute("PRAGMA wal_autocheckpoint=0;"); // keep auto-checkpoint under explicit control
-            Execute("CREATE TABLE Items (Id INTEGER PRIMARY KEY, Name TEXT NOT NULL);");
-            Execute("INSERT INTO Items (Id, Name) VALUES (1, 'baseline');");
+            ShopManagerBackupFixture.CreateCurrentSchema(_connection);
+            Execute(ShopManagerBackupFixture.InsertItemSql(1, "baseline"));
             Execute("PRAGMA wal_checkpoint(TRUNCATE);"); // baseline is fully written into the main database file
-            Execute("INSERT INTO Items (Id, Name) VALUES (2, 'from-wal');"); // committed after baseline, WAL only
+            Execute(ShopManagerBackupFixture.InsertItemSql(2, "from-wal")); // committed after baseline, WAL only
             foreach (var (id, name) in walOnlyRows)
             {
-                Execute($"INSERT INTO Items (Id, Name) VALUES ({id}, '{name}');");
+                Execute(ShopManagerBackupFixture.InsertItemSql(id, name));
             }
         }
 

@@ -674,6 +674,25 @@ public static class DatabaseService
         }
     }
 
+    /// <summary>ستون legacy که راه‌اندازی در دیتابیس‌های قدیمی اضافه می‌کند.</summary>
+    internal readonly record struct LegacyColumn(string Table, string Column, string Definition);
+
+    /// <summary>
+    /// ستون‌هایی که راه‌اندازی خودش به دیتابیس قدیمی اضافه می‌کند. تنها منبع این فهرست است:
+    /// هم <c>EnsureSchemaWithAdoNet</c> و هم اعتبارسنجی سازگاری بکاپ بازیابی از آن می‌خوانند.
+    /// </summary>
+    internal static readonly LegacyColumn[] LegacyUpgradeColumns =
+    {
+        new("Users", "CanPOS", "INTEGER NOT NULL DEFAULT 0"),
+        new("Users", "CanViewFinance", "INTEGER NOT NULL DEFAULT 0"),
+        new("Users", "MustChangePassword", "INTEGER NOT NULL DEFAULT 0"),
+        new("Sales", "CardTerminal", "TEXT"),
+        new("Sales", "DiscountAmount", "TEXT NOT NULL DEFAULT '0'"),
+    };
+
+    /// <summary>جدولی که <see cref="EnsureSaleOperationSchema"/> در دیتابیس قدیمی می‌سازد.</summary>
+    internal const string SaleOperationsTable = "SaleOperations";
+
     /// <summary>
     /// آپدیت اسکیما با ADO.NET خالص — قابل اعتمادترین روش
     /// </summary>
@@ -691,13 +710,9 @@ public static class DatabaseService
 
         try
         {
-            // ─── چک و اضافه کردن ستون‌ها ───
-            EnsureColumnAdoNet(conn, log, "Users", "CanPOS", "INTEGER NOT NULL DEFAULT 0");
-            EnsureColumnAdoNet(conn, log, "Users", "CanViewFinance", "INTEGER NOT NULL DEFAULT 0");
-            // ─── ستون اجبار تغییر رمز در اولین ورود (پرامپت ۱.۳) ───
-            EnsureColumnAdoNet(conn, log, "Users", "MustChangePassword", "INTEGER NOT NULL DEFAULT 0");
-            EnsureColumnAdoNet(conn, log, "Sales", "CardTerminal", "TEXT");
-            EnsureColumnAdoNet(conn, log, "Sales", "DiscountAmount", "TEXT NOT NULL DEFAULT '0'");
+            // ─── چک و اضافه کردن ستون‌های legacy (فهرست مشترک با اعتبارسنجی سازگاری بکاپ) ───
+            foreach (var legacy in LegacyUpgradeColumns)
+                EnsureColumnAdoNet(conn, log, legacy.Table, legacy.Column, legacy.Definition);
 
             // ─── فاز ۲: ایندکس یکتای ترکیبی روی (InvoiceNumber, ItemId) ───
             EnsureUniqueIndexAdoNet(
