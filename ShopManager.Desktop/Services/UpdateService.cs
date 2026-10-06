@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Avalonia;
 using Velopack;
 using Velopack.Sources;
 
@@ -109,18 +110,25 @@ public class UpdateService
         if (_manager == null || LastUpdateInfo == null)
             return;
 
-        // بکاپ قبل از آپدیت (اجباری)
-        try
-        {
-            BackupService.CreateForcedBackup();
-            System.Diagnostics.Debug.WriteLine(">>> بکاپ قبل از آپدیت گرفته شد");
-        }
-        catch { }
-
-        // Velopack.ApplyUpdatesAndRestart دارای [DoesNotReturn] است — هرگز برنمی‌گردد،
-        // بنابراین try-catch بیرونی غیرقابل دسترس بود و حذف شد.
-        _manager.ApplyUpdatesAndRestart(LastUpdateInfo);
+        var app = Application.Current as App
+            ?? throw new InvalidOperationException("Application exit ownership is unavailable.");
+        ApplyWithRestoreExclusion(app, () => BackupService.CreateForcedBackup(),
+            () => _manager.ApplyUpdatesAndRestart(LastUpdateInfo));
     }
+
+    internal static bool ApplyWithRestoreExclusion(App app, Action backup, Action apply)
+        => app.TryRunUpdateApply(() =>
+        {
+            // Retain existing best-effort pre-update backup behavior. The atomic
+            // terminal ownership check is outside this catch and covers Velopack too.
+            try
+            {
+                backup();
+                System.Diagnostics.Debug.WriteLine(">>> بکاپ قبل از آپدیت گرفته شد");
+            }
+            catch { }
+            apply();
+        });
 
     // ═══════════════════════════════════════════
     // ساخت UpdateManager

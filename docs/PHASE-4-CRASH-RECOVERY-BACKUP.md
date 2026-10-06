@@ -7,11 +7,12 @@
 - Branch: `phase/4-crash-recovery-backup`.
 - Latest implemented checkpoint: **4B-5C-2.2 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — COMMITTED / PUSHED `72d7761`; NOT runtime-quiescent / NOT restore-safe**. SessionTracker tick enrollment and generation/single-flight safety exist; terminal producer retirement/full quiescence remain deferred.
 - Latest committed/pushed production-code checkpoint: **4B-5C-2.2**, `72d77613340f2d9b88abd64ec39bcbe351156608` (push confirmed by the user); 5C-2.1 remains committed/pushed in `a8e3d02`.
+- **F1 — Final Restore Boundary: IMPLEMENTED / VERIFIED (uncommitted working tree; not committed/pushed/tagged).** Final review PASS WITH FINDINGS, Low only, no blockers. Phase 4 remains IN PROGRESS / NOT closed; F2 and F3 are OPEN.
 - No Phase 4 completion tag exists. The last completion tag in the repository is
   `phase-3-concurrency-idempotency-complete`.
 - Documented checkpoints: **4A-1 through 4B-5C-2.2**; **5C-2.1 is COMMITTED / PUSHED; 5C-2.2 is COMMITTED / PUSHED `72d7761`**. 4A-1 through 4B-2A are committed
   (last commit `59d0dfc`); **4B-2B is committed in `d472153`; 4B-3 in `583a7b8`; 4B-4 in `63039d2`; 4B-5A in `36f0e7f`; 4B-5B-1 committed/pushed in `34faeee`**; 4B-5B-2 is committed in `287764c`; 4B-5C-1 is committed in `33e12b6`.
-- Next uncompleted: **F1 — Final Restore Boundary**, then **F2 — Backup Compatibility + Broken-DB Recovery**, then **F3 — Final Verification & Closure**.
+- Next uncompleted: **F2 — Backup Compatibility + Broken-DB Recovery**, then **F3 — Final Verification & Closure** (F1 — Final Restore Boundary is IMPLEMENTED / VERIFIED, uncommitted).
 - Remaining work: approved F1/F2/F3 DoD; general per-window enrollment and lifetime architecture are deferred.
 
 This document records checkpoints 4A-1 through 4B-2A as present in the committed source
@@ -245,14 +246,14 @@ Checkpoint commit: `33e12b6e52e01a307e7ab474f26945447116db46` — `feat: add run
 
 **Residuals / non-guarantees:** terminal producer retirement and full quiescence remain deferred. F2 general UI/Auth caller hardening remains open; SessionTracker exception handling does not close it for other callers. F3 historical resolution-cleanup diagnostic provenance remains **VERIFICATION PENDING**. F4 LogoutCore may swallow its cleanup diagnostic, while the same parent lease remains unproven and the gate stays FaultedClosed. Synchronous notification coverage does not include queued UI transitions. LoginWindow/MainWindow/general lifecycle, history-write serialization, shutdown/updater coordination and restore activation/safety are not established by this increment.
 
-**Next uncompleted work (approved scope reset):** F1 → F2 → F3. General per-window enrollment is deferred to reliability backlog; source implementation needs separate scope/approval.
+**Next uncompleted work (approved scope reset):** F2 → F3 (F1 implemented/verified, uncommitted). General per-window enrollment is deferred to reliability backlog; source implementation needs separate scope/approval.
 
-**Final restore constraints (F1; not implemented):**
+**Final restore constraints (F1 — now implemented and verified, uncommitted; retained as design constraints):**
 
 - Never wait for DB drain while holding the `TransitionGate` write lock.
 - Future production flow must close admission and prove drain before `Arm`; resolver identity must be established before future `CloseAdmission`.
 - In the no-lease fresh-resolution path, marker publication currently occurs after the runtime initialization lease is released and is outside DB drain. The already-admitted factory retains its existing lease. DB drain must not be presented as proof that all resolver/marker work has completed.
-- Existing 5C-2.1/2.2 hardening and evidence are retained. F1/F2/F3 is the approved critical path; general per-window enrollment/lifetime architecture is deferred. Production restore activation remains unimplemented.
+- Existing 5C-2.1/2.2 hardening and evidence are retained. F1/F2/F3 is the approved critical path; general per-window enrollment/lifetime architecture is deferred. Terminal restore boundary is implemented by F1 (uncommitted, verified); the swap itself remains startup-recovery work; F2/F3 remain OPEN.
 - Keep cutoff closed through terminal restore exit. Timeout or cleanup uncertainty => do not `Arm`; after persistent intent exists, or publication is uncertain, normal DB work must not resume.
 - Ordering: runtime/DB cutoff and drain → `PrepareRestore` with backup admission still open → backup cutoff and drain → release SQLite pools → `Arm` → restore-specific exit → actual swap at next startup. Updater Apply/Restart and queued lifecycle transitions must not race restore.
 
@@ -336,7 +337,7 @@ Source-confirmed facts:
 - [x] **4B-5C-1 — COMMITTED `33e12b6`**: isolated RuntimeOperationGate primitive; implemented / verified / independently reviewed; NOT runtime-quiescent / NOT restore-safe. Final evidence: targeted 29/29, relevant 118/118, full 413/413 PASS, 0 failed/skipped; build 0 warnings/errors; diff-check PASS; user-confirmed review PASS WITH FINDINGS, M1/M2 re-reviewed CLOSED; M3 stress linearizability remains a test gap.
 - [x] **4B-5C-2.1 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED; COMMITTED / PUSHED `a8e3d02`:** production operation ownership/composition and Auth enrollment only; F1/M1 CLOSED, L3 added; targeted 52/52, relevant 200/200, full 465/465 PASS; no runtime quiescence or restore safety.
 - [x] **4B-5C-2.2 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED; COMMITTED / PUSHED `72d7761`:** SessionTracker tick enrollment and generation/single-flight safety; Stop is not completion proof; conditional parent-bound Auth logout protects replacement sessions without nested admission; cleanup uncertainty remains fail-closed. New tests 47/47, Auth 52/52, relevant 148/148, full 512/512, independent targeted review run 99/99 PASS; build 0 warnings/errors; independent review PASS with no Critical/High/Medium/Low findings (user-confirmed); diff-check PASS. Terminal producer retirement/full quiescence deferred; NOT restore-safe.
-- [ ] **F1 → F2 → F3:** approved completion path below; no remaining increment is implemented or verified by this docs-only update.
+- [ ] **F1 → F2 → F3:** approved completion path below; F1 is IMPLEMENTED / VERIFIED (uncommitted; evidence in the F1 status block below); F2 and F3 remain OPEN.
 
 ## Approved completion plan
 
@@ -344,12 +345,22 @@ The scope reset is intentional and user-approved, not abandonment of restore saf
 
 ### F1 — Final Restore Boundary
 
-- [ ] Replace the legacy SettingsWindow `RestoreBackup`/`Environment.Exit(0)` path with terminal restore single-flight.
-- [ ] Establish registered DB identity, block relevant new work, stop relevant producers, and asynchronously drain existing runtime/DB work. Active contexts held across UI dialogs must settle or restore must abort; do not force-dispose them.
-- [ ] Healthy-DB ordering: runtime/DB admission cutoff and drain → `PrepareRestore` while backup admission is still open → backup admission cutoff and drain (accepted/queued work and timer/lifecycle retirement) → release SQLite pools → `Arm` persistent restore intent → terminal restore-specific exit.
-- [ ] Keep cutoff closed through terminal restore exit. Timeout or cleanup uncertainty => do not `Arm`. Once persistent intent exists, or publication is uncertain, normal DB work must not resume.
-- [ ] Prevent updater Apply/Restart and queued lifecycle transitions from racing restore; suppress normal shutdown DB/logout/backup work during terminal restore.
-- [ ] Startup recovery performs the actual swap before resolver/SQLite admission. Do not resume normal work on the restored DB in the exiting process. No general UI operation-lifetime framework is required by this plan.
+- [x] Replace the legacy SettingsWindow `RestoreBackup`/`Environment.Exit(0)` path with terminal restore single-flight.
+- [x] Establish registered DB identity, block relevant new work, stop relevant producers, and asynchronously drain existing runtime/DB work. Active contexts held across UI dialogs must settle or restore must abort; do not force-dispose them.
+- [x] Healthy-DB ordering: runtime/DB admission cutoff and drain → `PrepareRestore` while backup admission is still open → backup admission cutoff and drain (accepted/queued work and timer/lifecycle retirement) → release SQLite pools → `Arm` persistent restore intent → terminal restore-specific exit.
+- [x] Keep cutoff closed through terminal restore exit. Timeout or cleanup uncertainty => do not `Arm`. Once persistent intent exists, or publication is uncertain, normal DB work must not resume.
+- [x] Prevent updater Apply/Restart and queued lifecycle transitions from racing restore; suppress normal shutdown DB/logout/backup work during terminal restore.
+- [x] Startup recovery performs the actual swap before resolver/SQLite admission. Do not resume normal work on the restored DB in the exiting process. No general UI operation-lifetime framework is required by this plan.
+
+**F1 status — IMPLEMENTED / VERIFIED (uncommitted working tree; documentation reconciled, not committed):**
+
+- **Review:** independent adversarial review found B1/B2; both were fixed and re-reviewed. Final targeted re-review: **PASS WITH FINDINGS** — Critical 0, High 0, Medium 0, Low only, **no blockers**. B3/B4/B5 from the first review were deliberately outside the fix round.
+- **Evidence (from the implementation/fix turns and the final review; not rerun in this docs-only step):** targeted F1 tests **31 passed**; relevant regression **307 passed**; full suite **547 passed, 0 failed, 0 skipped**; non-incremental build **0 warnings / 0 errors**; `git diff --check` **PASS**.
+- **B1 (fixed):** terminal-failure cleanup and logging are individually best-effort and `exit(1)` is in `finally`, so a cleanup/logging exception cannot skip exit; no admission is reopened and no normal DB work resumes.
+- **B2 (fixed):** a busy interactive operation is refused before any cutoff state changes (`BusyInteractive`, restore ownership released, no exit, admissions untouched); `AlreadyClosed`/`FaultedClosed` and every post-cutoff failure remain terminal. The Settings restore button is re-enabled only when the call returns with an exception.
+- **Boundary properties:** no live DB swap occurs in the current process; the actual restore remains startup-recovery work at next launch; the terminal restore boundary is fail-closed (timeout/cleanup uncertainty => no `Arm`; after intent exists or publication is uncertain, normal DB work does not resume).
+- **Accepted residual risks (Low):** (1) a microsecond window between taking restore-exit ownership and releasing it on `BusyInteractive` can cancel one concurrent shutdown/update-apply request (user can repeat); (2) `BusyInteractive` has no production producer yet, so the abandon path is reachable only via tests until interactive enrollment exists; (3) the B1 regression test covers the logging-throws case only, the CloseAdmission catch-alls are verified by inspection; (4) if `Arm` publishes the intent and then fails, the process exits 1 and the next startup applies the restore (designed terminal semantics, covered by test).
+- **Not claimed:** F2 (backup compatibility, broken-DB recovery) and F3 (end-to-end/process-crash/UI-smoke verification, closure) are OPEN. F1 does not make Phase 4 restore-safe or complete.
 
 ### F2 — Backup Compatibility + Broken-DB Recovery
 
@@ -368,7 +379,7 @@ The scope reset is intentional and user-approved, not abandonment of restore saf
 
 | Completion increment | Current status |
 | --- | --- |
-| F1 — Final Restore Boundary | **OPEN / NOT implemented** |
+| F1 — Final Restore Boundary | **IMPLEMENTED / VERIFIED (uncommitted); final review PASS WITH FINDINGS, Low only, no blockers** |
 | F2 — Backup Compatibility + Broken-DB Recovery | **OPEN / NOT implemented** |
 | F3 — Final Verification & Closure | **VERIFICATION PENDING** |
 
@@ -376,7 +387,7 @@ The scope reset is intentional and user-approved, not abandonment of restore saf
 
 General per-window enrollment (Login/Users/Items/Cashbox/POS/Transfer/Reports/etc.), general producer-retirement/lifetime architecture and broader shutdown/updater redesign move to deferred reliability backlog. Only restore-boundary safety coordination is required now.
 
-**Closure evidence is NOT produced.** Historical checkpoint tests/builds/reviews are retained; none were rerun in this docs-only update. Phase 4 remains **IN PROGRESS / NOT restore-safe** until F1/F2/F3 are implemented and evidenced.
+**Phase 4 closure evidence is NOT produced.** F1 evidence is recorded above; F2 and F3 remain OPEN. Historical checkpoint tests/builds/reviews are retained; none were rerun in this docs-only update. Phase 4 remains **IN PROGRESS / NOT restore-safe / NOT closed** until F2/F3 are implemented and evidenced.
 
 ## Residual risks and limitations
 
@@ -388,7 +399,7 @@ General per-window enrollment (Login/Users/Items/Cashbox/POS/Transfer/Reports/et
   additional path canonicalization/alias test coverage; installed GUI blocked-window
   startup/shutdown smoke; startup latency/UX for large recovery staging files.
 - Startup consumes existing restore intents. F1/F2/F3 remain OPEN; checkpoint readiness does not close Phase 4. General lifetime/shutdown architecture is deferred; restore-boundary safety remains mandatory.
-- The legacy restore path is still the one the UI calls.
+- Historical (pre-F1): the legacy restore path was still the one the UI called. F1 (uncommitted) replaces it with the terminal restore boundary; F2/F3 remain OPEN.
 - Durability is enforced on each connection open; this is not a claim about power-loss
   behavior under every filesystem.
 - Integration tests use temporary, isolated databases and folders; the operational

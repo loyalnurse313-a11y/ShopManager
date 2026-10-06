@@ -106,6 +106,79 @@ public sealed class SessionTrackerOperationEnrollmentTests : IDisposable
         db.SaveChanges();
     }
 
+    [Theory]
+    [InlineData("construction")]
+    [InlineData("activation")]
+    [InlineData("teardown")]
+    public async Task TerminalRestoreRetirement_WaitsForLifecycleAndPermanentlyRejectsStart(string stage)
+    {
+        var pause = new PausePoint();
+        FakeTimer? timer = null;
+        var tracker = Tracker(timerFactory: callback =>
+        {
+            timer = new FakeTimer(callback);
+            if (stage == "construction") pause.Block();
+            if (stage == "activation") timer.Activating = pause.Block;
+            if (stage == "teardown") timer.Retiring = pause.Block;
+            return timer;
+        });
+        Task? start = null;
+        Task retirement;
+        if (stage == "teardown")
+        {
+            tracker.Start();
+            retirement = tracker.RetireForRestoreAsync(Limit);
+            await Done(pause.Entered.Task);
+        }
+        else
+        {
+            start = Task.Run(tracker.Start);
+            await Done(pause.Entered.Task);
+            retirement = tracker.RetireForRestoreAsync(Limit);
+        }
+        try
+        {
+            Assert.False(retirement.IsCompleted);
+            Assert.Throws<InvalidOperationException>(tracker.Start);
+            timer!.Fire();
+            Healthy(0);
+        }
+        finally
+        {
+            pause.Release.TrySetResult();
+            if (start is not null) await Done(start);
+            await Done(retirement);
+        }
+        Assert.Equal(SessionTrackerState.Stopped, tracker.Snapshot.State);
+        Assert.Throws<InvalidOperationException>(tracker.Start);
+        timer!.Fire();
+        Assert.Equal(1, timer.StopCalls);
+        Healthy(0);
+    }
+
+    [Fact]
+    public async Task TerminalRestoreRetirement_WaitsForAcceptedTickAndRejectsStaleCallbacks()
+    {
+        var pause = new PausePoint();
+        var tracker = Tracker(trackerFactory: () => { pause.Block(); return Context(); });
+        tracker.Start();
+        var timer = Timer;
+        var tick = Task.Run(timer.Fire);
+        await Done(pause.Entered.Task);
+        var retirement = tracker.RetireForRestoreAsync(Limit);
+        try
+        {
+            Assert.False(retirement.IsCompleted);
+            timer.Fire();
+            Assert.Equal(1, _operations.Gate.Snapshot.Outstanding);
+            Assert.Throws<InvalidOperationException>(tracker.Start);
+        }
+        finally { pause.Release.TrySetResult(); await Done(tick); await Done(retirement); }
+        Assert.Throws<InvalidOperationException>(tracker.Start);
+        timer.Fire();
+        Healthy(1);
+    }
+
     private RuntimeOperationGate.ClosureOwner Close()
     {
         var attempt = _operations.Gate.TryCloseAdmission();

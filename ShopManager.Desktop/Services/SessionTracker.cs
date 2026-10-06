@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Linq;
 using System.Runtime.ExceptionServices;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia.Threading;
 using ShopManager.Infrastructure.Persistence;
 
@@ -14,6 +16,8 @@ public static class SessionTracker
     public static event Action? UserDeactivated;
     public static void Start() => Tracker.Start();
     public static void Stop() => Tracker.Stop();
+    internal static Task RetireForRestoreAsync(TimeSpan timeout, CancellationToken cancellation)
+        => Tracker.RetireForRestoreAsync(timeout, cancellation);
 
     // Exercise production wiring without starting an Avalonia dispatcher timer.
     internal static SessionTrackerCoordinator CreateCoordinator(
@@ -48,7 +52,7 @@ public static class SessionTracker
 
 internal enum SessionTrackerState { Stopped, Starting, Running, Stopping, Faulted }
 
-/// <summary>Local generation authority and single-flight accounting; not terminal retirement or quiescence.</summary>
+/// <summary>Local generation authority, single-flight accounting and restore-specific retirement.</summary>
 internal sealed class SessionTrackerCoordinator
 {
     internal interface ITimerSession
@@ -77,6 +81,42 @@ internal sealed class SessionTrackerCoordinator
     private Generation? _executing;
     private bool _transitioning;
     private Exception? _fault;
+    private bool _restoreRetired;
+    private TaskCompletionSource _retirementChanged = NewSignal();
+    private static TaskCompletionSource NewSignal()
+        => new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    internal async Task RetireForRestoreAsync(TimeSpan timeout, CancellationToken cancellation = default)
+    {
+        lock (_sync)
+        {
+            _restoreRetired = true;
+            if (_state is not (SessionTrackerState.Stopped or SessionTrackerState.Faulted))
+                _state = SessionTrackerState.Stopping;
+        }
+        // Stop never joins callbacks. A blocked lifecycle owner is bounded by this wait;
+        // it retains teardown authority and cannot re-enable the retired producer.
+        await Task.Run(() => RequestStop(null)).WaitAsync(timeout, cancellation).ConfigureAwait(false);
+        while (true)
+        {
+            Task changed;
+            lock (_sync)
+            {
+                if (_fault is not null)
+                    throw new InvalidOperationException("Session tracker retirement is unproven.", _fault);
+                if (_state == SessionTrackerState.Stopped && !_transitioning && _executing is null) return;
+                changed = _retirementChanged.Task;
+            }
+            await changed.WaitAsync(timeout, cancellation).ConfigureAwait(false);
+        }
+    }
+
+    private void RetirementChangedLocked()
+    {
+        var previous = _retirementChanged;
+        _retirementChanged = NewSignal();
+        previous.TrySetResult();
+    }
 
     internal readonly record struct TrackerSnapshot(
         SessionTrackerState State, bool Executing, bool Transitioning, int TickCount, Exception? Fault);
@@ -109,6 +149,8 @@ internal sealed class SessionTrackerCoordinator
         Generation generation;
         lock (_sync)
         {
+            if (_restoreRetired)
+                throw new InvalidOperationException("Session tracking is terminally retired for restore.");
             if (_state == SessionTrackerState.Running) return;
             if (_state == SessionTrackerState.Faulted)
                 throw new InvalidOperationException("Session tracking is faulted.", _fault);
@@ -204,12 +246,14 @@ internal sealed class SessionTrackerCoordinator
         {
             _generation = null;
             _state = SessionTrackerState.Stopped;
+            RetirementChangedLocked();
         }
     }
     private void FaultLocked(Exception error)
     {
         _fault ??= error;
         _state = SessionTrackerState.Faulted;
+        RetirementChangedLocked();
     }
 
     private void OnTick(Generation generation)

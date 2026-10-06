@@ -49,6 +49,8 @@ public static class BackupService
     // Execution-context-local injection keeps test closure/failure paths off the runtime boundary.
     internal static AsyncLocal<BackupAdmissionCoordinator?> AdmissionOverrideForTests { get; } = new();
     internal static BackupAdmissionCoordinator Admission => AdmissionOverrideForTests.Value ?? RuntimeAdmission;
+    internal static AsyncLocal<Func<string, SqliteConnection>?> ConnectionFactoryForTests { get; } = new();
+    internal static AsyncLocal<Action<string>?> RestoreArtifactDeletingForTests { get; } = new();
 
     /// <summary>شمارنده بکاپ‌های این نشست</summary>
     public static int BackupCountThisSession => Volatile.Read(ref _backupCountThisSession);
@@ -110,6 +112,8 @@ public static class BackupService
     {
         Admission.StopTimer();
     }
+
+    internal static void StopAutoBackupTimerForRestore() => Admission.StopTimerForRestore();
 
     // ═══════════ single-flight ═══════════
 
@@ -275,30 +279,51 @@ public static class BackupService
     /// </summary>
     private static void CreateSnapshot(string sourceDatabasePath, string stagingPath, SqliteOpenMode sourceMode)
     {
-        using var source = new SqliteConnection(new SqliteConnectionStringBuilder
+        WithSqliteConnection(new SqliteConnectionStringBuilder
         {
             DataSource = sourceDatabasePath,
             Mode = sourceMode,
             Pooling = false
-        }.ToString());
-        source.Open();
-
-        using var destination = new SqliteConnection(new SqliteConnectionStringBuilder
+        }.ToString(), source =>
         {
-            DataSource = stagingPath,
-            Mode = SqliteOpenMode.ReadWriteCreate,
-            Pooling = false
-        }.ToString());
-        destination.Open();
+            source.Open();
+            WithSqliteConnection(new SqliteConnectionStringBuilder
+            {
+                DataSource = stagingPath,
+                Mode = SqliteOpenMode.ReadWriteCreate,
+                Pooling = false
+            }.ToString(), destination =>
+            {
+                destination.Open();
+                source.BackupDatabase(destination);
+            });
+        });
+    }
 
-        source.BackupDatabase(destination);
+    private static void WithSqliteConnection(string connectionString, Action<SqliteConnection> operation)
+    {
+        var connection = ConnectionFactoryForTests.Value?.Invoke(connectionString)
+            ?? new SqliteConnection(connectionString);
+        Exception? bodyError = null;
+        try { operation(connection); }
+        catch (Exception error) { bodyError = error; throw; }
+        finally
+        {
+            try { connection.Dispose(); }
+            catch (Exception cleanupError)
+            {
+                var error = new BackupCleanupUnprovenException(bodyError, cleanupError);
+                Admission.MarkCleanupUnproven(error);
+                throw error;
+            }
+        }
     }
 
     /// <summary>
     /// اعتبارسنجی staging: یکپارچگی SQLite و خواندنی بودن آن به‌صورت یک دیتابیس مستقل
     /// (بدون نیاز به WAL/SHM دیتابیس مبدأ).
     /// </summary>
-    internal static void ValidateSnapshot(string snapshotPath)
+    internal static void ValidateSnapshot(string snapshotPath, bool restoreCleanup = false)
     {
         if (!File.Exists(snapshotPath))
         {
@@ -306,17 +331,19 @@ public static class BackupService
         }
 
         // اگر sidecar از مبدأ به staging سرایت کرده باشد، ابطال می‌شود.
-        TryDeleteSidecarFiles(snapshotPath);
+        if (restoreCleanup) DeleteRestoreSidecars(snapshotPath);
+        else TryDeleteSidecarFiles(snapshotPath);
 
-        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        WithSqliteConnection(new SqliteConnectionStringBuilder
         {
             DataSource = snapshotPath,
             Mode = SqliteOpenMode.ReadWrite,
             Pooling = false
-        }.ToString());
-        connection.Open();
-
-        ValidateOpenDatabase(connection);
+        }.ToString(), connection =>
+        {
+            connection.Open();
+            ValidateOpenDatabase(connection);
+        });
     }
 
     /// <summary>
@@ -374,6 +401,34 @@ public static class BackupService
     {
         try { if (File.Exists(databasePath + "-wal")) File.Delete(databasePath + "-wal"); } catch { }
         try { if (File.Exists(databasePath + "-shm")) File.Delete(databasePath + "-shm"); } catch { }
+    }
+
+    private static void DeleteRestoreArtifact(string path, Exception? bodyError = null)
+    {
+        try
+        {
+            RestoreArtifactDeletingForTests.Value?.Invoke(path);
+            File.Delete(path); // Missing is harmless; access/I/O failures must be observable.
+        }
+        catch (Exception cleanupError)
+        {
+            var error = new BackupCleanupUnprovenException(bodyError, cleanupError);
+            Admission.MarkCleanupUnproven(error);
+            throw error;
+        }
+    }
+
+    private static void DeleteRestoreSidecars(string path, Exception? bodyError = null)
+    {
+        DeleteRestoreArtifact(path + "-wal", bodyError);
+        DeleteRestoreArtifact(path + "-shm", bodyError);
+        DeleteRestoreArtifact(path + "-journal", bodyError);
+    }
+
+    private static void DeleteRestoreArtifacts(string path, Exception? bodyError = null)
+    {
+        DeleteRestoreArtifact(path, bodyError);
+        DeleteRestoreSidecars(path, bodyError);
     }
 
     /// <summary>لیست بکاپ‌ها</summary>
@@ -489,6 +544,7 @@ public static class BackupService
         string? safetyBackupPath = null;
         var safetyPublished = false;
         var completed = false;
+        Exception? bodyError = null;
 
         try
         {
@@ -510,8 +566,8 @@ public static class BackupService
             // باز/بستن آن هرگز checkpoint نزند یا shop.db زنده را تغییر ندهد؛ دادهٔ
             // committed داخل WAL (مثلاً پس از کرش) با خواندن WAL-consistent منتقل می‌شود.
             CreateSnapshot(livePath, safetyTemporaryPath, SqliteOpenMode.ReadOnly);
-            ValidateSnapshot(safetyTemporaryPath);
-            TryDeleteSidecarFiles(safetyTemporaryPath);
+            ValidateSnapshot(safetyTemporaryPath, restoreCleanup: true);
+            DeleteRestoreSidecars(safetyTemporaryPath);
             safetyBackupPath = PublishStaging(
                 safetyTemporaryPath, backupFolder,
                 $"before-restore-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}", PublishStagingFile);
@@ -527,25 +583,26 @@ public static class BackupService
             ClearReadOnlyAttribute(stagingPath);
             stageReached?.Invoke(RestorePreparationStage.StagingCopied);
 
-            TryDeleteSidecarFiles(stagingPath);
-            ValidateSnapshot(stagingPath);
-            TryDeleteSidecarFiles(stagingPath);
+            DeleteRestoreSidecars(stagingPath);
+            ValidateSnapshot(stagingPath, restoreCleanup: true);
+            DeleteRestoreSidecars(stagingPath);
             stageReached?.Invoke(RestorePreparationStage.StagingValidated);
 
             completed = true;
             return new RestorePreparation(sourceBackupPath, livePath, safetyBackupPath, stagingPath);
         }
+        catch (Exception error) { bodyError = error; throw; }
         finally
         {
             // مصنوع تثبیت‌شدهٔ اعتبارسنجی متعلق به همین عملیات است؛ پس از انتقال به staging
             // (یا در صورت شکست) باقی نمی‌ماند و منبع کاربر هرگز لمس نمی‌شود.
-            TryDeleteStagingArtifacts(validatedBackupPath);
+            DeleteRestoreArtifacts(validatedBackupPath, bodyError);
 
             if (!completed)
             {
                 // فقط مصنوعات ناتمام پاک می‌شوند؛ اسنپ‌شات ایمنیِ منتشرشدهٔ معتبر حذف نمی‌شود.
-                if (stagingPath != null) TryDeleteStagingArtifacts(stagingPath);
-                if (!safetyPublished && safetyTemporaryPath != null) TryDeleteStagingArtifacts(safetyTemporaryPath);
+                if (stagingPath != null) DeleteRestoreArtifacts(stagingPath, bodyError);
+                if (!safetyPublished && safetyTemporaryPath != null) DeleteRestoreArtifacts(safetyTemporaryPath, bodyError);
             }
         }
     }
@@ -625,6 +682,7 @@ public static class BackupService
 
         var stabilizedCopyPath = BuildRestoreTemporaryPath(restoreWorkspaceFolder, "validate");
         var validated = false;
+        Exception? bodyError = null;
         try
         {
             // فقط بایت‌های فایل اصلی کپی می‌شوند؛ هیچ sidecarی از منبع خوانده، باز یا حذف نمی‌شود.
@@ -635,25 +693,27 @@ public static class BackupService
             // حتی در این حالت هیچ چیزی از منبع حذف/تغییر نمی‌شود.
             stageReached?.Invoke(RestorePreparationStage.BackupValidationCopyCaptured);
 
-            using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+            WithSqliteConnection(new SqliteConnectionStringBuilder
             {
                 DataSource = stabilizedCopyPath,
                 Mode = SqliteOpenMode.ReadOnly,
                 Pooling = false
-            }.ToString());
-            connection.Open();
-
-            ValidateOpenDatabase(connection);
+            }.ToString(), connection =>
+            {
+                connection.Open();
+                ValidateOpenDatabase(connection);
+            });
 
             // اعتبارسنجی موفق: کپی تثبیت‌شده حفظ می‌شود تا staging دقیقاً از همین مصنوع
             // ساخته شود (تضمین «مصنوع اعتبارسنجی‌شده = مبنای staging»).
             validated = true;
             return stabilizedCopyPath;
         }
+        catch (Exception error) { bodyError = error; throw; }
         finally
         {
             // روی شکست، پاک‌سازی فقط مصنوعات همین کپی عملیاتی (فایل + sidecarهای خودش).
-            if (!validated) TryDeleteStagingArtifacts(stabilizedCopyPath);
+            if (!validated) DeleteRestoreArtifacts(stabilizedCopyPath, bodyError);
         }
     }
 
@@ -676,25 +736,7 @@ public static class BackupService
     /// <summary>بازیابی از بکاپ</summary>
     public static void RestoreBackup(string backupFilePath)
     {
-        if (!File.Exists(backupFilePath))
-        {
-            throw new FileNotFoundException("فایل بکاپ پیدا نشد", backupFilePath);
-        }
-
-        var dbPath = DatabasePath;
-
-        // بکاپ احتیاطی از دیتابیس فعلی
-        if (File.Exists(dbPath))
-        {
-            var safetyBackup = Path.Combine(
-                BackupFolder,
-                $"before-restore-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.db");
-            File.Copy(dbPath, safetyBackup, overwrite: true);
-        }
-
-        File.Copy(backupFilePath, dbPath, overwrite: true);
-
-        Volatile.Write(ref _lastBackupTimeTicks, DateTime.Now.Ticks);
+        throw new InvalidOperationException("In-process restore is prohibited. Use the application's terminal restore path.");
     }
 
     /// <summary>پاک کردن فایل بکاپ خاص</summary>
@@ -702,6 +744,10 @@ public static class BackupService
     {
         try
         {
+            // Settings dialogs may outlive preparation. Keep the restore-owned
+            // safety snapshot protected until terminal exit, just as retention does.
+            if (Admission.IsRestoreTimerRetired && Path.GetFileName(backupFilePath).StartsWith(
+                BackupFilePrefix + "before-restore-", StringComparison.OrdinalIgnoreCase)) return;
             if (File.Exists(backupFilePath))
             {
                 File.Delete(backupFilePath);
@@ -720,6 +766,10 @@ public static class BackupService
 
             foreach (var backup in backups.Skip(keepCount))
             {
+                // A previously accepted backup can run after restore preparation.
+                // Retention must not remove the safety snapshot before Arm/recovery.
+                if (Admission.IsRestoreTimerRetired && backup.FileName.StartsWith(
+                    BackupFilePrefix + "before-restore-", StringComparison.Ordinal)) continue;
                 try { File.Delete(backup.FilePath); } catch { }
             }
         }
@@ -842,6 +892,14 @@ public class BackupInfo
     public DateTime CreatedAt { get; set; }
 
     public string SizeDisplay => BackupService.FormatSize(Size);
+}
+
+/// <summary>A sticky loss of resource cleanup proof, distinct from a business failure.</summary>
+internal sealed class BackupCleanupUnprovenException : InvalidOperationException
+{
+    internal BackupCleanupUnprovenException(Exception? bodyError, Exception cleanupError)
+        : base("Backup resource cleanup could not be proven.",
+            bodyError is null ? cleanupError : new AggregateException(bodyError, cleanupError)) { }
 }
 
 /// <summary>مراحل آماده‌سازی بازیابی — seam رویداد برای تست‌های قطعی (فاز 4B-1).</summary>

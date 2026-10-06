@@ -23,7 +23,7 @@ ShopManager یک POS و سامانهٔ مدیریت فروشگاه است.
 
 اگر این سند با evidence معتبر (source، tests، Git) ناسازگار بود، **آن ناسازگاری را گزارش کنید**؛ حدس نزنید. اصلاح فقط در scope صریح مجاز است.
 
-Phase 4 remains **IN PROGRESS / NOT restore-safe**. Approved critical path: **F1 → F2 → F3**. Latest hardening: **5C-2.2 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED / COMMITTED / PUSHED `72d77613340f2d9b88abd64ec39bcbe351156608`** (push confirmed by the user). 5C-2.1/2.2 and their historical evidence remain valid; general per-window enrollment is deferred.
+Phase 4 remains **IN PROGRESS / NOT restore-safe**. Approved critical path: **F1 → F2 → F3** (F1 IMPLEMENTED / VERIFIED, uncommitted; F2/F3 OPEN). Latest hardening: **5C-2.2 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED / COMMITTED / PUSHED `72d77613340f2d9b88abd64ec39bcbe351156608`** (push confirmed by the user). 5C-2.1/2.2 and their historical evidence remain valid; general per-window enrollment is deferred.
 Latest production checkpoint: **4B-5C-2.2**, `72d77613340f2d9b88abd64ec39bcbe351156608` (COMMITTED / PUSHED; push confirmed by the user).
 checkpointهای قبلی: `583a7b8` (4B-3)، `d472153` (4B-2B) و `59d0dfc` (4B-2A).
 The command below compares committed production changes; the latest checkpoint is 5C-2.2 in `72d7761`, preceded by 5C-2.1 in `a8e3d02` and 5C-1 in `33e12b6`:
@@ -250,14 +250,14 @@ Checkpoint commit: `33e12b6e52e01a307e7ab474f26945447116db46` — `feat: add run
 
 **Residuals / non-guarantees:** terminal producer retirement and full quiescence remain deferred. F2 general UI/Auth caller hardening remains open; SessionTracker exception handling does not close it for other callers. F3 historical resolution-cleanup diagnostic provenance remains **VERIFICATION PENDING**. F4 LogoutCore may swallow its cleanup diagnostic, while the same parent lease remains unproven and the gate stays FaultedClosed. Synchronous notification coverage does not include queued UI transitions. LoginWindow/MainWindow/general lifecycle, history-write serialization, shutdown/updater coordination and restore activation/safety are not established by this increment.
 
-**Next uncompleted work (approved scope reset):** F1 → F2 → F3. General per-window enrollment is deferred to reliability backlog; source implementation needs separate scope/approval.
+**Next uncompleted work (approved scope reset):** F2 → F3 (F1 implemented/verified, uncommitted). General per-window enrollment is deferred to reliability backlog; source implementation needs separate scope/approval.
 
-**Final restore constraints (F1; not implemented):**
+**Final restore constraints (F1 — now implemented and verified, uncommitted; retained as design constraints):**
 
 - Never wait for DB drain while holding the `TransitionGate` write lock.
 - Future production flow must close admission and prove drain before `Arm`; resolver identity must be established before future `CloseAdmission`.
 - In the no-lease fresh-resolution path, marker publication currently occurs after the runtime initialization lease is released and is outside DB drain. The already-admitted factory retains its existing lease. DB drain must not be presented as proof that all resolver/marker work has completed.
-- Existing 5C-2.1/2.2 hardening and evidence are retained. F1/F2/F3 is the approved critical path; general per-window enrollment/lifetime architecture is deferred. Production restore activation remains unimplemented.
+- Existing 5C-2.1/2.2 hardening and evidence are retained. F1/F2/F3 is the approved critical path; general per-window enrollment/lifetime architecture is deferred. Terminal restore boundary is implemented by F1 (uncommitted, verified); the swap itself remains startup-recovery work; F2/F3 remain OPEN.
 - Keep cutoff closed through terminal restore exit. Timeout or cleanup uncertainty => do not `Arm`; after persistent intent exists, or publication is uncertain, normal DB work must not resume.
 - Ordering: runtime/DB cutoff and drain → `PrepareRestore` with backup admission still open → backup cutoff and drain → release SQLite pools → `Arm` → restore-specific exit → actual swap at next startup. Updater Apply/Restart and queued lifecycle transitions must not race restore.
 
@@ -288,9 +288,9 @@ Checkpoint commit: `33e12b6e52e01a307e7ab474f26945447116db46` — `feat: add run
 
 ### Phase 4 — approved remaining DoD
 
-**Approved Phase-4 DoD — all remaining items OPEN:**
+**Approved Phase-4 DoD — F1 implemented/verified; F2 and F3 remain OPEN:**
 
-- [ ] **F1 — Final Restore Boundary:** replace legacy SettingsWindow restore; terminal single-flight; block relevant new work; stop relevant producers; drain existing runtime/DB/backup work; correctly order preparation, pool release, persistent intent and restore-specific exit; startup recovery performs the swap.
+- [x] **F1 — Final Restore Boundary — F1 IMPLEMENTED / VERIFIED (uncommitted working tree); final independent review PASS WITH FINDINGS (Low only; Critical/High/Medium 0; no blockers); targeted 31 passed, relevant 307 passed, full 547 passed (0 failed / 0 skipped), non-incremental build 0 warnings / 0 errors, git diff --check PASS. No live DB swap occurs in the current process; the actual swap remains startup recovery work; the terminal restore boundary is fail-closed. B1/B2 review findings were fixed and re-reviewed; remaining Low findings are accepted residual risks. F2 and F3 remain OPEN; Phase 4 remains IN PROGRESS / NOT closed.** Scope: replace legacy SettingsWindow restore; terminal single-flight; block relevant new work; stop relevant producers; drain existing runtime/DB/backup work; ordered preparation, pool release, persistent intent and restore-specific exit; startup recovery performs the swap.
 - [ ] **F2 — Backup Compatibility + Broken-DB Recovery:** prove application compatibility; bounded recovery when the current DB is broken; preserve damaged/original files fail-closed.
 - [ ] **F3 — Final Verification & Closure:** integration/end-to-end restore, real process-crash/kill where required, UI smoke, full tests, build **0 warnings / 0 errors**, independent review and final documentation reconciliation.
 

@@ -287,7 +287,23 @@ public partial class SettingsWindow : Window
             restoreBtn.Click += async (s, e) =>
             {
                 var ok = await ShowConfirmDialog("بازیابی", $"از بکاپ «{capturedBackup.FileName}» بازیابی می‌شه. برنامه بسته می‌شه. ادامه؟");
-                if (ok) { try { BackupService.RestoreBackup(capturedBackup.FilePath); Environment.Exit(0); } catch (Exception ex) { ErrorHandler.LogError(ex, "Settings"); StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444")); StatusText.Text = ErrorHandler.GetUserMessage(ex); } }
+                if (ok)
+                {
+                    try
+                    {
+                        var app = Avalonia.Application.Current as App
+                            ?? throw new InvalidOperationException("Application exit ownership is unavailable.");
+                        restoreBtn.IsEnabled = false;
+                        await app.RestoreAsync(capturedBackup.FilePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        restoreBtn.IsEnabled = true;
+                        ErrorHandler.LogError(ex, "Settings restore");
+                        StatusText.Foreground = new SolidColorBrush(Color.Parse("#EF4444"));
+                        StatusText.Text = ErrorHandler.GetUserMessage(ex);
+                    }
+                }
             };
             Grid.SetColumn(restoreBtn, 3);
 

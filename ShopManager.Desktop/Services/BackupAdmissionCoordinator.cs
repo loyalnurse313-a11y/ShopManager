@@ -39,6 +39,7 @@ internal sealed class BackupAdmissionCoordinator
     private Request? _active;
     private Closure? _owner;
     private Exception? _fault;
+    private bool _restoreTimerRetired;
     private long _epoch;
     private int _accepted;
     private int _lifecycle;
@@ -54,6 +55,7 @@ internal sealed class BackupAdmissionCoordinator
     {
         get { lock (_sync) return (_accepted, _queue.Count, _lifecycle, _retiring); }
     }
+    internal bool IsRestoreTimerRetired { get { lock (_sync) return _restoreTimerRetired; } }
 
     internal BackupAdmissionCoordinator(Func<Action, ITimerSession>? timerFactory = null)
         => _timerFactory = timerFactory ?? (callback => new TimerSession(callback));
@@ -72,6 +74,11 @@ internal sealed class BackupAdmissionCoordinator
     {
         if (_owner != null || _fault != null)
             throw new InvalidOperationException("Backup admission is closed.", _fault);
+    }
+
+    internal void MarkCleanupUnproven(Exception error)
+    {
+        lock (_sync) { _fault ??= error; ChangedLocked(); }
     }
 
     private Request? Admit(bool blocking, long? epoch, ITimerSession? session = null)
@@ -123,6 +130,13 @@ internal sealed class BackupAdmissionCoordinator
             AdmittedForTests?.Invoke();
             request.Turn.Task.GetAwaiter().GetResult();
             _executing.Value = true;
+            lock (_sync)
+            {
+                // Accepted work survives normal closure, but cannot open another
+                // resource after a previous turn lost its cleanup proof.
+                if (_fault is not null)
+                    throw new InvalidOperationException("Backup cleanup is unproven.", _fault);
+            }
             return operation();
         }
         finally
@@ -161,11 +175,14 @@ internal sealed class BackupAdmissionCoordinator
     }
 
     internal void RestartTimer(Func<TimeSpan?> interval, Action core, Action<Exception> log)
-        => ChangeTimer(interval, core, log);
+        => ChangeTimer(interval, core, log, restart: true);
 
     internal void StopTimer() => ChangeTimer(() => null, () => { }, _ => { });
+    internal void StopTimerForRestore()
+        => ChangeTimer(() => null, () => { }, _ => { }, terminalRetire: true);
 
-    private void ChangeTimer(Func<TimeSpan?> interval, Action core, Action<Exception> log)
+    private void ChangeTimer(Func<TimeSpan?> interval, Action core, Action<Exception> log,
+        bool restart = false, bool terminalRetire = false)
     {
         if (_executing.Value || _inLifecycle.Value)
             throw new InvalidOperationException("Reentrant timer lifecycle is prohibited.");
@@ -173,6 +190,9 @@ internal sealed class BackupAdmissionCoordinator
         lock (_sync)
         {
             RequireOpenLocked();
+            if (restart && _restoreTimerRetired)
+                throw new InvalidOperationException("Backup timer is terminally retired for restore.");
+            if (terminalRetire) _restoreTimerRetired = true;
             reservation = ReserveLifecycleLocked();
         }
         RunLifecycle(reservation, () =>
@@ -250,7 +270,7 @@ internal sealed class BackupAdmissionCoordinator
     private async Task ObserveRetirement(ITimerSession timer)
     {
         try { await timer.RetireAsync().ConfigureAwait(false); }
-        catch (Exception error) { lock (_sync) { _fault = error; ChangedLocked(); } }
+        catch (Exception error) { MarkCleanupUnproven(error); }
         finally { lock (_sync) { _retiring--; ChangedLocked(); } }
     }
 
