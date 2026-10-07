@@ -101,6 +101,45 @@ public sealed class RestoreBoundaryTests : IDisposable
     }
 
     [Fact]
+    public async Task BrokenRestore_ThroughSameTerminalBoundary_PreservesCorruptOriginalAndArmsOnce()
+    {
+        var corrupt = System.Text.Encoding.UTF8.GetBytes(new string('x', 4096) + " not a sqlite database");
+        File.WriteAllBytes(Live, corrupt);
+        var before = SHA256.HashData(corrupt);
+
+        await Done(Restore(prepare: BackupService.PrepareBrokenRestore, retire: (_, _) => Task.CompletedTask));
+
+        Assert.Equal(new[] { 0 }, _exits);
+        Assert.Equal(1, _prepareCalls);
+        Assert.Equal(1, _armCalls);
+        Assert.Equal(before, SHA256.HashData(File.ReadAllBytes(Live)));
+        var intent = RestoreRecoveryService.ReadIntent(RestoreRecoveryService.IntentPath).Intent!;
+        Assert.Equal("selected", ReadValue(intent.StagingPath));
+        var preserved = Assert.Single(Directory.GetDirectories(Backups, "corrupt-original-*"));
+        Assert.Equal(Path.Combine(preserved, "shop.db"), intent.SafetyBackupPath);
+        Assert.Equal(corrupt, File.ReadAllBytes(intent.SafetyBackupPath));
+        Assert.Empty(BackupService.GetBackups(Backups));
+        Assert.Throws<DatabaseAdmissionClosedException>(() => _database.Enter());
+    }
+
+    [Fact]
+    public async Task BrokenRestore_WhenLiveIsHealthy_FailsBeforeArmingAndLeavesLiveUntouched()
+    {
+        var before = SHA256.HashData(File.ReadAllBytes(Live));
+        var reported = new List<Exception>();
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => Done(Restore(
+            prepare: BackupService.PrepareBrokenRestore,
+            retire: (_, _) => Task.CompletedTask, report: reported.Add)));
+
+        Assert.Equal(new[] { 1 }, _exits);
+        Assert.Equal(0, _armCalls);
+        Assert.False(RestoreRecoveryService.IsArmed);
+        Assert.Equal(before, SHA256.HashData(File.ReadAllBytes(Live)));
+        Assert.Single(reported);
+    }
+
+    [Fact]
     public async Task AcceptedRuntimeAndDbContext_MustFinishBeforePreparation()
     {
         using var operation = _operations.Begin();

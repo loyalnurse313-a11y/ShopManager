@@ -634,6 +634,200 @@ public sealed class RestorePreparationTests : IDisposable
         }
     }
 
+    // ═══════════ F2b: بازیابی دیتابیس خراب ═══════════
+
+    private static readonly byte[] CorruptLiveBytes =
+        System.Text.Encoding.UTF8.GetBytes(new string('x', 4096) + " not a sqlite database");
+
+    private (string Live, string Backups) CreateCorruptLive(string tag, bool withSidecars = true)
+    {
+        var data = Sub("live-" + tag);
+        var backups = Sub("backups-" + tag);
+        var live = Path.Combine(data, "shop.db");
+        File.WriteAllBytes(live, CorruptLiveBytes);
+        if (withSidecars)
+        {
+            File.WriteAllBytes(live + "-wal", new byte[] { 1, 2, 3, 4 });
+            File.WriteAllBytes(live + "-shm", new byte[] { 5, 6, 7 });
+            File.WriteAllBytes(live + "-journal", new byte[] { 8, 9 });
+        }
+        return (live, backups);
+    }
+
+    private static string[] PreservedDirectories(string backups) =>
+        Directory.GetDirectories(backups, "corrupt-original-*");
+
+    [Fact]
+    public void PrepareBrokenRestore_CorruptLive_PreservesBytesAndSidecarsAndStagesValidBackup()
+    {
+        var (live, backups) = CreateCorruptLive("ok");
+        var candidate = BuildCandidate("good.db", withSchema: true, ShopManagerBackupFixture.InsertItemSql(1, "kept"));
+        var before = new[] { "", "-wal", "-shm", "-journal" }.ToDictionary(s => s, s => HashFile(live + s));
+
+        var preparation = BackupService.PrepareBrokenRestore(candidate, live, backups);
+
+        var directory = Assert.Single(PreservedDirectories(backups));
+        Assert.Equal(Path.Combine(directory, "shop.db"), preparation.SafetyBackupPath);
+        foreach (var (suffix, hash) in before)
+        {
+            Assert.Equal(hash, HashFile(live + suffix));
+            Assert.Equal(hash, HashFile(Path.Combine(directory, "shop.db" + suffix)));
+        }
+
+        Assert.True(File.Exists(preparation.StagingPath));
+        using (var staged = OpenReadWrite(preparation.StagingPath))
+            Assert.Equal("ok", ScalarString(staged, "PRAGMA integrity_check;"));
+        Assert.Empty(BackupService.GetBackups(backups));
+        AssertNoRestoreTemporaryArtifacts(backups);
+    }
+
+    [Fact]
+    public void PrepareBrokenRestore_ReportsCorruptLivePreservedStage_BeforeStagingIsCopied()
+    {
+        var (live, backups) = CreateCorruptLive("stage", withSidecars: false);
+        var candidate = BuildCandidate("good.db", withSchema: true);
+        var stages = new List<RestorePreparationStage>();
+
+        BackupService.PrepareBrokenRestore(candidate, live, backups, stages.Add);
+
+        Assert.DoesNotContain(RestorePreparationStage.SafetySnapshotPublished, stages);
+        Assert.True(stages.IndexOf(RestorePreparationStage.BackupValidated)
+            < stages.IndexOf(RestorePreparationStage.CorruptLivePreserved));
+        Assert.True(stages.IndexOf(RestorePreparationStage.CorruptLivePreserved)
+            < stages.IndexOf(RestorePreparationStage.StagingCopied));
+    }
+
+    [Fact]
+    public void PrepareBrokenRestore_HealthyLive_IsRejectedAndLiveIsUntouched()
+    {
+        var live = BuildCandidate("healthy-live.db", withSchema: true, ShopManagerBackupFixture.InsertItemSql(1, "live"));
+        var backups = Sub("backups-healthy");
+        var candidate = BuildCandidate("good.db", withSchema: true);
+        var before = HashFile(live);
+
+        Assert.Throws<InvalidDataException>(() => BackupService.PrepareBrokenRestore(candidate, live, backups));
+
+        Assert.Equal(before, HashFile(live));
+        Assert.Empty(Directory.GetFiles(backups, "*.restore.tmp*"));
+        AssertNoRestoreTemporaryArtifacts(backups);
+    }
+
+    [Fact]
+    public void PrepareBrokenRestore_IncompatibleBackup_FailsBeforeAnythingIsPreserved()
+    {
+        var (live, backups) = CreateCorruptLive("incompat");
+        var unrelated = BuildCandidate("unrelated.db", withSchema: false, "CREATE TABLE Other (Id INTEGER);");
+        var before = HashFile(live);
+
+        Assert.Throws<InvalidDataException>(() => BackupService.PrepareBrokenRestore(unrelated, live, backups));
+
+        Assert.Equal(before, HashFile(live));
+        Assert.Empty(PreservedDirectories(backups));
+        AssertNoRestoreTemporaryArtifacts(backups);
+    }
+
+    [Fact]
+    public void PrepareBrokenRestore_PreservationDestinationAlreadyExists_FailsClosedWithoutOverwriting()
+    {
+        var (live, backups) = CreateCorruptLive("collision");
+        var candidate = BuildCandidate("good.db", withSchema: true);
+        var occupied = Sub("occupied");
+        var existing = Path.Combine(occupied, "shop.db");
+        File.WriteAllBytes(existing, new byte[] { 42 });
+        var liveBefore = HashFile(live);
+        BackupService.PreservedDirectoryForTests.Value = occupied;
+        try
+        {
+            Assert.Throws<IOException>(() => BackupService.PrepareBrokenRestore(candidate, live, backups));
+        }
+        finally { BackupService.PreservedDirectoryForTests.Value = null; }
+
+        Assert.Equal(new byte[] { 42 }, File.ReadAllBytes(existing));
+        Assert.Equal(liveBefore, HashFile(live));
+        AssertNoRestoreTemporaryArtifacts(backups);
+    }
+
+    [Fact]
+    public void PrepareBrokenRestore_SourceChangesDuringVerification_FailsClosedAndKeepsPreservedCopy()
+    {
+        var (live, backups) = CreateCorruptLive("mutate", withSidecars: false);
+        var candidate = BuildCandidate("good.db", withSchema: true);
+        BackupService.PreservationVerifyingForTests.Value = (source, _) =>
+        {
+            using var stream = new FileStream(source, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+            stream.WriteByte(0x7F);
+        };
+        try
+        {
+            Assert.Throws<InvalidDataException>(() => BackupService.PrepareBrokenRestore(candidate, live, backups));
+        }
+        finally { BackupService.PreservationVerifyingForTests.Value = null; }
+
+        var directory = Assert.Single(PreservedDirectories(backups));
+        Assert.True(File.Exists(Path.Combine(directory, "shop.db")));
+        Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(live)!, "*.restore.tmp*"));
+    }
+
+    [Fact]
+    public void PrepareBrokenRestore_AmbiguousLiveSidecarDirectory_IsRejected()
+    {
+        var (live, backups) = CreateCorruptLive("ambiguous", withSidecars: false);
+        Directory.CreateDirectory(live + "-wal");
+        var candidate = BuildCandidate("good.db", withSchema: true);
+
+        Assert.Throws<InvalidDataException>(() => BackupService.PrepareBrokenRestore(candidate, live, backups));
+
+        Assert.Empty(PreservedDirectories(backups));
+        Assert.Equal(CorruptLiveBytes, File.ReadAllBytes(live));
+    }
+
+    [Theory]
+    [InlineData(11, true)]
+    [InlineData(26, true)]
+    [InlineData(5, false)]
+    [InlineData(6, false)]
+    [InlineData(10, false)]
+    [InlineData(14, false)]
+    public void IsProvenStartupCorruption_UsesTypedSqliteCodesThroughTheExceptionChain(int code, bool expected)
+    {
+        var sqlite = new SqliteException("database disk image is malformed", code);
+
+        Assert.Equal(expected, BackupService.IsProvenStartupCorruption(sqlite));
+        Assert.Equal(expected, BackupService.IsProvenStartupCorruption(
+            new InvalidOperationException("wrapped", sqlite)));
+        Assert.Equal(expected, BackupService.IsProvenStartupCorruption(new AggregateException(sqlite)));
+    }
+
+    [Fact]
+    public void IsProvenStartupCorruption_IgnoresMessageTextAndCleanupUncertainty()
+    {
+        Assert.False(BackupService.IsProvenStartupCorruption(
+            new InvalidOperationException("database disk image is malformed (SQLITE_CORRUPT)")));
+        Assert.False(BackupService.IsProvenStartupCorruption(
+            new InvalidDataException("file is not a database")));
+
+        var corrupt = new SqliteException("malformed", 11);
+        Assert.False(BackupService.IsProvenStartupCorruption(
+            new DatabaseContextCleanupUnprovenException(corrupt, new IOException("dispose failed"))));
+        Assert.False(BackupService.IsProvenStartupCorruption(
+            new BackupCleanupUnprovenException(corrupt, new IOException("delete failed"))));
+        Assert.False(BackupService.IsProvenStartupCorruption(
+            new DatabaseContextCleanupUnprovenException(null, corrupt)));
+    }
+
+    [Fact]
+    public void ProbeCorruption_ClassifiesHealthyCorruptAndMissingDatabases()
+    {
+        var healthy = BuildCandidate("probe-healthy.db", withSchema: true);
+        var corrupt = Path.Combine(Sub("probe"), "corrupt.db");
+        File.WriteAllBytes(corrupt, CorruptLiveBytes);
+
+        Assert.Equal(BackupService.CorruptionState.Healthy, BackupService.ProbeCorruption(healthy));
+        Assert.Equal(BackupService.CorruptionState.Proven, BackupService.ProbeCorruption(corrupt));
+        Assert.Equal(BackupService.CorruptionState.Indeterminate,
+            BackupService.ProbeCorruption(Path.Combine(Sub("probe"), "missing.db")));
+    }
+
     // ═══════════ ابزارها ═══════════
 
     private string BuildCandidate(string fileName, bool withSchema, params string[] statements)

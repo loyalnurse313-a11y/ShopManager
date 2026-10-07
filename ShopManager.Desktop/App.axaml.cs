@@ -1,10 +1,14 @@
 ﻿using System;
 using Avalonia;
+using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Data;
+using Avalonia.Layout;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using ShopManager.Desktop.Services;
@@ -19,6 +23,12 @@ public partial class App : Application
     private bool _restoreExitOwned;
     private bool _updateExitOwned;
     private bool _normalShutdownOwned;
+
+    // F2b: typed corruption evidence from the startup CreateContext failure.
+    // Only proven SQLite CORRUPT/NOTADB chains set it; resolver/recovery blocks and
+    // cleanup-unproven/IO/access failures never enable the broken-restore entry.
+    private static bool _startupDatabaseCorruptionProven;
+    internal static bool StartupDatabaseCorruptionProven => _startupDatabaseCorruptionProven;
 
     internal bool IsTerminalRestore { get { lock (_restoreExitSync) return _restoreExitOwned; } }
 
@@ -60,6 +70,23 @@ public partial class App : Application
             }, RuntimeOperations.Runtime, DatabaseAdmissionGate.Runtime, BackupService.Admission,
             SessionTracker.RetireForRestoreAsync, BackupService.StopAutoBackupTimerForRestore,
             BackupService.PrepareRestore, SqliteConnection.ClearAllPools,
+            preparation => RestoreRecoveryService.Arm(preparation.LiveDatabasePath,
+                preparation.StagingPath, preparation.SafetyBackupPath),
+            Environment.Exit, TimeSpan.FromSeconds(30), cancellation);
+
+    // F2b: blocked-startup broken-DB restore. Normal consumers (session tracker,
+    // backup timer) have not started in this path, so retirement is a no-op and the
+    // same terminal semantics apply: prepare -> ClearAllPools -> Arm -> exit(0).
+    internal Task RestoreFromBlockedStartupAsync(string selectedBackup, CancellationToken cancellation = default)
+        => RunRestoreAsync(selectedBackup,
+            () =>
+            {
+                if (DatabaseService.BlockedReason is { } reason)
+                    throw new InvalidOperationException(reason);
+                return (DatabaseService.DatabasePath, DatabaseService.BackupFolder);
+            }, RuntimeOperations.Runtime, DatabaseAdmissionGate.Runtime, BackupService.Admission,
+            (_, _) => Task.CompletedTask, () => { },
+            BackupService.PrepareBrokenRestore, SqliteConnection.ClearAllPools,
             preparation => RestoreRecoveryService.Arm(preparation.LiveDatabasePath,
                 preparation.StagingPath, preparation.SafetyBackupPath),
             Environment.Exit, TimeSpan.FromSeconds(30), cancellation);
@@ -190,6 +217,7 @@ public partial class App : Application
         Func<RestoreRecoveryResult>? recoverForTests = null,
         Action? beforeDatabaseCheckForTests = null)
     {
+        _startupDatabaseCorruptionProven = false;
         StartupRecoveryCoordinator.Run(
             () =>
             {
@@ -204,6 +232,8 @@ public partial class App : Application
                     }
                     catch (Exception ex)
                     {
+                        if (BackupService.IsProvenStartupCorruption(ex))
+                            _startupDatabaseCorruptionProven = true;
                         blockedReason = ex.Message;
                     }
                 }
@@ -292,21 +322,157 @@ public partial class App : Application
         };
     }
 
-    /// <summary>پنجرهٔ توقف راه‌اندازی (فاز 4A-2) — بدون دسترسی به هیچ دیتابیس یا تنظیماتی</summary>
-    private static Window CreateBlockedStartupWindow(string reason)
+    /// <summary>
+    /// پنجرهٔ توقف راه‌اندازی (فاز 4A-2). در حالت عادی فقط پیام است؛ تنها با اثبت قطعیِ
+    /// خرابی دیتابیس (F2b) گزینهٔ بازیابی از بکاپ نیز ارائه می‌شود.
+    /// </summary>
+    private Window CreateBlockedStartupWindow(string reason)
     {
-        return new Window
+        var message = new TextBlock
+        {
+            Text = "راه‌اندازی برنامه برای حفاظت از داده‌ها متوقف شد.\n\n" + reason,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(24)
+        };
+        if (!_startupDatabaseCorruptionProven)
+        {
+            return new Window
+            {
+                Title = "خطای راه‌اندازی — ShopManager",
+                Width = 620,
+                Height = 280,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Content = message
+            };
+        }
+
+        List<BackupInfo> backups;
+        var backupUnavailable = false;
+        try
+        {
+            backups = BackupService.GetBackups();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            backups = new List<BackupInfo>();
+            backupUnavailable = true;
+        }
+        var status = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 0) };
+        var selector = new ComboBox
+        {
+            ItemsSource = backups,
+            DisplayMemberBinding = new Binding(nameof(BackupInfo.FileName)),
+            MinWidth = 420,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        var restoreButton = new Button
+        {
+            Content = "بازیابی از بکاپ",
+            Padding = new Thickness(18, 8),
+            IsEnabled = backups.Count > 0
+        };
+        if (backups.Count == 0)
+            status.Text = backupUnavailable
+                ? "دسترسی به فهرست بکاپ‌های بازیابی ممکن نیست."
+                : "هیچ بکاپی برای بازیابی موجود نیست.";
+
+        var window = new Window
         {
             Title = "خطای راه‌اندازی — ShopManager",
-            Width = 620,
-            Height = 280,
+            Width = 640,
+            Height = 420,
             WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            Content = new TextBlock
+            FlowDirection = FlowDirection.RightToLeft,
+            FontFamily = new FontFamily("Vazirmatn,IRANSans,Segoe UI"),
+            Content = new StackPanel
             {
-                Text = "راه‌اندازی برنامه برای حفاظت از داده‌ها متوقف شد.\n\n" + reason,
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(24)
+                Margin = new Thickness(24),
+                Spacing = 10,
+                Children =
+                {
+                    message,
+                    new TextBlock
+                    {
+                        Text = "دیتابیس فعلی خراب تشخیص داده شد. نسخهٔ خراب پیش از بازیابی حفظ می‌شود.",
+                        TextWrapping = TextWrapping.Wrap,
+                        FontWeight = FontWeight.SemiBold
+                    },
+                    selector,
+                    restoreButton,
+                    status
+                }
             }
         };
+
+        restoreButton.Click += async (_, _) =>
+        {
+            if (selector.SelectedItem is not BackupInfo selected)
+            {
+                status.Text = "ابتدا یک بکاپ انتخاب کنید.";
+                return;
+            }
+            if (!await ConfirmBrokenRestoreAsync(window, selected).ConfigureAwait(true)) return;
+            restoreButton.IsEnabled = false;
+            status.Text = "در حال آماده‌سازی بازیابی…";
+            try
+            {
+                await RestoreFromBlockedStartupAsync(selected.FilePath).ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                restoreButton.IsEnabled = true;
+                DatabaseService.LogStartupError("Blocked-startup broken restore failed: " + ex);
+                status.Text = "بازیابی ناموفق بود: " + ex.Message;
+            }
+        };
+
+        return window;
+    }
+
+    private static async Task<bool> ConfirmBrokenRestoreAsync(Window owner, BackupInfo backup)
+    {
+        var confirmed = false;
+        var dialog = new Window
+        {
+            Title = "تأیید بازیابی",
+            Width = 480,
+            Height = 220,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            FlowDirection = FlowDirection.RightToLeft,
+            FontFamily = new FontFamily("Vazirmatn,IRANSans,Segoe UI")
+        };
+        dialog.Content = new StackPanel
+        {
+            Margin = new Thickness(20),
+            Spacing = 14,
+            Children =
+            {
+                new TextBlock
+                {
+                    Text = $"از بکاپ «{backup.FileName}» بازیابی می‌شود.\nنسخهٔ خراب فعلی حفظ و برنامه بسته می‌شود. ادامه؟",
+                    TextWrapping = TextWrapping.Wrap
+                },
+                new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 10,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Children =
+                    {
+                        CreateDialogButton("بازیابی و خروج", () => { confirmed = true; dialog.Close(); }),
+                        CreateDialogButton("انصراف", dialog.Close)
+                    }
+                }
+            }
+        };
+        await dialog.ShowDialog(owner);
+        return confirmed;
+    }
+
+    private static Button CreateDialogButton(string text, Action onClick)
+    {
+        var button = new Button { Content = text, Padding = new Thickness(16, 6) };
+        button.Click += (_, _) => onClick();
+        return button;
     }
 }

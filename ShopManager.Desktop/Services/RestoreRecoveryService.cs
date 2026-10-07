@@ -505,6 +505,18 @@ internal static class RestoreRecoveryService
 
         if (liveKind == PathKind.Regular)
         {
+            var pristine = tombstoneDb == PathKind.Absent
+                && Probe(paths.TombstoneWal) == PathKind.Absent
+                && Probe(paths.TombstoneShm) == PathKind.Absent
+                && Probe(paths.TombstoneJournal) == PathKind.Absent;
+            if (pristine && Probe(intent.SafetyBackupPath) != PathKind.Regular)
+                return BlockedResult(operationId, "Safety backup is missing before the first restore mutation.");
+
+            // Incoming is created only after live has moved to its DB tombstone.
+            // It cannot prove a prior mutation while the old live DB still exists.
+            if (Probe(paths.Incoming) != PathKind.Absent)
+                return BlockedResult(operationId, "Incoming exists before the live database tombstone stage; ambiguous restore state.");
+
             if (HashLocked(paths.Live) == expected)
                 return BlockedResult(operationId,
                     "دیتابیس زنده با اثرانگشت مرجع برابر است اما sidecar قدیمی کنار آن هست؛ مبهم.");

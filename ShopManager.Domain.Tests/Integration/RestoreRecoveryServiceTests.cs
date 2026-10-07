@@ -1101,13 +1101,129 @@ public sealed class RestoreRecoveryServiceTests : IDisposable
     }
 
     [Fact]
-    public void Recover_MissingSafetySnapshot_DoesNotPreventCompletion()
+    public void Recover_PristineWithMissingSafety_BlocksBeforeAnyMutation_IncludingSidecarMoves()
     {
+        // ArmScenario also plants lookalike/foreign tombstone-like files; none are operation-owned,
+        // so they must not make the state look like a resume.
         var s = ArmScenario("nosafety");
+        File.Delete(s.Safety);
+        var before = DirectorySnapshot(s.DataDir);
+        var steps = new List<RestoreRecoveryStep>();
+
+        var result = RestoreRecoveryService.Recover(steps.Add);
+
+        AssertBlockedWith(result, s.Intent, "Safety backup is missing");
+        Assert.DoesNotContain(RestoreRecoveryStep.WalTombstoned, steps);
+        Assert.DoesNotContain(RestoreRecoveryStep.LiveTombstoned, steps);
+        Assert.Equal(before, DirectorySnapshot(s.DataDir));
+        Assert.Equal(OldDatabaseBytes, File.ReadAllBytes(s.Live));
+        Assert.Equal(OldWalBytes, File.ReadAllBytes(s.Live + "-wal"));
+        Assert.Equal(OldShmBytes, File.ReadAllBytes(s.Live + "-shm"));
+        Assert.Equal(OldJournalBytes, File.ReadAllBytes(s.Live + "-journal"));
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    public void Recover_IncomingWithOldLiveAndNoTombstones_BlocksWithoutMutation(bool validIncoming, bool safetyPresent)
+    {
+        var s = ArmScenario("incoming-before-tombstone");
+        var paths = RestoreRecoveryService.DeriveArtifactPaths(s.Intent);
+        File.WriteAllBytes(paths.Incoming, validIncoming ? NewDatabaseBytes : new byte[] { 1, 2 });
+        if (!safetyPresent) File.Delete(s.Safety);
+        var before = DirectorySnapshot(s.DataDir);
+        var steps = new List<RestoreRecoveryStep>();
+
+        var result = RestoreRecoveryService.Recover(steps.Add);
+
+        AssertBlockedWith(result, s.Intent, safetyPresent ? "Incoming exists before" : "Safety backup is missing");
+        Assert.Equal(new[] { RestoreRecoveryStep.IntentValidated }, steps);
+        Assert.Equal(before, DirectorySnapshot(s.DataDir));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Recover_IncomingDirectoryWithOldLive_BlocksWithoutMutation(bool safetyPresent)
+    {
+        var s = ArmScenario("incoming-directory");
+        var paths = RestoreRecoveryService.DeriveArtifactPaths(s.Intent);
+        Directory.CreateDirectory(paths.Incoming);
+        if (!safetyPresent) File.Delete(s.Safety);
+        var before = DirectorySnapshot(s.DataDir);
+        var steps = new List<RestoreRecoveryStep>();
+
+        var result = RestoreRecoveryService.Recover(steps.Add);
+
+        AssertBlockedWith(result, s.Intent, "artifact مبهم");
+        Assert.Empty(steps);
+        Assert.Equal(before, DirectorySnapshot(s.DataDir));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Recover_IncomingAfterLiveTombstoneWithMissingSafety_ResumesToCompletion(bool validIncoming)
+    {
+        var (s, paths) = PostTombstoneScenario("incoming-resume");
+        File.WriteAllBytes(paths.Incoming, validIncoming ? NewDatabaseBytes : new byte[] { 1, 2 });
         File.Delete(s.Safety);
 
         Assert.Equal(RestoreRecoveryOutcome.Completed, RestoreRecoveryService.Recover().Outcome);
         AssertCompletedFinalState(s, safetyPresent: false);
+    }
+
+    [Fact]
+    public void Recover_CrashRightAfterFirstSidecarMove_ResumesToCompletion()
+    {
+        var s = ArmScenario("firstmove");
+        CrashAt(RestoreRecoveryStep.WalTombstoned);
+        RestartProcess();
+
+        Assert.Equal(RestoreRecoveryOutcome.Completed, RestoreRecoveryService.Recover().Outcome);
+        AssertCompletedFinalState(s);
+    }
+
+    [Fact]
+    public void Recover_SidecarTombstoneExistsLiveStillRegularSafetyMissing_ResumesToCompletion()
+    {
+        var s = ArmScenario("sidecarresume");
+        CrashAt(RestoreRecoveryStep.WalTombstoned);
+        RestartProcess();
+        File.Delete(s.Safety);
+
+        Assert.Equal(RestoreRecoveryOutcome.Completed, RestoreRecoveryService.Recover().Outcome);
+        AssertCompletedFinalState(s, safetyPresent: false);
+    }
+
+    [Fact]
+    public void Recover_LiveTombstoneExistsSafetyMissing_ResumesToCompletion()
+    {
+        var (s, _) = PostTombstoneScenario("tombresume");
+        File.Delete(s.Safety);
+
+        Assert.Equal(RestoreRecoveryOutcome.Completed, RestoreRecoveryService.Recover().Outcome);
+        AssertCompletedFinalState(s, safetyPresent: false);
+    }
+
+    [Fact]
+    public void Recover_AmbiguousTombstoneDirectory_BlocksAndDoesNotBypassSafetyGuard()
+    {
+        var s = ArmScenario("ambiguous");
+        var paths = RestoreRecoveryService.DeriveArtifactPaths(s.Intent);
+        File.Delete(s.Safety);
+        Directory.CreateDirectory(paths.TombstoneDb);
+        var before = DirectorySnapshot(s.DataDir);
+
+        var result = RestoreRecoveryService.Recover();
+
+        AssertBlockedWith(result, s.Intent, "artifact مبهم");
+        Assert.Equal(before, DirectorySnapshot(s.DataDir));
+        Assert.True(Directory.Exists(paths.TombstoneDb));
+        Assert.Equal(OldDatabaseBytes, File.ReadAllBytes(s.Live));
+        Assert.Equal(OldWalBytes, File.ReadAllBytes(s.Live + "-wal"));
     }
 
     [Fact]

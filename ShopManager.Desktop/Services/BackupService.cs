@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Threading;
 
 namespace ShopManager.Desktop.Services;
@@ -53,6 +54,53 @@ public static class BackupService
     internal static BackupAdmissionCoordinator Admission => AdmissionOverrideForTests.Value ?? RuntimeAdmission;
     internal static AsyncLocal<Func<string, SqliteConnection>?> ConnectionFactoryForTests { get; } = new();
     internal static AsyncLocal<Action<string>?> RestoreArtifactDeletingForTests { get; } = new();
+    internal static AsyncLocal<string?> PreservedDirectoryForTests { get; } = new();
+    internal static AsyncLocal<Action<string, string>?> PreservationVerifyingForTests { get; } = new();
+
+    internal enum CorruptionState { Healthy, Proven, Indeterminate }
+
+    internal static bool IsProvenStartupCorruption(Exception error)
+    {
+        if (ContainsCleanupUncertainty(error)) return false;
+        return ContainsCorruption(error);
+    }
+
+    private static bool ContainsCleanupUncertainty(Exception error) =>
+        error is DatabaseContextCleanupUnprovenException or BackupCleanupUnprovenException
+        || (error is AggregateException aggregate && aggregate.InnerExceptions.Any(ContainsCleanupUncertainty))
+        || (error.InnerException is { } inner && ContainsCleanupUncertainty(inner));
+
+    private static bool ContainsCorruption(Exception error) =>
+        error is SqliteException { SqliteErrorCode: 11 or 26 }
+        || (error is AggregateException aggregate && aggregate.InnerExceptions.Any(ContainsCorruption))
+        || (error.InnerException is { } inner && ContainsCorruption(inner));
+
+    // Only ever called on a disposable scratch copy: a hot journal makes a ReadOnly open fail with
+    // READONLY(8) instead of revealing corruption, so the scratch copy is opened ReadWrite.
+    internal static CorruptionState ProbeCorruption(string path)
+    {
+        try
+        {
+            var result = CorruptionState.Indeterminate;
+            WithSqliteConnection(new SqliteConnectionStringBuilder
+            {
+                DataSource = path, Mode = SqliteOpenMode.ReadWrite, Pooling = false
+            }.ToString(), connection =>
+            {
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = "PRAGMA integrity_check;";
+                using var reader = command.ExecuteReader();
+                var first = reader.Read() ? reader.GetString(0) : null;
+                result = first is null ? CorruptionState.Indeterminate
+                    : first == "ok" && !reader.Read() ? CorruptionState.Healthy : CorruptionState.Proven;
+            });
+            return result;
+        }
+        catch (SqliteException ex) when (ex.SqliteErrorCode is 11 or 26) { return CorruptionState.Proven; }
+        catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException)
+        { return CorruptionState.Indeterminate; }
+    }
 
     /// <summary>شمارنده بکاپ‌های این نشست</summary>
     public static int BackupCountThisSession => Volatile.Read(ref _backupCountThisSession);
@@ -501,13 +549,23 @@ public static class BackupService
         return RunExclusive(() =>
         {
             gateAcquired?.Invoke();
-            return PrepareRestoreCore(backupFilePath, liveDatabasePath, backupFolder, stageReached);
+            return PrepareRestoreCore(backupFilePath, liveDatabasePath, backupFolder, stageReached, brokenLive: false);
         });
     }
 
-    private static RestorePreparation PrepareRestoreCore(
+    internal static RestorePreparation PrepareBrokenRestore(
+        string backupFilePath, string liveDatabasePath, string backupFolder)
+        => PrepareBrokenRestore(backupFilePath, liveDatabasePath, backupFolder, null);
+
+    internal static RestorePreparation PrepareBrokenRestore(
         string backupFilePath, string liveDatabasePath, string backupFolder,
         Action<RestorePreparationStage>? stageReached)
+        => RunExclusive(() => PrepareRestoreCore(
+            backupFilePath, liveDatabasePath, backupFolder, stageReached, brokenLive: true));
+
+    private static RestorePreparation PrepareRestoreCore(
+        string backupFilePath, string liveDatabasePath, string backupFolder,
+        Action<RestorePreparationStage>? stageReached, bool brokenLive)
     {
         var pathComparison = OperatingSystem.IsWindows()
             ? StringComparison.OrdinalIgnoreCase
@@ -560,21 +618,40 @@ public static class BackupService
             var liveFolder = Path.GetDirectoryName(livePath)
                 ?? throw new InvalidOperationException("پوشهٔ دیتابیس زنده قابل تعیین نیست.");
 
-            safetyTemporaryPath = BuildRestoreTemporaryPath(backupFolder, "safety");
+            if (brokenLive)
+            {
+                SqliteConnection.ClearAllPools();
+                safetyBackupPath = PreserveCorruptLive(livePath, backupFolder);
+                safetyPublished = true;
+                stageReached?.Invoke(RestorePreparationStage.CorruptLivePreserved);
 
-            // ۲) اسنپ‌شات ایمنی WAL-سازگار از دیتابیس زنده با همان مکانیزم رسمی بکاپ.
-            // عمداً از CreateBackup استفاده نمی‌شود تا گیت دوباره وارد نشود (deadlock)
-            // و وضعیت ردیابی تغییرات بکاپ دست‌کاری نشود. اتصال مبدأ فقط-خواندنی است تا
-            // باز/بستن آن هرگز checkpoint نزند یا shop.db زنده را تغییر ندهد؛ دادهٔ
-            // committed داخل WAL (مثلاً پس از کرش) با خواندن WAL-consistent منتقل می‌شود.
-            CreateSnapshot(livePath, safetyTemporaryPath, SqliteOpenMode.ReadOnly);
-            ValidateSnapshot(safetyTemporaryPath, restoreCleanup: true);
-            DeleteRestoreSidecars(safetyTemporaryPath);
-            safetyBackupPath = PublishStaging(
-                safetyTemporaryPath, backupFolder,
-                $"before-restore-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}", PublishStagingFile);
-            safetyPublished = true;
-            stageReached?.Invoke(RestorePreparationStage.SafetySnapshotPublished);
+                var probePath = BuildRestoreTemporaryPath(backupFolder, "probe");
+                try
+                {
+                    File.Copy(safetyBackupPath, probePath, overwrite: false);
+                    foreach (var suffix in new[] { "-wal", "-shm", "-journal" })
+                        if (File.Exists(safetyBackupPath + suffix))
+                            File.Copy(safetyBackupPath + suffix, probePath + suffix, overwrite: false);
+                    if (ProbeCorruption(probePath) != CorruptionState.Proven)
+                        throw new InvalidDataException("Live database corruption could not be proven; restore remains blocked.");
+                }
+                finally
+                {
+                    DeleteRestoreArtifacts(probePath);
+                }
+            }
+            else
+            {
+                safetyTemporaryPath = BuildRestoreTemporaryPath(backupFolder, "safety");
+                CreateSnapshot(livePath, safetyTemporaryPath, SqliteOpenMode.ReadOnly);
+                ValidateSnapshot(safetyTemporaryPath, restoreCleanup: true);
+                DeleteRestoreSidecars(safetyTemporaryPath);
+                safetyBackupPath = PublishStaging(
+                    safetyTemporaryPath, backupFolder,
+                    $"before-restore-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}", PublishStagingFile);
+                safetyPublished = true;
+                stageReached?.Invoke(RestorePreparationStage.SafetySnapshotPublished);
+            }
 
             // ۳) staging در کنار دیتابیس زنده (همان volume) از همان مصنوع تثبیت‌شدهٔ
             // اعتبارسنجی‌شده ساخته می‌شود — نه با بازخوانی دوبارهٔ مسیر انتخابی کاربر؛
@@ -607,6 +684,61 @@ public static class BackupService
                 if (!safetyPublished && safetyTemporaryPath != null) DeleteRestoreArtifacts(safetyTemporaryPath, bodyError);
             }
         }
+    }
+
+    private static string PreserveCorruptLive(string livePath, string backupFolder)
+    {
+        var sources = new List<string>();
+        foreach (var suffix in new[] { "", "-wal", "-shm", "-journal" })
+        {
+            var path = livePath + suffix;
+            FileAttributes attributes;
+            try { attributes = File.GetAttributes(path); }
+            catch (FileNotFoundException) when (suffix.Length > 0) { continue; }
+            catch (DirectoryNotFoundException) when (suffix.Length > 0) { continue; }
+            if ((attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0)
+                throw new InvalidDataException("Ambiguous live database artifact: " + path);
+            sources.Add(path);
+        }
+
+        var directory = PreservedDirectoryForTests.Value ?? Path.Combine(backupFolder,
+            $"corrupt-original-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}-{Guid.NewGuid():N}");
+        if (File.Exists(directory) || Directory.Exists(directory))
+            throw new IOException("Preservation destination already exists: " + directory);
+        Directory.CreateDirectory(directory);
+        foreach (var source in sources)
+            CopyVerifiedPreservation(source, Path.Combine(directory, Path.GetFileName(source)));
+        return Path.Combine(directory, Path.GetFileName(livePath));
+    }
+
+    private static void CopyVerifiedPreservation(string sourcePath, string destinationPath)
+    {
+        byte[] copiedHash;
+        using (var source = new FileStream(sourcePath, FileMode.Open, FileAccess.Read,
+                   FileShare.ReadWrite | FileShare.Delete))
+        using (var destination = new FileStream(destinationPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        using (var sha = SHA256.Create())
+        {
+            var buffer = new byte[81920];
+            int count;
+            while ((count = source.Read(buffer)) > 0)
+            {
+                destination.Write(buffer, 0, count);
+                sha.TransformBlock(buffer, 0, count, buffer, 0);
+            }
+            sha.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+            destination.Flush(flushToDisk: true);
+            copiedHash = sha.Hash!;
+        }
+
+        PreservationVerifyingForTests.Value?.Invoke(sourcePath, destinationPath);
+        using var destinationRead = new FileStream(destinationPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var destinationHash = SHA256.HashData(destinationRead);
+        using var sourceRead = new FileStream(sourcePath, FileMode.Open, FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete);
+        var sourceHash = SHA256.HashData(sourceRead);
+        if (!copiedHash.SequenceEqual(destinationHash) || !copiedHash.SequenceEqual(sourceHash))
+            throw new InvalidDataException("Preserved database bytes could not be verified: " + sourcePath);
     }
 
     // ═══════════ هویت پایدار فایل (گارد hard link، فاز 4B-1) ═══════════
@@ -993,6 +1125,7 @@ internal enum RestorePreparationStage
     BackupValidationCopyCaptured,
     BackupValidated,
     SafetySnapshotPublished,
+    CorruptLivePreserved,
     StagingCopied,
     StagingValidated
 }

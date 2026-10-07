@@ -337,6 +337,81 @@ public sealed class StartupRecoveryIntegrationTests : IDisposable
         Assert.Empty(_blocked);
     }
 
+    [Fact]
+    public void CorruptLiveDatabase_BlocksStartupAndRecordsProvenCorruptionEvidence()
+    {
+        File.WriteAllBytes(Live, System.Text.Encoding.UTF8.GetBytes(new string('x', 4096) + " not a sqlite database"));
+        WriteMarker();
+
+        RunStartupAgainstRealDatabase();
+
+        Assert.Single(_blocked);
+        Assert.Equal(0, _normalCalls);
+        Assert.True(App.StartupDatabaseCorruptionProven);
+    }
+
+    [Fact]
+    public void NonCorruptionStartupBlock_DoesNotRecordCorruptionEvidence()
+    {
+        File.WriteAllBytes(Live, System.Text.Encoding.UTF8.GetBytes(new string('x', 4096) + " not a sqlite database"));
+        WriteMarker();
+        RunStartupAgainstRealDatabase();
+        Assert.True(App.StartupDatabaseCorruptionProven);
+
+        // A later startup that blocks for a non-corruption reason must reset the evidence.
+        DatabaseService.ResetForTests();
+        DatabaseService.ResolutionStartingForTests = () => throw new InvalidOperationException("resolver blocked");
+        App.RunDesktopStartup(() => _normalCalls++, _blocked.Add,
+            () => new(RestoreRecoveryOutcome.NoIntent, null, null));
+
+        Assert.False(App.StartupDatabaseCorruptionProven);
+        Assert.Equal(0, _normalCalls);
+    }
+
+    [Fact]
+    public void BrokenRestore_PreparedFromCorruptLive_CompletesAtNextStartupAndKeepsOriginalBytes()
+    {
+        var corruptBytes = System.Text.Encoding.UTF8.GetBytes(new string('x', 4096) + " not a sqlite database");
+        File.WriteAllBytes(Live, corruptBytes);
+        File.WriteAllBytes(Live + "-wal", new byte[] { 1, 2, 3 });
+        WriteMarker();
+        var backups = Path.Combine(_root, "backups");
+        Directory.CreateDirectory(backups);
+        var good = Path.Combine(_root, "good-source.db");
+        CreateDatabase(good, "restored");
+
+        var preparation = BackupService.PrepareBrokenRestore(good, Live, backups);
+        RestoreRecoveryService.Arm(preparation.LiveDatabasePath, preparation.StagingPath, preparation.SafetyBackupPath);
+        RestoreRecoveryService.ResetForTests();
+        RestoreRecoveryService.OverrideAppOwnedRootForTests(_root);
+
+        RunObservedStartup(RestoreRecoveryOutcome.Completed);
+
+        Assert.Empty(_blocked);
+        Assert.Equal("restored", ReadEvidence());
+        var preserved = Assert.Single(Directory.GetDirectories(backups, "corrupt-original-*"));
+        Assert.Equal(corruptBytes, File.ReadAllBytes(Path.Combine(preserved, "shop.db")));
+        Assert.Equal(new byte[] { 1, 2, 3 }, File.ReadAllBytes(Path.Combine(preserved, "shop.db-wal")));
+        // Normal startup reopens the restored DB in WAL mode and may create a fresh -wal;
+        // the corrupt original's sidecar bytes must no longer be live.
+        if (File.Exists(Live + "-wal"))
+        {
+            using var wal = new FileStream(Live + "-wal", FileMode.Open, FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
+            using var buffer = new MemoryStream();
+            wal.CopyTo(buffer);
+            Assert.NotEqual(new byte[] { 1, 2, 3 }, buffer.ToArray());
+        }
+    }
+
+    private void RunStartupAgainstRealDatabase()
+    {
+        DatabaseService.ResolutionStartingForTests = () => _resolverCalls++;
+        App.RunDesktopStartup(() => _normalCalls++, _blocked.Add,
+            () => new(RestoreRecoveryOutcome.NoIntent, null, null),
+            () => DatabaseService.ResolveForTests(Marker, Data, Path.Combine(_root, "fallback"), Directory.Exists));
+    }
+
     private void RunObservedStartup(RestoreRecoveryOutcome expected, bool removeLiveBeforeContext = false)
     {
         var recoveryReturned = false;

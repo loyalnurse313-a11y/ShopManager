@@ -5,15 +5,16 @@
 **Phase 4 — Crash Recovery + Backup: IN PROGRESS / NOT restore-safe — NOT complete.**
 
 - Branch: `phase/4-crash-recovery-backup`.
-- Latest implemented checkpoint: **4B-5C-2.2 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — COMMITTED / PUSHED `72d7761`; NOT runtime-quiescent / NOT restore-safe**. SessionTracker tick enrollment and generation/single-flight safety exist; terminal producer retirement/full quiescence remain deferred.
-- Latest committed/pushed production-code checkpoint: **4B-5C-2.2**, `72d77613340f2d9b88abd64ec39bcbe351156608` (push confirmed by the user); 5C-2.1 remains committed/pushed in `a8e3d02`.
-- **F1 — Final Restore Boundary: IMPLEMENTED / VERIFIED / COMMITTED (`b38d9b5c5716a01c5e688c5d00496b5a36033d57`, `feat: implement final restore boundary`).** Final review PASS WITH FINDINGS, Low only, no blockers. Phase 4 remains IN PROGRESS / NOT closed; F2 and F3 are OPEN.
-- **F2a — Backup Compatibility: IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — UNCOMMITTED at the time of this documentation update (no commit hash recorded).** Independent review PASS WITH FINDINGS (no Critical/High/Medium production-code findings; the M1 test gap was fixed). **F2b — Broken-DB Recovery remains OPEN / NOT implemented.** F2 as a whole is OPEN; Phase 4 remains IN PROGRESS / NOT restore-safe / NOT closed.
+- Latest implemented checkpoint: **F2b — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — PASS WITH FINDINGS; UNCOMMITTED, pending commit/push**. Final review: Critical/High/Medium = none; blocker = NO.
+- Latest committed/pushed production-code checkpoint: **F2a CLOSED**, `c9b7ccc` — `feat: validate restore backup compatibility` (push confirmed by the user). Historical 5C-2.1/2.2 hardening remains valid.
+- **F1 — Final Restore Boundary: IMPLEMENTED / VERIFIED / COMMITTED (`b38d9b5c5716a01c5e688c5d00496b5a36033d57`, `feat: implement final restore boundary`).** Final review PASS WITH FINDINGS, Low only, no blockers. Phase 4 remains IN PROGRESS / NOT closed; F2b is technically complete / UNCOMMITTED, pending commit/push; F3 is OPEN.
+- **F2a — Backup Compatibility: CLOSED / IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — COMMITTED / PUSHED `c9b7ccc`**, `feat: validate restore backup compatibility`. Independent review PASS WITH FINDINGS; no Critical/High/Medium production-code findings; the M1 test gap was fixed.
+- **F2b — Broken-DB Recovery: IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — PASS WITH FINDINGS; UNCOMMITTED, pending commit/push**. Final review: Critical/High/Medium = none; blocker = NO. Phase 4 remains IN PROGRESS / NOT CLOSED.
 - No Phase 4 completion tag exists. The last completion tag in the repository is
   `phase-3-concurrency-idempotency-complete`.
 - Documented checkpoints: **4A-1 through 4B-5C-2.2**; **5C-2.1 is COMMITTED / PUSHED; 5C-2.2 is COMMITTED / PUSHED `72d7761`**. 4A-1 through 4B-2A are committed
   (last commit `59d0dfc`); **4B-2B is committed in `d472153`; 4B-3 in `583a7b8`; 4B-4 in `63039d2`; 4B-5A in `36f0e7f`; 4B-5B-1 committed/pushed in `34faeee`**; 4B-5B-2 is committed in `287764c`; 4B-5C-1 is committed in `33e12b6`.
-- Next uncompleted: **F2b — Broken-DB Recovery** (F2a backup compatibility is implemented/reviewed, uncommitted), then **F3 — Final Verification & Closure** (F1 — Final Restore Boundary is IMPLEMENTED / VERIFIED / COMMITTED `b38d9b5c5716a01c5e688c5d00496b5a36033d57`).
+- Next uncompleted: **F2b commit/push**, then **F3 — Final Verification & Closure**. F1 and F2a are CLOSED; F2b is technically complete / UNCOMMITTED.
 - Remaining work: approved F1/F2/F3 DoD; general per-window enrollment and lifetime architecture are deferred.
 
 This document records checkpoints 4A-1 through 4B-2A as present in the committed source
@@ -66,7 +67,7 @@ checkpoint-ready; committed in `63039d2`):**
 - The narrow identity-admission hook preserves 4B-2B forward-complete invariants;
   4B-3 guard behavior and the existing normal startup/shutdown body remain intact.
 
-**Remaining integration (approved scope reset; not implemented):** F1 → F2 → F3, detailed below. General per-window enrollment is outside the critical path.
+**Remaining completion work (approved scope reset):** F2b commit/push and F3 final verification/closure, detailed below; F1 and F2a are CLOSED. General per-window enrollment is outside the critical path.
 
 ## Checkpoints implemented (through 4B-5C-2.2; 5C-2.1 COMMITTED / PUSHED; 5C-2.2 COMMITTED / PUSHED `72d7761`)
 
@@ -247,14 +248,14 @@ Checkpoint commit: `33e12b6e52e01a307e7ab474f26945447116db46` — `feat: add run
 
 **Residuals / non-guarantees:** terminal producer retirement and full quiescence remain deferred. F2 general UI/Auth caller hardening remains open; SessionTracker exception handling does not close it for other callers. F3 historical resolution-cleanup diagnostic provenance remains **VERIFICATION PENDING**. F4 LogoutCore may swallow its cleanup diagnostic, while the same parent lease remains unproven and the gate stays FaultedClosed. Synchronous notification coverage does not include queued UI transitions. LoginWindow/MainWindow/general lifecycle, history-write serialization, shutdown/updater coordination and restore activation/safety are not established by this increment.
 
-**Next uncompleted work (approved scope reset):** F2 → F3 (F1 implemented/verified/committed in `b38d9b5c5716a01c5e688c5d00496b5a36033d57`). General per-window enrollment is deferred to reliability backlog; source implementation needs separate scope/approval.
+**Next uncompleted work (approved scope reset):** F2b commit/push, then F3 final verification/closure (F1 and F2a CLOSED; F2b technically complete / UNCOMMITTED). General per-window enrollment is deferred to reliability backlog; source implementation needs separate scope/approval.
 
 **Final restore constraints (F1 — now implemented, verified and committed in `b38d9b5c5716a01c5e688c5d00496b5a36033d57`; retained as design constraints):**
 
 - Never wait for DB drain while holding the `TransitionGate` write lock.
 - Future production flow must close admission and prove drain before `Arm`; resolver identity must be established before future `CloseAdmission`.
 - In the no-lease fresh-resolution path, marker publication currently occurs after the runtime initialization lease is released and is outside DB drain. The already-admitted factory retains its existing lease. DB drain must not be presented as proof that all resolver/marker work has completed.
-- Existing 5C-2.1/2.2 hardening and evidence are retained. F1/F2/F3 is the approved critical path; general per-window enrollment/lifetime architecture is deferred. Terminal restore boundary is implemented by F1 (committed in `b38d9b5c5716a01c5e688c5d00496b5a36033d57`, verified); the swap itself remains startup-recovery work; F2/F3 remain OPEN.
+- Existing 5C-2.1/2.2 hardening and evidence are retained. F1/F2/F3 is the approved critical path; general per-window enrollment/lifetime architecture is deferred. Terminal restore boundary is implemented by F1 (committed in `b38d9b5c5716a01c5e688c5d00496b5a36033d57`, verified); the swap itself remains startup-recovery work; F2b is technically complete / UNCOMMITTED, pending commit/push; F3 remains OPEN.
 - Keep cutoff closed through terminal restore exit. Timeout or cleanup uncertainty => do not `Arm`; after persistent intent exists, or publication is uncertain, normal DB work must not resume.
 - Ordering: runtime/DB cutoff and drain → `PrepareRestore` with backup admission still open → backup cutoff and drain → release SQLite pools → `Arm` → restore-specific exit → actual swap at next startup. Updater Apply/Restart and queued lifecycle transitions must not race restore.
 
@@ -338,7 +339,7 @@ Source-confirmed facts:
 - [x] **4B-5C-1 — COMMITTED `33e12b6`**: isolated RuntimeOperationGate primitive; implemented / verified / independently reviewed; NOT runtime-quiescent / NOT restore-safe. Final evidence: targeted 29/29, relevant 118/118, full 413/413 PASS, 0 failed/skipped; build 0 warnings/errors; diff-check PASS; user-confirmed review PASS WITH FINDINGS, M1/M2 re-reviewed CLOSED; M3 stress linearizability remains a test gap.
 - [x] **4B-5C-2.1 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED; COMMITTED / PUSHED `a8e3d02`:** production operation ownership/composition and Auth enrollment only; F1/M1 CLOSED, L3 added; targeted 52/52, relevant 200/200, full 465/465 PASS; no runtime quiescence or restore safety.
 - [x] **4B-5C-2.2 — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED; COMMITTED / PUSHED `72d7761`:** SessionTracker tick enrollment and generation/single-flight safety; Stop is not completion proof; conditional parent-bound Auth logout protects replacement sessions without nested admission; cleanup uncertainty remains fail-closed. New tests 47/47, Auth 52/52, relevant 148/148, full 512/512, independent targeted review run 99/99 PASS; build 0 warnings/errors; independent review PASS with no Critical/High/Medium/Low findings (user-confirmed); diff-check PASS. Terminal producer retirement/full quiescence deferred; NOT restore-safe.
-- [ ] **F1 → F2 → F3:** approved completion path below; F1 is IMPLEMENTED / VERIFIED / COMMITTED (`b38d9b5c5716a01c5e688c5d00496b5a36033d57`; evidence in the F1 status block below); F2 and F3 remain OPEN.
+- [ ] **F1 → F2 → F3:** approved completion path below; F1 is IMPLEMENTED / VERIFIED / COMMITTED (`b38d9b5c5716a01c5e688c5d00496b5a36033d57`; evidence in the F1 status block below); F2b is technically complete / UNCOMMITTED, pending commit/push; F3 remains OPEN.
 
 ## Approved completion plan
 
@@ -365,25 +366,33 @@ The scope reset is intentional and user-approved, not abandonment of restore saf
 
 ### F2 — Backup Compatibility + Broken-DB Recovery
 
-F2 is split into **F2a (backup compatibility)** and **F2b (broken-DB recovery)**. F2 as a whole remains **OPEN**.
+F2 is split into **F2a (backup compatibility)** and **F2b (broken-DB recovery)**. F2 is technically complete; F2a is CLOSED / COMMITTED / PUSHED and F2b remains UNCOMMITTED, pending commit/push.
 
-**F2a status — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED; UNCOMMITTED at the time of this update (no commit hash recorded):**
+**F2a status — CLOSED / IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED; COMMITTED / PUSHED `c9b7ccc` — `feat: validate restore backup compatibility`:**
 
 - **Implemented:** `BackupService.ValidateApplicationCompatibility`, called from `ValidateBackupForRestore` on the stabilized private restore candidate over the existing read-only validation connection, after the SQLite integrity check and before `BackupValidated`, the safety snapshot and staging. An incompatible backup fails with `InvalidDataException` before any live-DB restore preparation; the live DB/WAL, the candidate and the restore artifacts are untouched.
 - **Contract:** required tables/columns are derived from the `AppDbContext` EF relational model (`Model.GetRelationalModel().Tables`, no database connection). Every model table must exist as a real table (not a view) with all model columns; names are matched case-insensitively. Extra tables/columns are allowed. If `SaleOperations` exists, all its model columns are required.
 - **Only exemptions:** `Users.CanPOS`, `Users.CanViewFinance`, `Users.MustChangePassword`, `Sales.CardTerminal`, `Sales.DiscountAmount`, and an absent `SaleOperations` table. The five columns live in `DatabaseService.LegacyUpgradeColumns` (with `SaleOperationsTable`), which `EnsureSchemaWithAdoNet` startup repair also reads; a guard test fails if an exemption stops matching a real model table/column.
 - **Review:** independent review **PASS WITH FINDINGS** — no Critical/High/Medium production-code findings; **M1** (present `SaleOperations` missing a model column) was a test gap and is **fixed** by an added test case. Low findings L1–L5 are accepted/deferred (see below).
 - **Evidence (from the implementation/review/follow-up turns; not rerun in this docs-only step):** targeted `RestorePreparationTests` **23 passed**; full suite **557 passed, 0 failed, 0 skipped**; non-incremental build **0 warnings / 0 errors**; `git diff --check` exit 0.
-- **Deferred / not claimed by F2a:** newer-version detection; column type/constraint validation (validation is by table and column name only); data/FK/canonical-shape validation. Review Low findings L1–L5 were not addressed in this increment and remain accepted/deferred. **F2b — broken-DB recovery — is OPEN / NOT implemented.** F2a does not make Phase 4 restore-safe in all failure modes.
+- **Deferred / not claimed by F2a:** newer-version detection; column type/constraint validation (validation is by table and column name only); data/FK/canonical-shape validation. Review Low findings L1–L5 were not addressed in this increment and remain accepted/deferred. **F2b — broken-DB recovery — is technically complete / UNCOMMITTED, pending commit/push.** F2a does not make Phase 4 restore-safe in all failure modes.
 
 **F2a checklist:**
 
 - [x] Prove the selected backup is compatible with this application before arming; SQLite integrity plus a nonempty `sqlite_master` is insufficient application-compatibility evidence. (F2a: table/column compatibility against the current model, as scoped above.)
 
-**F2b — OPEN:**
+**F2b checkpoint (2026-10-07) — IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — PASS WITH FINDINGS; UNCOMMITTED, pending commit/push.** Final independent-review disposition supplied by the user: Critical/High/Medium = none; blocker = NO. F1 and F2a are CLOSED; F3 remains OPEN; Phase 4 remains IN PROGRESS / NOT CLOSED / NOT restore-safe.
 
-- [ ] Provide a bounded recovery entry when the current DB is broken, without admitting normal DB consumers. Failure to obtain a valid live safety snapshot must not be silently bypassed.
-- [ ] Preserve damaged/original DB and relevant sidecar files before replacement; uncertainty must fail closed. The existing engine's tolerance of a missing safety snapshot does not itself satisfy preservation.
+- Evidence from the implementation/fix session (not rerun in this docs-only step): targeted recovery/startup **88/88**, relevant F1/F2a/F2b regression **325/325**, full suite **589/589**, all with 0 failed / 0 skipped; `dotnet build ShopManager.slnx --no-incremental`: **0 warnings / 0 errors**; `git diff --check`: **exit 0**.
+- Final H1 fix: Incoming alone no longer proves recovery resume or bypasses pristine safety. Incoming beside the old regular live DB blocks before any destructive move; legitimate tombstone-backed resume remains supported.
+- Final M2 fix: blocked-startup remains displayable when backup enumeration/access/I/O fails; it shows a concise backup-unavailable message and Restore remains unavailable.
+- Accepted residual findings: an external writer outside ShopManager may mutate DB/sidecars during byte-level preservation; in-process gates do not cover external writers. The blocked-startup backup enumeration error path has no automated Avalonia UI test. Remaining Low UI/message findings are non-blocking and may be verified in F3.
+- Manual blocked-startup UI smoke: **VERIFICATION PENDING for F3**; not performed. Remaining unrelated stress/crash verification is deferred to F3. No F2b commit hash or push is claimed.
+
+**F2b checklist (technical work complete; commit/push pending):**
+
+- [x] Provide a bounded recovery entry when the current DB is broken, without admitting normal DB consumers. Failure to obtain a valid live safety snapshot must not be silently bypassed.
+- [x] Preserve damaged/original DB and relevant sidecar files before replacement; uncertainty must fail closed. The existing engine's tolerance of a missing safety snapshot does not itself satisfy preservation.
 
 ### F3 — Final Verification & Closure
 
@@ -396,15 +405,15 @@ F2 is split into **F2a (backup compatibility)** and **F2b (broken-DB recovery)**
 
 | Completion increment | Current status |
 | --- | --- |
-| F1 — Final Restore Boundary | **IMPLEMENTED / VERIFIED / COMMITTED (`b38d9b5c5716a01c5e688c5d00496b5a36033d57`); final review PASS WITH FINDINGS, Low only, no blockers** |
-| F2 — Backup Compatibility + Broken-DB Recovery | **OPEN** — F2a (backup compatibility): **IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED (PASS WITH FINDINGS), UNCOMMITTED**; F2b (broken-DB recovery): **OPEN / NOT implemented** |
-| F3 — Final Verification & Closure | **VERIFICATION PENDING** |
+| F1 — Final Restore Boundary | **CLOSED / IMPLEMENTED / VERIFIED / COMMITTED (`b38d9b5c5716a01c5e688c5d00496b5a36033d57`); final review PASS WITH FINDINGS, Low only, no blockers** |
+| F2 — Backup Compatibility + Broken-DB Recovery | F2a **CLOSED / COMMITTED / PUSHED `c9b7ccc`**; F2b **IMPLEMENTED / TESTED / INDEPENDENTLY REVIEWED — PASS WITH FINDINGS; UNCOMMITTED, pending commit/push** |
+| F3 — Final Verification & Closure | **OPEN / VERIFICATION PENDING**; manual blocked-startup UI smoke pending |
 
 **Original DoD disposition:** backup publication/integrity portions remain implemented; end-to-end restore, complete restored DB data, broken-DB recovery and crash verification remain mandatory under F1/F2/F3. `EnsureCreated → Migrate()`, DB-from-zero migration coverage, general schema drift (AR-2/S8), encryption, secondary USB backup and 3-2-1 (D1) move to [deferred backlog](MASTER-BACKLOG.md#deferred-work-from-phase-4-scope-reset), OPEN and not completed. Narrow backup compatibility remains in F2.
 
 General per-window enrollment (Login/Users/Items/Cashbox/POS/Transfer/Reports/etc.), general producer-retirement/lifetime architecture and broader shutdown/updater redesign move to deferred reliability backlog. Only restore-boundary safety coordination is required now.
 
-**Phase 4 closure evidence is NOT produced.** F1 and F2a evidence is recorded above; F2b and F3 remain OPEN. Historical checkpoint tests/builds/reviews are retained; none were rerun in this docs-only update. Phase 4 remains **IN PROGRESS / NOT restore-safe / NOT closed** until F2/F3 are implemented and evidenced.
+**Phase 4 closure evidence is NOT produced.** F1 and F2a are CLOSED; F2b evidence is recorded above and is technically complete / UNCOMMITTED, pending commit/push; F3 remains OPEN. Historical checkpoint tests/builds/reviews are retained; none were rerun in this docs-only update. Phase 4 remains **IN PROGRESS / NOT restore-safe / NOT closed** until F2b commit/push and the required F3 closure evidence are complete.
 
 ## Residual risks and limitations
 
@@ -415,8 +424,8 @@ General per-window enrollment (Login/Users/Items/Cashbox/POS/Transfer/Reports/et
   of real `App.OnFrameworkInitializationCompleted` / `InitializeNormalDesktopStartup`;
   additional path canonicalization/alias test coverage; installed GUI blocked-window
   startup/shutdown smoke; startup latency/UX for large recovery staging files.
-- Startup consumes existing restore intents. F1/F2/F3 remain OPEN; checkpoint readiness does not close Phase 4. General lifetime/shutdown architecture is deferred; restore-boundary safety remains mandatory.
-- Historical (pre-F1): the legacy restore path was still the one the UI called. F1 (committed in `b38d9b5c5716a01c5e688c5d00496b5a36033d57`) replaces it with the terminal restore boundary; F2/F3 remain OPEN.
+- Startup consumes existing restore intents. F1 and F2a are CLOSED; F2b is technically complete / UNCOMMITTED, pending commit/push; F3 remains OPEN; checkpoint readiness does not close Phase 4. General lifetime/shutdown architecture is deferred; restore-boundary safety remains mandatory.
+- Historical (pre-F1): the legacy restore path was still the one the UI called. F1 (committed in `b38d9b5c5716a01c5e688c5d00496b5a36033d57`) replaces it with the terminal restore boundary; F2b is technically complete / UNCOMMITTED, pending commit/push; F3 remains OPEN.
 - Durability is enforced on each connection open; this is not a claim about power-loss
   behavior under every filesystem.
 - Integration tests use temporary, isolated databases and folders; the operational
